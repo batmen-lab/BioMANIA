@@ -1,0 +1,146 @@
+{
+    "squidpy":{
+        "LIB":"squidpy",
+        "LIB_ALIAS":"squidpy",
+        "API_HTML_PATH": "squidpy.readthedocs.io/en/latest/api.html",
+        "GITHUB_LINK": "https://github.com/scverse/squidpy",
+        "READTHEDOC_LINK": "https://squidpy.readthedocs.io/",
+        "TUTORIAL_HTML_PATH":"squidpy.readthedocs.io/en/latest/notebooks/tutorials",
+        "TUTORIAL_GITHUB":"https://github.com/scverse/squidpy_notebooks"
+    },
+    "scanpy":{
+        "LIB":"scanpy",
+        "LIB_ALIAS":"scanpy",
+        "API_HTML_PATH": "scanpy.readthedocs.io/en/latest/api/index.html",
+        "GITHUB_LINK": "https://github.com/scverse/scanpy",
+        "READTHEDOC_LINK": "https://scanpy.readthedocs.io/",
+        "TUTORIAL_HTML_PATH":"scanpy.readthedocs.io/en/latest/tutorials",
+        "TUTORIAL_GITHUB":"https://github.com/scverse/scanpy-tutorials"
+    },
+    "scvi-tools": {
+        "LIB": "scvi-tools",
+        "LIB_ALIAS": "scvi",
+        "API_HTML_PATH": "scvi-tools.org/en/stable/api/index.html",
+        "GITHUB_LINK": "https://github.com/scverse/scvi-tools",
+        "READTHEDOC_LINK": "https://docs.scvi-tools.org/en/stable/",
+        "TUTORIAL_HTML_PATH":"docs.scvi-tools.org/en/latest/tutorials",
+        "TUTORIAL_GITHUB":"https://github.com/scverse/scvi-tutorials"
+    },
+    "scenicplus": {
+        "LIB": "scenicplus",
+        "LIB_ALIAS": "scenicplus",
+        "API_HTML_PATH": "scenicplus.readthedocs.io/en/latest/api",
+        "GITHUB_LINK": "https://github.com/aertslab/scenicplus",
+        "READTHEDOC_LINK": "https://scenicplus.readthedocs.io/en/latest/",
+        "TUTORIAL_HTML_PATH": "scenicplus.readthedocs.io/en/latest/examples/",
+        "TUTORIAL_GITHUB": null
+    },
+    "biopython": {
+        "GITHUB_LINK": "https://github.com/biopython/biopython",
+        "READTHEDOC_LINK": "https://biopython.org/docs/latest/api",
+        "LIB": "biopython",
+        "API_HTML_PATH": "biopython.org/docs/latest/api",
+        "LIB_ALIAS": "Bio",
+        "TUTORIAL_GITHUB":"https://github.com/biopython/biopython/tree/master/Doc/Tutorial",
+        "TUTORIAL_HTML_PATH":"scenicplus.readthedocs.io/en/latest/examples/"
+    },
+    "qiime2": {
+        "LIB": "qiime2",
+        "LIB_ALIAS": "qiime2",
+        "API_HTML_PATH": null,
+        "GITHUB_LINK": "https://github.com/qiime2/qiime2",
+        "READTHEDOC_LINK": "https://docs.qiime2.org/2023.5/",
+        "TUTORIAL_HTML_PATH":"docs.qiime2.org/2023.5/tutorials",
+        "TUTORIAL_GITHUB": null
+    },
+    "eletoolkit": {
+        "LIB": "eletoolkit",
+        "LIB_ALIAS": "ete4",
+        "API_HTML_PATH": "http://etetoolkit.org/docs/latest/tutorial/index.html",
+        "GITHUB_LINK": "https://github.com/etetoolkit/ete",
+        "READTHEDOC_LINK": "http://etetoolkit.org/",
+        "TUTORIAL_GITHUB":null, 
+        "TUTORIAL_HTML_PATH":"etetoolkit.org/docs/latest/tutorial/"
+    },
+    "pyopenms": {
+        "LIB": "pyopenms",
+        "LIB_ALIAS": "pyopenms",
+        "API_HTML_PATH": "pyopenms.readthedocs.io/en/latest/apidocs",
+        "GITHUB_LINK": "https://github.com/OpenMS/OpenMS",
+        "READTHEDOC_LINK": "https://pyopenms.readthedocs.io",
+        "TUTORIAL_HTML_PATH":"pyopenms.readthedocs.io/en/latest/user_guide",
+        "TUTORIAL_GITHUB": null
+    },
+    "pyteomics": {
+        "LIB": "pyteomics",
+        "LIB_ALIAS": "pyteomics",
+        "API_HTML_PATH": "pyteomics.readthedocs.io/en/stable/api",
+        "GITHUB_LINK": "https://github.com/levitsky/pyteomics",
+        "READTHEDOC_LINK": "https://pyteomics.readthedocs.io/en/stable/",
+        "TUTORIAL_HTML_PATH":"https://pyteomics.readthedocs.io/en/stable/examples/",
+        "TUTORIAL_GITHUB": null
+    },
+    "scikit-bio": {
+        "LIB": "scikit-bio",
+        "LIB_ALIAS": "skbio",
+        "API_HTML_PATH": "scikit-bio.org/docs/latest/index.html",
+        "GITHUB_LINK": "https://github.com/biocore/scikit-bio",
+        "READTHEDOC_LINK": "scikit-bio.org/docs/latest/",
+        "TUTORIAL_HTML_PATH": null,
+        "TUTORIAL_GITHUB": null
+    },
+    "emperor": {
+        "LIB": "emperor",
+        "LIB_ALIAS": "emperor",
+        "API_HTML_PATH": "biocore.github.io/emperor/build/html/emperor_objects.html",
+        "GITHUB_LINK": "https://github.com/biocore/emperor",
+        "READTHEDOC_LINK": "http://biocore.github.io/emperor/",
+        "TUTORIAL_HTML_PATH": "biocore.github.io/emperor/tutorials/",
+        "TUTORIAL_GITHUB": null
+    },
+    "gneiss": {
+        "LIB": "gneiss",
+        "LIB_ALIAS": "gneiss",
+        "API_HTML_PATH": "biocore.github.io/gneiss/docs/v0.4.0/",
+        "GITHUB_LINK": "https://github.com/biocore/gneiss",
+        "READTHEDOC_LINK": "https://biocore.github.io/gneiss/docs/v0.4.0/",
+        "TUTORIAL_HTML_PATH": "biocore.github.io/gneiss/docs/v0.4.0/tutorials/python/",
+        "TUTORIAL_GITHUB": null
+    },
+    "biostars": {
+        "LIB": "biostars",
+        "LIB_ALIAS": "biostars",
+        "API_HTML_PATH": null,
+        "GITHUB_LINK": null,
+        "READTHEDOC_LINK": "https://www.biostars.org/",
+        "TUTORIAL_HTML_PATH": null,
+        "TUTORIAL_GITHUB": null
+    },
+    "deap": {
+        "LIB": "deap",
+        "LIB_ALIAS": "deap",
+        "API_HTML_PATH": "deap.readthedocs.io/en/master/py-modindex.html",
+        "GITHUB_LINK": "https://github.com/DEAP/deap",
+        "READTHEDOC_LINK": "https://deap.readthedocs.io/en/master/",
+        "TUTORIAL_HTML_PATH": "deap.readthedocs.io/en/master/tutorials/",
+        "TUTORIAL_GITHUB": null
+    },
+    "tskit": {
+        "LIB": "tskit",
+        "LIB_ALIAS": "tskit",
+        "API_HTML_PATH": "tskit.dev/tskit/docs/latest/python-api.html",
+        "GITHUB_LINK": "https://github.com/tskit-dev/tskit",
+        "READTHEDOC_LINK": "https://tskit.dev/tskit/docs/latest/introduction.html",
+        "TUTORIAL_HTML_PATH": "tskit.dev/tutorials/",
+        "TUTORIAL_GITHUB": null
+    },
+    "biotite": {
+        "LIB": "biotite",
+        "LIB_ALIAS": "biotite",
+        "API_HTML_PATH": "www.biotite-python.org/apidoc/index.html",
+        "GITHUB_LINK": "https://github.com/biotite-dev/biotite",
+        "READTHEDOC_LINK": "https://www.biotite-python.org/",
+        "TUTORIAL_HTML_PATH": "www.biotite-python.org/tutorial/target/index.html",
+        "TUTORIAL_GITHUB": null
+    }
+}

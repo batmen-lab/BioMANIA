@@ -1,0 +1,49 @@
+{
+    "pandas": [
+        "pandas.read_csv",
+        "pandas.DataFrame.to_csv"
+    ],
+    "matplotlib": [
+        "matplotlib.pyplot.plot",
+        "matplotlib.pyplot.subplots",
+        "matplotlib.pyplot.imshow",
+        "matplotlib.pyplot.hist",
+        "matplotlib.pyplot.scatter",
+        "matplotlib.pyplot.bar",
+        "matplotlib.pyplot.pie",
+        "matplotlib.pyplot.boxplot",
+        "matplotlib.pyplot.violinplot"
+    ],
+    "sklearn": [
+        "sklearn.preprocessing.StandardScaler",
+        "sklearn.preprocessing.StandardScaler.fit",
+        "sklearn.preprocessing.OneHotEncoder",
+        "sklearn.preprocessing.OneHotEncoder.fit",
+        "sklearn.model_selection.train_test_split",
+        "sklearn.metrics.accuracy_score",
+        "sklearn.metrics.precision_score",
+        "sklearn.metrics.recall_score",
+        "sklearn.metrics.mean_squared_error",
+        "sklearn.decomposition.PCA",
+        "sklearn.decomposition.PCA.fit",
+        "sklearn.manifold.TSNE",
+        "sklearn.manifold.TSNE.fit",
+        "sklearn.decomposition.NMF",
+        "sklearn.decomposition.NMF.fit"
+    ],
+    "json":["json.dump",
+        "json.load",
+        "json.loads"
+    ],
+    "statsmodels": [
+        "statsmodels.formula.api.ols"
+    ],
+    "pynndescent": [
+        "pynndescent.NNDescent.fit",
+        "pynndescent.NNDescent.query"
+    ],
+    "anndata": [
+        "anndata.read_csv",
+        "anndata.AnnData.write_csvs"
+    ]
+}
