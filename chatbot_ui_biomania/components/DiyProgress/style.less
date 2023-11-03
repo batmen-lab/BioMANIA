@@ -1,0 +1,55 @@
+.bit-progress {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    width: 100%;
+    .bit-progress-outer {
+        display: inline-block;
+        width: 100%;
+        .bit-progress-inner {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            overflow: hidden;
+            vertical-align: middle;
+            background-color: transparent;
+            border-radius: 0;
+            .bit-progress-text {
+                text-align: right;
+                font-size: 14px;
+                color: #313C42;
+            }
+            .bit-fixed-text {
+                position: absolute;
+                left: 0;
+                top: -2px;
+                z-index: 99;
+                width: 100% !important;
+                text-align: left;
+                height: 14px;
+                font-size: 14px;
+                color: #313C42;
+            }
+            .bit-progress-bg {
+                background-color: #1890FF;
+            }
+        }
+
+        .bit-fixed-inner {
+            display: flex;
+            align-items: flex-end;
+            height: 30px;
+        }
+    }
+}
+
+.bit-progress-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.bit-progress-info {
+font-weight: bold;
+margin-right: 10px;
+}
