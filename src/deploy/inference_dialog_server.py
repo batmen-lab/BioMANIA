@@ -214,7 +214,8 @@ class Model:
             self.load_llm_model()
             print('==>loaded llm model!')
             self.retriever = ToolRetriever(shuffled_data, corpus_tsv_path=self.corpus_tsv_path, model_path=self.args.retrieval_model_path)
-            self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
+            print('==>loaded retriever!')
+            #self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
             self.executor.execute_api_call(f"import {self.LIB}", "import")
             import re, os
             from string import punctuation
