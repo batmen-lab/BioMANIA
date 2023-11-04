@@ -122,6 +122,7 @@ with open('./data/vectorizer.pkl', 'wb') as f:
     pickle.dump(vectorizer, f)
 with open('./data/centroids.pkl', 'wb') as f:
     pickle.dump(centroids, f)
+os.makedirs(f"./plot/{args.LIB}", exist_ok=True)
 
 def plot_tsne_distribution_modified():
     import matplotlib.pyplot as plt
@@ -152,7 +153,6 @@ def plot_tsne_distribution_modified():
         plt.scatter(reduced_data_train[mask, 0], reduced_data_train[mask, 1], 
                     label=f"Train-{label}", color=colors[i], marker=markers_train[i], alpha=0.5)
     formatted_accuracy = "{:.2f}".format(c2_accuracy)
-    os.makedirs("./plot/{args.LIB}", exist_ok=True)
     plt.title(f't-SNE visualization of train data with test accuracy for api/non-api {formatted_accuracy}%')
     plt.legend()
     plt.savefig(f'./plot/{args.LIB}/chitchat_train_tsne_modified.png')
