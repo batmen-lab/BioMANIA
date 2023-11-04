@@ -205,7 +205,7 @@ class Model:
             self.API_file = f"./data/standard_process/{self.LIB}/API_composite.json"
             self.load_data(self.API_file)
             print('==>loaded API json done')
-            #self.load_composite_code(self.LIB)
+            self.load_composite_code(self.LIB)
             #print('==>loaded API composite done')
             shuffled_data = self.build_shuffle_data(self.LIB)
             print('==>loaded remaining data done')
@@ -215,7 +215,7 @@ class Model:
             print('==>loaded llm model!')
             self.retriever = ToolRetriever(shuffled_data, corpus_tsv_path=self.corpus_tsv_path, model_path=self.args.retrieval_model_path)
             print('==>loaded retriever!')
-            #self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
+            self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
             self.executor.execute_api_call(f"import {self.LIB}", "import")
             import re, os
             from string import punctuation
