@@ -198,16 +198,21 @@ class Model:
         self.ambiguous_pair = find_similar_two_pairs(lib_name)
         self.ambiguous_api = list(set(api for api_pair in self.ambiguous_pair for api in api_pair))
         try:
-            print('starting reset lib!')
+            print('================')
+            print('==>starting reset lib!')
             self.LIB = lib_name
             self.corpus_tsv_path = f"./data/standard_process/{self.LIB}/retriever_train_data/corpus.tsv"
             self.API_file = f"./data/standard_process/{self.LIB}/API_composite.json"
             self.load_data(self.API_file)
+            print('==>loaded API json done')
             self.load_composite_code(self.LIB)
+            print('==>loaded API composite done')
             shuffled_data = self.build_shuffle_data(self.LIB)
+            print('==>loaded remaining data done')
             t1 = time.time()
-            print('Start loading model!')
+            print('==>Start loading model!')
             self.load_llm_model()
+            print('==>loaded llm model!')
             self.retriever = ToolRetriever(shuffled_data, corpus_tsv_path=self.corpus_tsv_path, model_path=self.args.retrieval_model_path)
             self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
             self.executor.execute_api_call(f"import {self.LIB}", "import")

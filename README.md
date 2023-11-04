@@ -32,8 +32,7 @@ export LIB=scanpy
 CUDA_VISIBLE_DEVICES=0 \
 python deploy/inference_dialog_server.py \
     --retrieval_model_path ./retriever_model_finetuned/${LIB}/assigned/ \
-    --top_k 3 \
-    --device_count 1
+    --top_k 3
 ```
 Upon executing the above, the back-end service will be initialized.
 
