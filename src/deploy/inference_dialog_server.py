@@ -197,9 +197,9 @@ class Model:
     def reset_lib(self, lib_name):
         # reset and reload all the LIB-related data/models
         # suppose that all data&model are prepared already in their path
-        self.ambiguous_pair = find_similar_two_pairs(lib_name)
-        self.ambiguous_api = list(set(api for api_pair in self.ambiguous_pair for api in api_pair))
         try:
+            self.ambiguous_pair = find_similar_two_pairs(lib_name)
+            self.ambiguous_api = list(set(api for api_pair in self.ambiguous_pair for api in api_pair))
             print('================')
             print('==>starting reset lib!')
             self.LIB = lib_name
