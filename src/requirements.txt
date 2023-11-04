@@ -25,6 +25,7 @@ seaborn==0.13.0
 sentence_transformers==2.2.2
 sentencepiece==0.1.99
 tenacity==8.2.3
+tensorboard==2.15.1
 torch==2.1.0
 tqdm==4.66.1
 transformers==4.35.0

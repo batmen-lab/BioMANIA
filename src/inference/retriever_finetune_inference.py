@@ -15,8 +15,9 @@ import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class ToolRetriever:
-    def __init__(self, shuffled_data, LIB, corpus_tsv_path = "", model_path=""):
-        self.model_path = os.path.join(model_path,f"{LIB}","assigned")
+    def __init__(self, shuffled_data, corpus_tsv_path = "", model_path=""):
+        #self.model_path = os.path.join(model_path,f"{LIB}","assigned")
+        self.model_path = model_path
         self.build_retrieval_corpus(corpus_tsv_path)
         self.shuffled_data = shuffled_data
         self.shuffled_queries = [item['query'] for item in self.shuffled_data]
@@ -112,7 +113,7 @@ if __name__ == "__main__":
         files_ids = json.load(file)
     shuffled = [dict(query=row['query'], gold=row['api_name']) for row in [i for i in data if i['query_id'] not in files_ids['val'] and i['query_id'] not in files_ids['test']]]
     random.Random(0).shuffle(shuffled)
-    retriever = ToolRetriever(shuffled, LIB=args.LIB, corpus_tsv_path=args.corpus_tsv_path, model_path=args.retrieval_model_path)
+    retriever = ToolRetriever(shuffled, corpus_tsv_path=args.corpus_tsv_path, model_path=args.retrieval_model_path)
     print(retriever.corpus[0])
 
     total_queries = 0

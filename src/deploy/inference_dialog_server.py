@@ -215,7 +215,14 @@ class Model:
             print('==>Start loading model!')
             self.load_llm_model()
             print('==>loaded llm model!')
-            self.retriever = ToolRetriever(shuffled_data, self.LIB, corpus_tsv_path=self.corpus_tsv_path, model_path=self.args.retrieval_model_path)
+            retrieval_model_path = self.args.retrieval_model_path
+            parts = retrieval_model_path.split('/')
+            if len(parts)>=3: # only work for path containing LIB, otherwise, please reenter the path in script
+                if not parts[-1]:
+                    parts = parts[:-1]
+                new_path = '/'.join(parts)
+            retrieval_model_path = new_path
+            self.retriever = ToolRetriever(shuffled_data, self.LIB, corpus_tsv_path=self.corpus_tsv_path, model_path=retrieval_model_path)
             print('==>loaded retriever!')
             #self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
             self.executor.execute_api_call(f"import {self.LIB}", "import")
