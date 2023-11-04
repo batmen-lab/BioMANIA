@@ -215,6 +215,8 @@ Firstly, change the OpenAI API key in secrets.json, and copy the corresponding j
 
 Besides, even though we use gpt prompt to predict api, we also provide an api-name prediction classification model
 
+Please refer to [lit-llama](https://github.com/Lightning-AI/lit-llama) for getting llama weights and preprocessing. 
+
 process data:
 ```shell
 CUDA_VISIBLE_DEVICES=0
