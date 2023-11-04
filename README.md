@@ -28,10 +28,9 @@ The BioMANIA project UI allows for an interactive session with the chatbot. Here
 For our demos, we use LIB=scanpy as an example:
 
 ```shell
-export LIB=scanpy
 CUDA_VISIBLE_DEVICES=0 \
 python deploy/inference_dialog_server.py \
-    --retrieval_model_path /home/z6dong/BioChat/hugging_models/retriever_model_finetuned/${LIB}/assigned/ \
+    --retrieval_model_path /home/z6dong/BioChat/hugging_models/retriever_model_finetuned/ \
     --top_k 3
 ```
 Upon executing the above, the back-end service will be initialized.

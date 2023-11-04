@@ -15,14 +15,14 @@ import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class ToolRetriever:
-    def __init__(self, shuffled_data, corpus_tsv_path = "", model_path=""):
-        self.build_retrieval_corpus(corpus_tsv_path, model_path)
+    def __init__(self, shuffled_data, LIB, corpus_tsv_path = "", model_path=""):
+        self.model_path = os.path.join(model_path,f"{LIB}","assigned")
+        self.build_retrieval_corpus(corpus_tsv_path)
         self.shuffled_data = shuffled_data
         self.shuffled_queries = [item['query'] for item in self.shuffled_data]
         self.shuffled_query_embeddings = self.embedder.encode(self.shuffled_queries, convert_to_tensor=True)
-    def build_retrieval_corpus(self, corpus_tsv_path, model_path):
+    def build_retrieval_corpus(self, corpus_tsv_path):
         self.corpus_tsv_path = corpus_tsv_path
-        self.model_path = model_path
         documents_df = pd.read_csv(self.corpus_tsv_path, sep='\t')
         corpus, self.corpus2tool = process_retrieval_document_query_version(documents_df)
         corpus_ids = list(corpus.keys())
@@ -93,6 +93,7 @@ if __name__ == "__main__":
     parser.add_argument('--retrieved_api_nums', type=int, required=True, help='')
     parser.add_argument('--input_query_file', type=str, required=True, help='input path')
     parser.add_argument('--idx_file', type=str, required=True, help='idx path')
+    parser.add_argument('--LIB', type=str, required=True, help='lib')
     args = parser.parse_args()
 
     # Step 1: Load API data from the JSON file
@@ -104,7 +105,14 @@ if __name__ == "__main__":
     val_ids = index_data['val']
 
     # Step 2: Create a ToolRetriever instance
-    retriever = ToolRetriever(corpus_tsv_path=args.corpus_tsv_path, model_path=args.retrieval_model_path)
+    import random
+    with open(f'./data/standard_process/{args.LIB}/API_inquiry_annotate.json', 'r') as f:
+        data = json.load(f)
+    with open(f"./data/standard_process/{args.LIB}/API_instruction_testval_query_ids.json", 'r') as file:
+        files_ids = json.load(file)
+    shuffled = [dict(query=row['query'], gold=row['api_name']) for row in [i for i in data if i['query_id'] not in files_ids['val'] and i['query_id'] not in files_ids['test']]]
+    random.Random(0).shuffle(shuffled)
+    retriever = ToolRetriever(shuffled, LIB=args.LIB, corpus_tsv_path=args.corpus_tsv_path, model_path=args.retrieval_model_path)
     print(retriever.corpus[0])
 
     total_queries = 0
