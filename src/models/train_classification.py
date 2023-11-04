@@ -125,8 +125,8 @@ def plot_metrics(train_iter, train_data, val_iter, val_data, test_iter, test_dat
     plt.close()
 
 def plot_results(train_iter, train_losses, train_accuracies, val_iter, val_losses, val_accuracies, test_iter, test_losses, test_accuracies, plot_dir):
-    plot_metrics(train_iter, train_losses, val_iter, val_losses, test_iter, test_losses, "Loss", "Losses over Iterations", os.path.join(plot_dir, 'loss_plot.pdf'), annotate=False)
-    plot_metrics(train_iter, train_accuracies, val_iter, val_accuracies, test_iter, test_accuracies, "Accuracy (%)", "Accuracies over Iterations", os.path.join(plot_dir, 'accuracy_plot.pdf'), annotate=False)
+    plot_metrics(train_iter, train_losses, val_iter, val_losses, test_iter, test_losses, "Loss", "Losses over Iterations", os.path.join(plot_dir, 'loss_plot.png'), annotate=False)
+    plot_metrics(train_iter, train_accuracies, val_iter, val_accuracies, test_iter, test_accuracies, "Accuracy (%)", "Accuracies over Iterations", os.path.join(plot_dir, 'accuracy_plot.png'), annotate=False)
 
 def evaluate_model(model, loader, criterion, mode='Validation'):
     model.eval()
