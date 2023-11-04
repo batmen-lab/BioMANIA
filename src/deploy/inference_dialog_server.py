@@ -463,11 +463,11 @@ class Model:
                 except Exception as e:
                     [callback.on_tool_start() for callback in self.callbacks]
                     [callback.on_tool_end() for callback in self.callbacks]
-                    [callback.on_agent_action(block_id="tool-" + str(self.indexxxx), task=f"GPT predicted API error: {response}. Please re-design the query and re-enter.",) for callback in self.callbacks]
+                    [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=f"GPT predicted API error: {response}. Please re-design the query and re-enter.",task_title="GPT predict Error",) for callback in self.callbacks]
                     self.indexxxx += 1
                     return
             if not success:
-                [callback.on_agent_action(block_id="tool-" + str(self.indexxxx),task="GPT can not return valid API name prediction, please try other query.",) for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task="GPT can not return valid API name prediction, please try other query.",task_title="GPT predict Error",) for callback in self.callbacks]
                 self.indexxxx += 1
                 return
             print(f'length of ambiguous api list: {len(self.ambiguous_api)}')
@@ -509,7 +509,7 @@ class Model:
         try:
             int(user_input)
         except:
-            [callback.on_agent_action(block_id="tool-" + str(self.indexxxx), task="Error: the input is not a number.\nPlease re-enter the index", task_title="Index Error") for callback in self.callbacks]
+            [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="Error: the input is not a number.\nPlease re-enter the index", task_title="Index Error") for callback in self.callbacks]
             self.indexxxx += 1
             self.user_states = "ambiguous_mode"
             return 'break'
@@ -611,11 +611,11 @@ class Model:
                     success = True
                     break
                 except Exception as e:
-                    [callback.on_agent_action(block_id="tool-" + str(self.indexxxx), task="API key error: " + str(e),) for callback in self.callbacks]
+                    [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="API key error: " + str(e),task_title="GPT predict Error",) for callback in self.callbacks]
                     self.indexxxx += 1
                     return
             if not success:
-                [callback.on_agent_action(block_id="tool-" + str(self.indexxxx),task="GPT can not return valid parameters prediction, please redesign prompt in backend.",) for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task="GPT can not return valid parameters prediction, please redesign prompt in backend.",task_title="GPT predict Error",) for callback in self.callbacks]
                 self.indexxxx += 1
                 return
             print('The prompt is: ', parameters_prompt)
@@ -632,7 +632,7 @@ class Model:
         none_dollar_value_params = [param_name for param_name, param_info in self.selected_params.items() if param_info["value"] in ['$']]
         if none_dollar_value_params:
             print('none_dollar_value_params:', none_dollar_value_params)
-            [callback.on_agent_action(block_id="tool-"+str(self.indexxxx), task="However, there are still some parameters with special type undefined. Please start from uploading data, or input your query from preprocessing dataset.",) for callback in self.callbacks]
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="However, there are still some parameters with special type undefined. Please start from uploading data, or input your query from preprocessing dataset.",task_title="Missing Parameters: special type") for callback in self.callbacks]
             self.indexxxx+=1
             return
         # @ param
@@ -900,7 +900,6 @@ def stream():
             }), status=409, mimetype='application/json')
             return
         model.inuse = True
-        #TODO: debug for installation page
         if new_lib_doc_url:
             print('new_lib_doc_url is not none, start installing lib!')
             model.install_lib(new_lib_github_url, new_lib_doc_url, api_html, Lib, lib_alias)
