@@ -3,29 +3,13 @@
 BioMANIA UI is an open source chat UI for [BioMANIA](https://github.com/batmen-lab/BioMANIA)
 
 
-## Deploy
-
-**Vercel**
-
-Host your own live version of ToolLLaMA UI with Vercel.
-
-[![Deploy with Vercel](https://vercel.com/button)](https://github.com/batmen-lab/BioMANIA)
-
-**Docker**
-
-Build locally:
-
-```shell
-docker build -t chatgpt-ui-biomania .
-docker run -e -p 3000:3000 chatgpt-ui-biomania
-```
-
 ## Running Locally
 
 **1. Clone Repo**
 
 ```bash
 git clone https://github.com/batmen-lab/BioMANIA.git
+cd chatbot_ui_biomania
 ```
 
 **2. Install Dependencies**

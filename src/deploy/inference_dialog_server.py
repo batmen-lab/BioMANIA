@@ -23,9 +23,8 @@ import concurrent.futures
 from models.model import LLM_response, LLM_model
 from configs.model_config import *
 from inference.execution_UI import CodeExecutor
-from inference.utils import find_similar_pairs, find_similar_two_pairs
+from inference.utils import find_similar_two_pairs
 from inference.retriever_finetune_inference import ToolRetriever
-from inference.utils import save_plot_with_timestamp
 from deploy.utils import dataframe_to_markdown, convert_image_to_base64
 from prompt.parameters import prepare_parameters_prompt
 from prompt.summary import prepare_summary_prompt
@@ -764,6 +763,7 @@ class Model:
         for code in execution_code_list:
             error_list.append(self.executor.execute_api_call(code, "code"))
             if plt.get_fignums()!=self.plt_status:
+                error_list.append(self.executor.execute_api_call("from inference.utils import save_plot_with_timestamp", "import"))
                 error_list.append(self.executor.execute_api_call("save_plot_with_timestamp()", "code"))
                 self.plt_status = plt.get_fignums()
             else:
@@ -906,8 +906,6 @@ def stream():
         if conversation_started:
             print('The conversation is restarted, now reset the Lib!')
             reset_result = model.reset_lib(Lib)
-            if reset_result=='Fail':
-                return
         with concurrent.futures.ThreadPoolExecutor() as executor:
             print('start running pipeline!')
             future = executor.submit(model.run_pipeline, user_input, Lib, top_k, files, conversation_started)
