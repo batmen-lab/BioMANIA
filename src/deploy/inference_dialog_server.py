@@ -154,6 +154,7 @@ def save_decoded_file(raw_file):
 class Model:
     def __init__(self):
         print("Initializing...")
+        self.indexxxx = 1
         self.inuse = False
         self.get_args()
         self.query_id = 0
@@ -167,7 +168,11 @@ class Model:
         OPENAI_API_KEY = tmp_API_key['OPENAI_KEY']
         os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
         self.initialize_executor()
-        self.reset_lib(self.LIB)
+        reset_result = self.reset_lib(self.LIB)
+        if reset_result=='Fail':
+            [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="At least one data or model is not ready, please install lib first!",task_title="Setting error") for callback in self.callbacks]
+            self.indexxxx+=1
+            return
         self.user_states = "initial"
         self.parameters_info_list = None
         self.image_folder = "./tmp/images/"
@@ -176,7 +181,6 @@ class Model:
         self.image_file_list = []
         self.image_file_list = self.update_image_file_list()
         self.buf = io.StringIO()
-        self.indexxxx = 1
         with open('./data/vectorizer.pkl', 'rb') as f:
             self.vectorizer = pickle.load(f)
         with open('./data/centroids.pkl', 'rb') as f:
@@ -225,8 +229,11 @@ class Model:
             self.description_json = {i[0]:i[1] for i in all_apis}
             print('End loading model!')
             print('loading model cost: ', time.time()-t1, 's')
+            reset_result = "Success"
         except:
             print('at least one data or model is not ready, please install lib first!')
+            reset_result = "Fail"
+        return reset_result
 
     def install_lib(self,github_url, doc_url, api_html, lib_name, lib_alias):
         '''github_url = "https://github.com/biocore/scikit-bio"
@@ -382,7 +389,7 @@ class Model:
     def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True):
         self.indexxxx = 1
         if lib!=self.LIB:
-            self.reset_lib(self.LIB)
+            reset_result = self.reset_lib(self.LIB)
             self.LIB = lib
         self.conversation_started=conversation_started
         # reset
@@ -893,10 +900,9 @@ def stream():
         if new_lib_doc_url:
             print('new_lib_doc_url is not none, start installing lib!')
             model.install_lib(new_lib_github_url, new_lib_doc_url, api_html, Lib, lib_alias)
-            model.reset_lib(Lib)
         if conversation_started:
             print('The conversation is restarted, now reset the Lib!')
-            model.reset_lib(Lib)
+            reset_result = model.reset_lib(Lib)
         with concurrent.futures.ThreadPoolExecutor() as executor:
             print('start running pipeline!')
             future = executor.submit(model.run_pipeline, user_input, Lib, top_k, files, conversation_started)
