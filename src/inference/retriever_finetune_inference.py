@@ -16,29 +16,20 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--corpus_tsv_path', type=str, required=True, help='')
-parser.add_argument('--retrieval_model_path', type=str, required=True, help='')
-parser.add_argument('--retrieved_api_nums', type=int, required=True, help='')
-parser.add_argument('--input_query_file', type=str, required=True, help='input path')
-parser.add_argument('--idx_file', type=str, required=True, help='idx path')
-parser.add_argument('--LIB', type=str, required=True, help='lib')
-args = parser.parse_args()
-
 
 class ToolRetriever:
-    def __init__(self, corpus_tsv_path = "", model_path=""):
+    def __init__(self, LIB, corpus_tsv_path = "", model_path=""):
         #self.model_path = os.path.join(model_path,f"{LIB}","assigned")
         self.model_path = model_path
         self.build_retrieval_corpus(corpus_tsv_path)
-        self.shuffled_data = self.build_shuffle_data()
+        self.shuffled_data = self.build_shuffle_data(LIB)
         self.shuffled_queries = [item['query'] for item in self.shuffled_data]
         self.shuffled_query_embeddings = self.embedder.encode(self.shuffled_queries, convert_to_tensor=True)
-    def build_shuffle_data(self,):
+    def build_shuffle_data(self,LIB):
         import random
-        with open(f'./data/standard_process/{args.LIB}/API_inquiry_annotate.json', 'r') as f:
+        with open(f'./data/standard_process/{LIB}/API_inquiry_annotate.json', 'r') as f:
             data = json.load(f)
-        with open(f"./data/standard_process/{args.LIB}/API_instruction_testval_query_ids.json", 'r') as file:
+        with open(f"./data/standard_process/{LIB}/API_instruction_testval_query_ids.json", 'r') as file:
             files_ids = json.load(file)
         shuffled = [dict(query=row['query'], gold=row['api_name']) for row in [i for i in data if i['query_id'] not in files_ids['val'] and i['query_id'] not in files_ids['test']]]
         random.Random(0).shuffle(shuffled)
@@ -109,6 +100,16 @@ def compute_accuracy(retriever, data, args, name='train'):
     return accuracy, scores
 
 if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--corpus_tsv_path', type=str, required=True, help='')
+    parser.add_argument('--retrieval_model_path', type=str, required=True, help='')
+    parser.add_argument('--retrieved_api_nums', type=int, required=True, help='')
+    parser.add_argument('--input_query_file', type=str, required=True, help='input path')
+    parser.add_argument('--idx_file', type=str, required=True, help='idx path')
+    parser.add_argument('--LIB', type=str, required=True, help='lib')
+    args = parser.parse_args()
+
     # Step 1: Load API data from the JSON file
     with open(args.input_query_file, 'r') as file:
         api_data = json.load(file)
@@ -118,7 +119,7 @@ if __name__ == "__main__":
     val_ids = index_data['val']
 
     # Step 2: Create a ToolRetriever instance
-    retriever = ToolRetriever(corpus_tsv_path=args.corpus_tsv_path, model_path=args.retrieval_model_path)
+    retriever = ToolRetriever(LIB = args.LIB, corpus_tsv_path=args.corpus_tsv_path, model_path=args.retrieval_model_path)
     print(retriever.corpus[0])
 
     total_queries = 0

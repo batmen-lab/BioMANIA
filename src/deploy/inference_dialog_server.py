@@ -213,7 +213,7 @@ class Model:
                     parts = parts[:-1]
                 new_path = '/'.join(parts)
             retrieval_model_path = new_path
-            self.retriever = ToolRetriever(corpus_tsv_path=self.corpus_tsv_path, model_path=retrieval_model_path)
+            self.retriever = ToolRetriever(LIB=self.LIB,corpus_tsv_path=self.corpus_tsv_path, model_path=retrieval_model_path)
             print('==>loaded retriever!')
             #self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
             self.executor.execute_api_call(f"import {self.LIB}", "import")
