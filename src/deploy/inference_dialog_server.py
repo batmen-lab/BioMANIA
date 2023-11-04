@@ -170,8 +170,6 @@ class Model:
         self.initialize_executor()
         reset_result = self.reset_lib(self.LIB)
         if reset_result=='Fail':
-            [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="At least one data or model is not ready, please install lib first!",task_title="Setting error") for callback in self.callbacks]
-            self.indexxxx+=1
             return
         self.user_states = "initial"
         self.parameters_info_list = None
@@ -233,6 +231,9 @@ class Model:
         except:
             print('at least one data or model is not ready, please install lib first!')
             reset_result = "Fail"
+            [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="At least one data or model is not ready, please install lib first!",task_title="Setting error") for callback in self.callbacks]
+            self.indexxxx+=1
+            sys.exit()
         return reset_result
 
     def install_lib(self,github_url, doc_url, api_html, lib_name, lib_alias):
