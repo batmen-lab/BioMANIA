@@ -1,4 +1,3 @@
-
 import argparse
 import os
 import json
@@ -11,8 +10,21 @@ from configs.model_config import HUGGINGPATH
 from sentence_transformers import SentenceTransformer, util
 from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version
 import torch
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# Print average scores for each rank
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--corpus_tsv_path', type=str, required=True, help='')
+parser.add_argument('--retrieval_model_path', type=str, required=True, help='')
+parser.add_argument('--retrieved_api_nums', type=int, required=True, help='')
+parser.add_argument('--input_query_file', type=str, required=True, help='input path')
+parser.add_argument('--idx_file', type=str, required=True, help='idx path')
+parser.add_argument('--LIB', type=str, required=True, help='lib')
+args = parser.parse_args()
+
 
 class ToolRetriever:
     def __init__(self, corpus_tsv_path = "", model_path=""):
@@ -97,15 +109,6 @@ def compute_accuracy(retriever, data, args, name='train'):
     return accuracy, scores
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--corpus_tsv_path', type=str, required=True, help='')
-    parser.add_argument('--retrieval_model_path', type=str, required=True, help='')
-    parser.add_argument('--retrieved_api_nums', type=int, required=True, help='')
-    parser.add_argument('--input_query_file', type=str, required=True, help='input path')
-    parser.add_argument('--idx_file', type=str, required=True, help='idx path')
-    parser.add_argument('--LIB', type=str, required=True, help='lib')
-    args = parser.parse_args()
-
     # Step 1: Load API data from the JSON file
     with open(args.input_query_file, 'r') as file:
         api_data = json.load(file)
@@ -133,10 +136,6 @@ if __name__ == "__main__":
     print(f"Training Accuracy: {train_accuracy:.2f}%, #samples {len(train_data)}")
     print(f"val Accuracy: {val_accuracy:.2f}%, #samples {len(val_data)}")
     print(f"test Accuracy: {test_accuracy:.2f}%, #samples {len(test_data)}")
-
-    # Print average scores for each rank
-    import matplotlib.pyplot as plt
-    import seaborn as sns
 
     def plot_boxplot(data, title):
         plt.figure(figsize=(10, 6))
