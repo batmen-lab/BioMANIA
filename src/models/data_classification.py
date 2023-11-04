@@ -197,6 +197,7 @@ def main(
     API_composite_dir:str='',
     batch_size:int = 64,
     retrieved_path:str="./tmp",
+    LIB:str="scanpy",
 ):
     os.makedirs(plot_dir, exist_ok=True)
     with open(API_composite_dir, 'r') as json_file:
@@ -217,7 +218,7 @@ def main(
         llama_model.load_state_dict(checkpoint, strict=False)
     print(llama_model)
     tokenizer = Tokenizer(tokenizer_path)
-    retriever = ToolRetriever(corpus_tsv_path=corpus_tsv_path, model_path=retriever_path)
+    retriever = ToolRetriever(LIB=LIB, corpus_tsv_path=corpus_tsv_path, model_path=retriever_path)
     model = DataPreprocess(llama_model, retriever, tokenizer, max_seq_length=max_seq_length, top_k=top_k,debug_mode=debug_mode)
     os.makedirs(save_path, exist_ok=True)
     model.update_and_save_dataset(data_dir, save_path,idx_file,API_composite,retrieved_path,batch_size=batch_size)
