@@ -14,9 +14,7 @@ export class OpenAIError extends Error {
   }
 }
 
-// export const url = "https://biochat.ngrok.io";
-// export const url = "https://localhost:5000";
-export const url = "https://3d2b-129-97-152-3.ngrok-free.app";
+export const url = "https://localhost:5000";
 const streamUrl = url + '/stream';
 
 
