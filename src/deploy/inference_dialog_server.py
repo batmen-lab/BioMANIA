@@ -231,9 +231,10 @@ class Model:
         except:
             print('at least one data or model is not ready, please install lib first!')
             reset_result = "Fail"
+            [callback.on_tool_start(depth=0,api_name="",api_calling="",api_description="") for callback in self.callbacks]
+            [callback.on_tool_end(depth=0,task="put variable from user input to parameters",status="0") for callback in self.callbacks]
             [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="At least one data or model is not ready, please install lib first!",task_title="Setting error") for callback in self.callbacks]
             self.indexxxx+=1
-            sys.exit()
         return reset_result
 
     def install_lib(self,github_url, doc_url, api_html, lib_name, lib_alias):
@@ -391,6 +392,8 @@ class Model:
         self.indexxxx = 1
         if lib!=self.LIB:
             reset_result = self.reset_lib(self.LIB)
+            if reset_result=='Fail':
+                return 
             self.LIB = lib
         self.conversation_started=conversation_started
         # reset
@@ -904,6 +907,8 @@ def stream():
         if conversation_started:
             print('The conversation is restarted, now reset the Lib!')
             reset_result = model.reset_lib(Lib)
+            if reset_result=='Fail':
+                return
         with concurrent.futures.ThreadPoolExecutor() as executor:
             print('start running pipeline!')
             future = executor.submit(model.run_pipeline, user_input, Lib, top_k, files, conversation_started)
