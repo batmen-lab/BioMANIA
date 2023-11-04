@@ -110,6 +110,8 @@ By meticulously following the steps above, you'll have all the essential data an
 
 Currently, we only furnish scanpy data and pre-trained models. For experimenting with more libraries, use our library installation service.
 
+We also offer some demo chat, you can download it [here](https://drive.google.com/drive/folders/1V-vZeuKR59kq2IU3W_fW4bNCrZmRlSzD?usp=drive_link) and import it into the chatbot UI
+
 ### Installation of new library
 
 Enter the materials link under the custom mode in the library selection. This allows the installation of a new library as illustrated below:
