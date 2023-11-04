@@ -195,12 +195,13 @@ class Model:
         random.Random(0).shuffle(shuffled)
         return shuffled
     def reset_lib(self, lib_name):
+        print('================')
+        print('==>Start reset the Lib!')
         # reset and reload all the LIB-related data/models
         # suppose that all data&model are prepared already in their path
         try:
             self.ambiguous_pair = find_similar_two_pairs(lib_name)
             self.ambiguous_api = list(set(api for api_pair in self.ambiguous_pair for api in api_pair))
-            print('================')
             print('==>starting reset lib!')
             self.LIB = lib_name
             self.corpus_tsv_path = f"./data/standard_process/{self.LIB}/retriever_train_data/corpus.tsv"
@@ -231,8 +232,8 @@ class Model:
         except:
             print('at least one data or model is not ready, please install lib first!')
             reset_result = "Fail"
-            [callback.on_tool_start(depth=0,api_name="",api_calling="",api_description="") for callback in self.callbacks]
-            [callback.on_tool_end(depth=0,task="put variable from user input to parameters",status="0") for callback in self.callbacks]
+            [callback.on_tool_start() for callback in self.callbacks]
+            [callback.on_tool_end() for callback in self.callbacks]
             [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="At least one data or model is not ready, please install lib first!",task_title="Setting error") for callback in self.callbacks]
             self.indexxxx+=1
         return reset_result
@@ -254,7 +255,6 @@ class Model:
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="start processing new lib...",task_title="0") for callback in self.callbacks]
         self.indexxxx+=1
         os.makedirs(f"./data/standard_process/{self.LIB}/", exist_ok=True)
-        
 
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="downloading materials...",task_title="13") for callback in self.callbacks]
         self.indexxxx+=1
@@ -423,8 +423,8 @@ class Model:
             print(f'----query inferred as {predicted_source}----')
             if predicted_source!='api-query':
                 print('--classified as chitchat!--')
-                [callback.on_tool_start(depth=0,api_name="",api_calling="",api_description="") for callback in self.callbacks]
-                [callback.on_tool_end(depth=0,task="put variable from user input to parameters",status="0") for callback in self.callbacks]
+                [callback.on_tool_start() for callback in self.callbacks]
+                [callback.on_tool_end() for callback in self.callbacks]
                 response, _ = LLM_response(self.llm, self.tokenizer, user_input, history=[], kwargs={})  # llm
                 [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=response,task_title="Non API chitchat") for callback in self.callbacks]
                 self.indexxxx+=1
@@ -461,8 +461,8 @@ class Model:
                     success = True
                     break
                 except Exception as e:
-                    [callback.on_tool_start(depth=0,api_name="",api_calling="",api_description="") for callback in self.callbacks]
-                    [callback.on_tool_end(depth=0,task="put variable from user input to parameters",status="0") for callback in self.callbacks]
+                    [callback.on_tool_start() for callback in self.callbacks]
+                    [callback.on_tool_end() for callback in self.callbacks]
                     [callback.on_agent_action(block_id="tool-" + str(self.indexxxx), task=f"GPT predicted API error: {response}. Please re-design the query and re-enter.",) for callback in self.callbacks]
                     self.indexxxx += 1
                     return
@@ -476,8 +476,8 @@ class Model:
                 filtered_pairs = [api_pair for api_pair in self.ambiguous_pair if self.predicted_api_name in api_pair]
                 self.filtered_api = list(set(api for api_pair in filtered_pairs for api in api_pair))
                 print(f'the filtered api list is {self.filtered_api}')
-                [callback.on_tool_start(depth=0,api_name="",api_calling="",api_description="") for callback in self.callbacks]
-                [callback.on_tool_end(depth=0,task="put variable from user input to parameters",status="0") for callback in self.callbacks]
+                [callback.on_tool_start() for callback in self.callbacks]
+                [callback.on_tool_end() for callback in self.callbacks]
                 next_str = ""
                 idx_api = 1
                 for api in self.filtered_api:
@@ -504,8 +504,8 @@ class Model:
             self.run_pipeline_after_entering_params(user_input)
     def run_pipeline_after_ambiguous(self,user_input):
         user_input = user_input.strip()
-        [callback.on_tool_start(depth=0,api_name="",api_calling="",api_description="") for callback in self.callbacks]
-        [callback.on_tool_end(depth=0,task="put variable from user input to parameters",status="0") for callback in self.callbacks]
+        [callback.on_tool_start() for callback in self.callbacks]
+        [callback.on_tool_end() for callback in self.callbacks]
         try:
             int(user_input)
         except:
@@ -567,8 +567,8 @@ class Model:
         summary_prompt = prepare_summary_prompt(user_input, self.predicted_api_name, api_description, self.API_composite[self.predicted_api_name]['Parameters'],self.API_composite[self.predicted_api_name]['Returns'])
         response, _ = LLM_response(self.llm, self.tokenizer, summary_prompt, history=[], kwargs={})  
         
-        [callback.on_tool_start(depth=0,api_name="",api_calling="",api_description="") for callback in self.callbacks]
-        [callback.on_tool_end(depth=0,task="put variable from user input to parameters",status="0") for callback in self.callbacks]
+        [callback.on_tool_start() for callback in self.callbacks]
+        [callback.on_tool_end() for callback in self.callbacks]
         [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=response,task_title=f"Predicted API: {self.predicted_api_name}",) for callback in self.callbacks]
         self.indexxxx+=1
 
@@ -660,8 +660,8 @@ class Model:
     def run_select_params(self, user_input):
         if self.user_states == "select_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
-        [callback.on_tool_start(depth=0,api_name="",api_calling="",api_description="") for callback in self.callbacks]
-        [callback.on_tool_end(depth=0,task="put variable from user input to parameters",status="0") for callback in self.callbacks]
+        [callback.on_tool_start() for callback in self.callbacks]
+        [callback.on_tool_end() for callback in self.callbacks]
         if len(self.filtered_params)>1:
             self.last_param_name = list(self.filtered_params.keys())[0]
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="Which value do you think is appropriate for the parameters '"+self.last_param_name+"'?", task_title="Enter Parameters: basic type",color="red") for callback in self.callbacks]
@@ -751,8 +751,8 @@ class Model:
         print('==>api_params_list:',api_params_list)
         execution_code = self.executor.generate_execution_code(api_params_list)
         print('==>execution_code:',execution_code)
-        [callback.on_tool_start(depth=0,api_name="",api_calling="",api_description="") for callback in self.callbacks]
-        [callback.on_tool_end(depth=0,task="put variable from user input to parameters",status="0") for callback in self.callbacks]
+        [callback.on_tool_start() for callback in self.callbacks]
+        [callback.on_tool_end() for callback in self.callbacks]
         [callback.on_agent_action(block_id="code-"+str(self.indexxxx),task=execution_code,task_title="Executed code",) for callback in self.callbacks]
         self.indexxxx+=1
         execution_code_list = execution_code.split('\n')
