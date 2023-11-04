@@ -4,6 +4,7 @@ import os, datetime
 import matplotlib.pyplot as plt
 
 from collections import defaultdict
+from configs.model_config import LIB
 
 def find_similar_two_pairs(lib_name):
     from collections import defaultdict
@@ -120,7 +121,8 @@ def process_retrieval_document(documents_df):
         corpus2tool[compress_api_str_from_list(doc)] = doc['api_calling'][0].split('(')[0]
     return ir_corpus, corpus2tool
 
-def get_all_types_in_API(filepath="./data/standard_process/squidpy/API_composite.json"):
+def get_all_types_in_API(LIB):
+    filepath=f"./data/standard_process/{LIB}/API_composite.json"
     with open(filepath, "r") as file:
         api_data = json.load(file)
     types = set()
@@ -132,7 +134,7 @@ def get_all_types_in_API(filepath="./data/standard_process/squidpy/API_composite
         #if param_details:
         #    types.add(param_details["type"])
     return types
-types = get_all_types_in_API(filepath="./data/standard_process/squidpy/API_composite.json")
+types = get_all_types_in_API(LIB=LIB)
 print(types)
 
 def fast_get_environment(pre_code):
