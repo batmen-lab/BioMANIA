@@ -8,7 +8,7 @@ app = Flask(__name__)
 cors = CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 # standard lib
-import argparse, json, signal, time, copy, base64, requests, importlib, inspect, ast, os, random, io, sys, pickle
+import argparse, json, signal, time, copy, base64, requests, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess
 from datetime import datetime
 from urllib.parse import urlparse
 # Computational
@@ -223,24 +223,25 @@ class Model:
             print('at least one data or model is not ready, please install lib first!')
 
     def install_lib(self,github_url, doc_url, api_html, lib_name, lib_alias):
-        github_url = "https://github.com/biocore/scikit-bio"
+        '''github_url = "https://github.com/biocore/scikit-bio"
         doc_url = "scikit-bio.org/docs/latest/"
-        #api_html = "scikit-bio.org/docs/latest/index.html"
+        api_html = "scikit-bio.org/docs/latest/index.html"
         api_html = None 
         lib_name = "scikit-bio"
-        lib_alias = "skbio"
+        lib_alias = "skbio"'''
         self.LIB = lib_name
         from configs.model_config import GITHUB_PATH, ANALYSIS_PATH, READTHEDOC_PATH
         from configs.model_config import LIB, LIB_ALIAS, GITHUB_LINK, API_HTML
         from dataloader.utils.code_download_strategy import download_lib
         from dataloader.utils.other_download import download_readthedoc
-        from dataloader.get_API_init_from_sourcecode import main_get_API_init, main_get_API_basic
+        from dataloader.get_API_init_from_sourcecode import main_get_API_init
         from dataloader.get_API_full_from_unittest import merge_unittest_examples_into_API_init
-        import subprocess
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="start processing new lib...",task_title="0") for callback in self.callbacks]
         self.indexxxx+=1
-        # TODO: add content to cheatsheet
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="downloading library code...",task_title="0") for callback in self.callbacks]
+        os.makedirs(f"./data/standard_process/{self.LIB}/", exist_ok=True)
+        
+
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="downloading materials...",task_title="13") for callback in self.callbacks]
         self.indexxxx+=1
         """if github_url:
             download_lib('git', self.LIB, github_url, lib_alias, GITHUB_PATH)"""
@@ -252,124 +253,65 @@ class Model:
             sys.stdout = sys.__stdout__
             sys.stderr = sys.__stderr__
             content = self.buf.getvalue()
-            [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="downloading doc content...",task_title="12") for callback in self.callbacks]
-            self.indexxxx+=1
             download_readthedoc(doc_url, api_html)
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="preparing API_base.json data...",task_title="25") for callback in self.callbacks]
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="preparing API_init.json ...",task_title="26") for callback in self.callbacks]
         self.indexxxx+=1
         if api_html:
             api_path = os.path.normpath(os.path.join(READTHEDOC_PATH, api_html))
         else:
             api_path = None
         main_get_API_init(self.LIB,lib_alias,ANALYSIS_PATH,api_path)
-        # TODO: 需要添加API_composite
-        #merge_unittest_examples_into_API_init(self.LIB, ANALYSIS_PATH, GITHUB_PATH)
-        import shutil
-        os.makedirs(f"./data/standard_process/{self.LIB}/", exist_ok=True)
-        shutil.copy(f'../../resources/json_analysis/{self.LIB}/API_init.json', f'./data/standard_process/{self.LIB}/API_composite.json')
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="preparing retriever data...",task_title="37") for callback in self.callbacks]
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="preparing API_composite.json ...",task_title="39") for callback in self.callbacks]
         self.indexxxx+=1
-        subprocess.run(["python", "dataloader/preprocess_retriever_data.py", "--LIB", f'{self.LIB}'])
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="training retriever...",task_title="50") for callback in self.callbacks]
+        # TODO: add API_composite
+        #merge_unittest_examples_into_API_init(self.LIB, ANALYSIS_PATH, GITHUB_PATH)
+        #from dataloader.get_API_composite_from_tutorial import main_get_API_composite
+        #main_get_API_composite(ANALYSIS_PATH, self.LIB)
+        shutil.copy(f'../../resources/json_analysis/{self.LIB}/API_init.json', f'./data/standard_process/{self.LIB}/API_composite.json')
+
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="training api/non-api classification model ...",task_title="52") for callback in self.callbacks]
+        self.indexxxx+=1
+        command = [
+            "python",
+            "models/chitchat_classification.py",
+            "--LIB", self.LIB,
+        ]
+        subprocess.run(command)
+        base64_image = convert_image_to_base64(f"./plot/{self.LIB}/chitchat_test_tsne_modified.png")
+        [callback.on_agent_action(block_id="transfer_" + str(self.indexxxx),task=base64_image,task_title="chitchat_train_tsne_modified.png",) for callback in self.callbacks]
+        self.indexxxx+=1
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="preparing retriever data API_inquiry.json ...",task_title="65") for callback in self.callbacks]
+        self.indexxxx+=1
+        command = [
+            "python", "dataloader/preprocess_retriever_data.py",
+            "--LIB", self.LIB
+        ]
+        subprocess.run(command)
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="training retriever...",task_title="78") for callback in self.callbacks]
         self.indexxxx+=1
         subprocess.run(["mkdir", f"/home/z6dong/BioChat/hugging_models/retriever_model_finetuned/{self.LIB}"])
-        subprocess.run(["python", "models/train_retriever.py",
+        command = [
+            "python",
+            "models/train_retriever.py",
             "--data_path", f"./data/standard_process/{self.LIB}/retriever_train_data/",
             "--model_name", "bert-base-uncased",
             "--output_path", f"/home/z6dong/BioChat/hugging_models/retriever_model_finetuned/{self.LIB}",
-            "--num_epochs", "50",
+            "--num_epochs", "25",
             "--train_batch_size", "32",
             "--learning_rate", "1e-5",
             "--warmup_steps", "500",
             "--max_seq_length", "256",
             "--optimize_top_k", "3",
-            "--plot_dir", f"./plot/{self.LIB}/retriever/",
-            "--model_save_path", f"/home/z6dong/BioChat/hugging_models/retriever_model_finetuned/{self.LIB}/assigned"])
+            "--plot_dir", f"./plot/{self.LIB}/retriever/"
+        ]
+        subprocess.run(command)
         base64_image = convert_image_to_base64(f"./plot/{self.LIB}/retriever/ndcg_plot.png")
         [callback.on_agent_action(block_id="transfer_" + str(self.indexxxx),task=base64_image,task_title="ndcg_plot.png",) for callback in self.callbacks]
         self.indexxxx+=1
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="inference on trained retriever...",task_title="62") for callback in self.callbacks]
-        self.indexxxx+=1
-        subprocess.run(["ls", f"/home/z6dong/BioChat/hugging_models/retriever_model_finetuned/{self.LIB}"])
-        subprocess.run(["export", f"HUGGINGPATH=/home/z6dong/BioChat/hugging_models"])
-        subprocess.run(["python", "inference/retriever_finetune_inference.py",
-            "--retrieval_model_path", f"/home/z6dong/BioChat/hugging_models/retriever_model_finetuned/{self.LIB}/assigned",
-            "--corpus_tsv_path", f"./data/standard_process/{self.LIB}/retriever_train_data/corpus.tsv",
-            "--input_query_file", f"./data/standard_process/{self.LIB}/API_inquiry_annotate.json",
-            "--idx_file", f"./data/standard_process/{self.LIB}/API_instruction_testval_query_ids.json",
-            "--retrieved_api_nums", "3"])
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="prepare api_name classification data...",task_title="75") for callback in self.callbacks]
-        self.indexxxx+=1
-        subprocess.run(["CUDA_VISIBLE_DEVICES=0"])
-        subprocess.run(["export", f"TOKENIZERS_PARALLELISM=true"])
-        subprocess.run(["python", "models/data_classification.py",
-            "--pretrained_path", "/home/z6dong/BioChat/hugging_models/llama-2-finetuned/checkpoints/lite-llama2/lit-llama.pth",
-            "--tokenizer_path", "/home/z6dong/BioChat/hugging_models/llama-2-finetuned/checkpoints/tokenizer.model",
-            "--corpus_tsv_path", f"./data/standard_process/{self.LIB}/retriever_train_data/corpus.tsv",
-            "--retriever_path", f"/home/z6dong/BioChat/hugging_models/retriever_model_finetuned/{self.LIB}/assigned",
-            "--data_dir", f"/home/z6dong/BioChat/refer/src/2023_yanglu_biochatbot/src/data/standard_process/{self.LIB}/API_inquiry_annotate.json",
-            "--out_dir", f"/home/z6dong/BioChat/hugging_models/llama-2-finetuned/{self.LIB}/finetuned/",
-            "--plot_dir", f"/home/z6dong/BioChat/refer/src/2023_yanglu_biochatbot/src/plot/{self.LIB}/classification",
-            "--device_count", "1",
-            "--top_k", "3",
-            "--debug_mode", "1",
-            "--save_path", f"./data/standard_process/{self.LIB}/classification_train",
-            "--idx_file", f"./data/standard_process/{self.LIB}/API_instruction_testval_query_ids.json",
-            "--API_composite_dir", f"./data/standard_process/{self.LIB}/API_composite.json",
-            "--batch_size", "8",
-            "--retrieved_path", f"./data/standard_process/{self.LIB}"])
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="train api_name classification model...",task_title="87") for callback in self.callbacks]
-        self.indexxxx+=1
-        subprocess.run(["CUDA_VISIBLE_DEVICES=0", "python", "models/train_classification.py",
-            "--data_dir", f"/home/z6dong/BioChat/refer/src/2023_yanglu_biochatbot/src/data/standard_process/{self.LIB}/classification_train/",
-            "--out_dir", f"/home/z6dong/BioChat/hugging_models/llama-2-finetuned/{self.LIB}/finetuned/",
-            "--plot_dir", f"/home/z6dong/BioChat/refer/src/2023_yanglu_biochatbot/src/plot/{self.LIB}/classification",
-            "--top_k", "3",
-            "--max_iters", "50",
-            "--batch_size", "1"])
-        base64_image = convert_image_to_base64(f"./plot/{self.LIB}/classification/accuracy_plot.png")
-        [callback.on_agent_action(block_id="transfer_" + str(self.indexxxx),task=base64_image,task_title="accuracy_plot.png",) for callback in self.callbacks]
-        self.indexxxx+=1
-        base64_image = convert_image_to_base64(f"./plot/{self.LIB}/classification/loss_plot.png")
-        [callback.on_agent_action(block_id="transfer_" + str(self.indexxxx),task=base64_image,task_title="loss_plot.png",) for callback in self.callbacks]
-        self.indexxxx+=1
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Process done! Please restart the program for new usage",task_title="100") for callback in self.callbacks]
-        self.indexxxx+=1
-    def install_lib_fake(self,github_url, doc_url, api_html, lib_name, lib_alias):
-        # 先手写
-        self.LIB = lib_name
-        from configs.model_config import GITHUB_PATH, ANALYSIS_PATH, READTHEDOC_PATH
-        from configs.model_config import LIB, LIB_ALIAS, GITHUB_LINK, API_HTML
-        from dataloader.utils.code_download_strategy import download_lib
-        from dataloader.utils.other_download import download_readthedoc
-        from dataloader.get_API_init_from_sourcecode import main_get_API_init, main_get_API_basic
-        from dataloader.get_API_full_from_unittest import merge_unittest_examples_into_API_init
-        import subprocess
-        [callback.on_agent_action(block_id="tool-" + str(self.indexxxx), task="start processing new lib...",task_title="0") for callback in self.callbacks]
         self.indexxxx+=1
         # TODO: need to add the new materials url into cheatsheet, avoid repeated entering
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="downloading materials...",task_title="13") for callback in self.callbacks]
-        self.indexxxx+=1
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="preparing API_init.json ...",task_title="26") for callback in self.callbacks]
-        self.indexxxx+=1
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="preparing API_composite.json ...",task_title="39") for callback in self.callbacks]
-        self.indexxxx+=1
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="training api/non-api classification model ...",task_title="52") for callback in self.callbacks]
-        self.indexxxx+=1
-        base64_image = convert_image_to_base64(f"../../resources/chitchat_train_tsne_modified.png")
-        [callback.on_agent_action(block_id="transfer_" + str(self.indexxxx),task=base64_image,task_title="chitchat_train_tsne_modified.png",) for callback in self.callbacks]
-        self.indexxxx+=1
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="preparing retriever data API_inquiry.json ...",task_title="65") for callback in self.callbacks]
-        self.indexxxx+=1
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="training retriever...",task_title="78") for callback in self.callbacks]
-        self.indexxxx+=1
-        base64_image = convert_image_to_base64(f"/home/z6dong/BioChat/refer/src/2023_yanglu_biochatbot/src/plot/{self.LIB}/retriever/ndcg_plot.png")
-        [callback.on_agent_action(block_id="transfer_" + str(self.indexxxx),task=base64_image,task_title="ndcg_plot.png",) for callback in self.callbacks]
-        self.indexxxx+=1
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="inference on trained retriever...",task_title="89") for callback in self.callbacks]
-        self.indexxxx+=1
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Process done! Please restart the program for new usage",task_title="100") for callback in self.callbacks]
-        self.indexxxx+=1
+
     def update_image_file_list(self):
         image_file_list = [f for f in os.listdir(self.image_folder) if f.endswith(".png")]
         return image_file_list
@@ -933,16 +875,13 @@ def stream():
     def generate(model):
         print("Called generate")
         if model.inuse:
-            # send 409 error
             return Response(json.dumps({
                 "method_name": "error",
                 "error": "Model in use"
             }), status=409, mimetype='application/json')
             return
         model.inuse = True
-        #if True:
-        #    model.install_lib_fake(new_lib_github_url, new_lib_doc_url, api_html, Lib, lib_alias)
-        #TODO: debug
+        #TODO: debug for installation page
         if new_lib_doc_url:
             print('new_lib_doc_url is not none, start installing lib!')
             model.install_lib(new_lib_github_url, new_lib_doc_url, api_html, Lib, lib_alias)
