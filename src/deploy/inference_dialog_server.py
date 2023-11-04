@@ -205,8 +205,8 @@ class Model:
             self.API_file = f"./data/standard_process/{self.LIB}/API_composite.json"
             self.load_data(self.API_file)
             print('==>loaded API json done')
-            self.load_composite_code(self.LIB)
-            print('==>loaded API composite done')
+            #self.load_composite_code(self.LIB)
+            #print('==>loaded API composite done')
             shuffled_data = self.build_shuffle_data(self.LIB)
             print('==>loaded remaining data done')
             t1 = time.time()
@@ -327,6 +327,7 @@ class Model:
         parser.add_argument("--top_k", type=int, default=3, help="Top K value for the retrieval")
         self.args = parser.parse_args()
     def load_composite_code(self, lib_name):
+        # deprecated
         module_name = f"data.standard_process.{lib_name}.Composite_API"
         module = importlib.import_module(module_name)
         source_code = inspect.getsource(module)
