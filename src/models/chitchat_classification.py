@@ -1,3 +1,8 @@
+import argparse
+
+parser = argparse.ArgumentParser(description="Process data with a specified library.")
+parser.add_argument("--LIB", type=str, default="scanpy", required=True, help="Library to use for data processing.")
+args = parser.parse_args()
 
 def process_topicalchat():
     import json
@@ -28,7 +33,7 @@ def process_chitchat():
 def process_apiquery():
     import json
     import pandas as pd
-    with open('./data/standard_process/scanpy/API_inquiry_annotate.json', 'r') as file:
+    with open(f'./data/standard_process/{args.LIB}/API_inquiry_annotate.json', 'r') as file:
         json_data = json.load(file)
     questions = [entry['query'] for entry in json_data]
     df = pd.DataFrame({'Question': questions, 'Source': 'api-query'})
@@ -162,7 +167,7 @@ def plot_tsne_distribution_modified():
     
     plt.title('t-SNE visualization of test data')
     plt.legend()
-    plt.savefig('./plot/chitchat_test_tsne_modified.png')
+    plt.savefig(f'./plot/{args.LIB}/chitchat_test_tsne_modified.png')
 
 # Call the modified function to plot
 plot_tsne_distribution_modified()

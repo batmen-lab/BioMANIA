@@ -110,7 +110,7 @@ By meticulously following the steps above, you'll have all the essential data an
 
 Currently, we only furnish scanpy data and pre-trained models. For experimenting with more libraries, use our library installation service.
 
-We also offer some demo chat, you can download it [here](https://drive.google.com/drive/folders/1V-vZeuKR59kq2IU3W_fW4bNCrZmRlSzD?usp=drive_link) and import it into the chatbot UI
+We also offer some demo chat, you can download it [here](https://drive.google.com/drive/folders/1V-vZeuKR59kq2IU3W_fW4bNCrZmRlSzD?usp=drive_link) and use `import data` button to visualize it in chatbot UI
 
 ### Installation of new library
 
@@ -163,7 +163,7 @@ Notice that the automatically generated API_inquiry_annotate.json do not have hu
 
 5. Train the api/non-api classification model.
 ```shell
-python models/chitchat_classification.py
+python models/chitchat_classification.py --LIB scanpy
 ```
 
 6. Test bm25 retriever or fine-tune the retriever.
