@@ -115,6 +115,7 @@ class CodeExecutor:
         }
         return params
     def get_import_code(self, api_name):
+        print(f'==>start importing code for {api_name}')
         if '.' not in api_name:
             return "", 'function'
         try:

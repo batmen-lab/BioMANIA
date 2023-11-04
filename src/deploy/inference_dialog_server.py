@@ -713,12 +713,12 @@ class Model:
                     "valuefrom": 'userinput',
                     "optional": param_info["optional"],
                 }
-        print('self.selected_params:',self.selected_params)
+        print('==>selected_params:',self.selected_params)
         # split parameters according to multiple API, or class/method API
         parameters_list = self.extract_parameters(self.api_name_json, self.API_composite)
         extracted_params = self.split_params(self.selected_params, parameters_list)
         extracted_params_dict = {api_name: extracted_param for api_name, extracted_param in zip(self.api_name_json, extracted_params)}
-        print('extracted_params_dict:',extracted_params_dict)
+        print('==>extracted_params_dict:',extracted_params_dict)
         api_params_list = []
         for idx, api_name in enumerate(self.api_name_json):
             if self.api_name_json[api_name]['type']!='class':
@@ -737,8 +737,9 @@ class Model:
                                         "parameters":extracted_params[idx], 
                                         "return_type":self.API_composite[api_name]['Returns']['type'],
                                         "class_selected_params":class_selected_params})
-        print('api_params_list:',api_params_list)
+        print('==>api_params_list:',api_params_list)
         execution_code = self.executor.generate_execution_code(api_params_list)
+        print('==>execution_code:',execution_code)
         [callback.on_tool_start(depth=0,api_name="",api_calling="",api_description="") for callback in self.callbacks]
         [callback.on_tool_end(depth=0,task="put variable from user input to parameters",status="0") for callback in self.callbacks]
         [callback.on_agent_action(block_id="code-"+str(self.indexxxx),task=execution_code,task_title="Executed code",) for callback in self.callbacks]
