@@ -18,8 +18,8 @@ To get started, download the code and set up the required environment:
 git clone https://github.com/batmen-lab/BioMANIA.git
 cd BioMANIA/src
 conda create -n biomania python=3.10
-pip install -r requirements.txt
 conda activate biomania
+pip install -r requirements.txt
 ```
 
 ### User Interface (UI)
