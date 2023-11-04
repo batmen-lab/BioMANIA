@@ -118,9 +118,9 @@ c2_accuracy = correct_predictions / len(test_data) * 100
 print(f"Accuracy on test data on 2 clusters: {c2_accuracy:.2f}")
 
 import pickle
-with open('./data/vectorizer.pkl', 'wb') as f:
+with open(f'./data/standard_process/{args.LIB}/vectorizer.pkl', 'wb') as f:
     pickle.dump(vectorizer, f)
-with open('./data/centroids.pkl', 'wb') as f:
+with open(f'./data/standard_process/{args.LIB}centroids.pkl', 'wb') as f:
     pickle.dump(centroids, f)
 os.makedirs(f"./plot/{args.LIB}", exist_ok=True)
 

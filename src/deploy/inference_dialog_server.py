@@ -178,21 +178,14 @@ class Model:
         self.image_file_list = []
         self.image_file_list = self.update_image_file_list()
         self.buf = io.StringIO()
-        with open('./data/vectorizer.pkl', 'rb') as f:
+        with open(f'./data/standard_process/{self.LIB}/vectorizer.pkl', 'rb') as f:
             self.vectorizer = pickle.load(f)
-        with open('./data/centroids.pkl', 'rb') as f:
+        print('==>chitchat vectorizer loaded!')
+        with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
             self.centroids = pickle.load(f)
+        print('==>chitchat vectorizer loaded!')
         self.retrieve_query_mode = "similar"
         print("Server ready")
-    def build_shuffle_data(self, lib_name):
-        import random
-        with open(f'./data/standard_process/{lib_name}/API_inquiry_annotate.json', 'r') as f:
-            data = json.load(f)
-        with open(f"./data/standard_process/{lib_name}/API_instruction_testval_query_ids.json", 'r') as file:
-            files_ids = json.load(file)
-        shuffled = [dict(query=row['query'], gold=row['api_name']) for row in [i for i in data if i['query_id'] not in files_ids['val'] and i['query_id'] not in files_ids['test']]]
-        random.Random(0).shuffle(shuffled)
-        return shuffled
     def reset_lib(self, lib_name):
         print('================')
         print('==>Start reset the Lib!')
@@ -209,8 +202,6 @@ class Model:
             print('==>loaded API json done')
             #self.load_composite_code(self.LIB)
             #print('==>loaded API composite done')
-            shuffled_data = self.build_shuffle_data(self.LIB)
-            print('==>loaded remaining data done')
             t1 = time.time()
             print('==>Start loading model!')
             self.load_llm_model()
@@ -222,7 +213,7 @@ class Model:
                     parts = parts[:-1]
                 new_path = '/'.join(parts)
             retrieval_model_path = new_path
-            self.retriever = ToolRetriever(shuffled_data, self.LIB, corpus_tsv_path=self.corpus_tsv_path, model_path=retrieval_model_path)
+            self.retriever = ToolRetriever(corpus_tsv_path=self.corpus_tsv_path, model_path=retrieval_model_path)
             print('==>loaded retriever!')
             #self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
             self.executor.execute_api_call(f"import {self.LIB}", "import")

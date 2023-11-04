@@ -15,13 +15,22 @@ import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 class ToolRetriever:
-    def __init__(self, shuffled_data, corpus_tsv_path = "", model_path=""):
+    def __init__(self, corpus_tsv_path = "", model_path=""):
         #self.model_path = os.path.join(model_path,f"{LIB}","assigned")
         self.model_path = model_path
         self.build_retrieval_corpus(corpus_tsv_path)
-        self.shuffled_data = shuffled_data
+        self.shuffled_data = self.build_shuffle_data()
         self.shuffled_queries = [item['query'] for item in self.shuffled_data]
         self.shuffled_query_embeddings = self.embedder.encode(self.shuffled_queries, convert_to_tensor=True)
+    def build_shuffle_data(self,):
+        import random
+        with open(f'./data/standard_process/{args.LIB}/API_inquiry_annotate.json', 'r') as f:
+            data = json.load(f)
+        with open(f"./data/standard_process/{args.LIB}/API_instruction_testval_query_ids.json", 'r') as file:
+            files_ids = json.load(file)
+        shuffled = [dict(query=row['query'], gold=row['api_name']) for row in [i for i in data if i['query_id'] not in files_ids['val'] and i['query_id'] not in files_ids['test']]]
+        random.Random(0).shuffle(shuffled)
+        return shuffled
     def build_retrieval_corpus(self, corpus_tsv_path):
         self.corpus_tsv_path = corpus_tsv_path
         documents_df = pd.read_csv(self.corpus_tsv_path, sep='\t')
@@ -106,14 +115,7 @@ if __name__ == "__main__":
     val_ids = index_data['val']
 
     # Step 2: Create a ToolRetriever instance
-    import random
-    with open(f'./data/standard_process/{args.LIB}/API_inquiry_annotate.json', 'r') as f:
-        data = json.load(f)
-    with open(f"./data/standard_process/{args.LIB}/API_instruction_testval_query_ids.json", 'r') as file:
-        files_ids = json.load(file)
-    shuffled = [dict(query=row['query'], gold=row['api_name']) for row in [i for i in data if i['query_id'] not in files_ids['val'] and i['query_id'] not in files_ids['test']]]
-    random.Random(0).shuffle(shuffled)
-    retriever = ToolRetriever(shuffled, corpus_tsv_path=args.corpus_tsv_path, model_path=args.retrieval_model_path)
+    retriever = ToolRetriever(corpus_tsv_path=args.corpus_tsv_path, model_path=args.retrieval_model_path)
     print(retriever.corpus[0])
 
     total_queries = 0
