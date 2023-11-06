@@ -100,20 +100,20 @@ data
 │   ├── test_data.csv
 │   └── train_data.csv
 ├── standard_process
-│   ├── API_base.json
-│   ├── API_inquiry_annotate_ori.json
-│   ├── pyteomics
-│   ├── qiime2
 │   ├── scanpy
-│   ├── scikit-bio
-│   ├── squidpy
-│   ├── vectorizer.pkl
-└── └── centroids.pkl
+│   │   ├── API_composite.json
+│   │   ├── API_init.json
+│   │   ├── API_inquiry.json
+│   │   ├── API_inquiry_annotate.json
+│   │   ├── API_instruction_testval_query_ids.json
+│   │   ├── retriever_train_data
+│   │   ├── vectorizer.pkl
+└── └── └── centroids.pkl
 ```
 
 By meticulously following the steps above, you'll have all the essential data and models perfectly organized for the project.
 
-Currently, we only furnish scanpy data and pre-trained models. For experimenting with more libraries, use our library installation service.
+We provide data and pre-trained models for available tools mentioned in our paper. For experimenting with more libraries, use our library installation service.
 
 We also offer some demo chat, you can download it [here](https://drive.google.com/drive/folders/1V-vZeuKR59kq2IU3W_fW4bNCrZmRlSzD?usp=drive_link) and use `import data` button to visualize it in chatbot UI
 
@@ -267,7 +267,7 @@ python models/inference_classification.py \
 
 We offer code to generate comprehensive reports:
 
-#### For Chat Python File: 
+#### For chat Python File: 
 
 Firstly, press `export chat` button on UI to get the chat json data. Convert the chat JSON into a Python code using the Chat2Py.py script.
 
@@ -281,6 +281,22 @@ Convert the chat JSON into an [ipynb report](https://github.com/batmen-lab/BioMA
 
 ```shell
 python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
+```
+
+#### For performance report
+
+Combine and sort the performance figures into a short report.
+
+```shell
+python report/PNG2PDF.py scanpy
+```
+
+#### For common issue report
+
+Displaying common issues in the process of converting Python tools into libraries
+
+```shell
+python report/Py2report.py scanpy
 ```
 
 The output files are located in the ./report folder.
@@ -298,3 +314,12 @@ We extend our gratitude to the following references:
 
 Thank you for choosing BioMANIA. We hope this guide assists you in navigating through our project with ease.
 
+TODO:
+
+We will provide the below files and more tools data later
+
+```shell
+report/PNG2PDF.py 
+dataloader/get_API_composite_from_tutorial.py
+report/Py2report.py
+```
