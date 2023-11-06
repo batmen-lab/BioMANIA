@@ -316,7 +316,7 @@ Thank you for choosing BioMANIA. We hope this guide assists you in navigating th
 
 TODO:
 
-We will provide the below files and more tools data later
+We will provide the below files and the data of more tools later
 
 ```shell
 report/PNG2PDF.py 
