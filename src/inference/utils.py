@@ -134,8 +134,6 @@ def get_all_types_in_API(LIB):
         #if param_details:
         #    types.add(param_details["type"])
     return types
-types = get_all_types_in_API(LIB=LIB)
-print(types)
 
 def fast_get_environment(pre_code):
     executor = CodeExecutor()

@@ -105,3 +105,10 @@ def LLM_response(llm,tokenizer,chat_prompt,history=[],kwargs={}):
 def embedding_model():
     embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
     return embeddings
+
+if __name__=='__main__':
+   llm, tokenizer =LLM_model()
+   prompt = "hello"
+   response = LLM_response(llm,tokenizer,prompt)
+   print(f'User: {prompt}')
+   print(f'LLM: {response}')

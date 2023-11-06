@@ -339,40 +339,33 @@ def get_docparam_from_source(web_APIs):
                             'api_type': api_type,
                         }
                 else:
-                    print('debug1')
                     current_member_doc = pydoc.getdoc(member) or ""
                     """if not current_member_doc:
                         continue"""
                     params, returns, example = get_returnparam_docstring(current_member_doc)
-                    print('debug2')
                     api_short_desc = parse(current_member_doc).short_description or ""
                     api_long_desc = parse(current_member_doc).long_description or ""
                     api_desc = api_short_desc+api_long_desc
                     result_params = {}
-                    print('debug3')
                     try:
                         signature = inspect.signature(member) if callable(member) else None
                     except:
                         # for built-in functions
                         signature = None
-                    print('debug4')
                     if signature:
                         for param, param_type in signature.parameters.items():
                             if (param in ['self', 'kwargs', 'options', 'params', 'parameters', 'kwds', 'args']) or any(keyword in param for keyword in ['kwargs', 'kwds', 'args']) or param.startswith('*'):
                                 continue
                             else:
-                                print('debug5')
                                 param_type_str = format_type(param_type.annotation)
                                 if not param_type_str:
                                     param_type_str = params.get(param, {}).get('type', None)
-                                print('debug6')
                                 result_params[param] = {
                                     'type': param_type_str,
                                     'default': str(param_type.default) if param_type.default != inspect.Parameter.empty else None,
                                     'optional': True if param_type.default != inspect.Parameter.empty else False,
                                     'description': params.get(param, {}).get('description', '')
                                 }
-                                print('debug7')
                     else:
                         for param, param_type in params.items():
                             if (param in ['self', 'kwargs', 'options', 'params', 'parameters', 'kwds', 'args']) or any(keyword in param for keyword in ['kwargs', 'kwds', 'args']) or param.startswith('*'):
@@ -384,9 +377,7 @@ def get_docparam_from_source(web_APIs):
                                     'optional': True if param_type.get('default', None) is not None else False,
                                     'description': param_type.get('description', '')
                                 }
-                    print('debug8')
                     return_type, return_desc = extract_return_type_and_description(returns)
-                    print('debug9')
                     result = {
                         'Parameters': result_params,
                         'Returns': {
@@ -398,7 +389,6 @@ def get_docparam_from_source(web_APIs):
                         'example': example,
                         'api_type': api_type
                     }
-                    print('debug10')
                 results[member_name] = result
                 success_count += 1
             except Exception as e:
