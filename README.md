@@ -28,14 +28,17 @@ The BioMANIA project UI allows for an interactive session with the chatbot. Here
 For our demos, we use LIB=scanpy as an example:
 
 ```shell
+export LIB=scanpy
 CUDA_VISIBLE_DEVICES=0 \
 python deploy/inference_dialog_server.py \
-    --retrieval_model_path /home/z6dong/BioChat/hugging_models/retriever_model_finetuned/ \
+    --retrieval_model_path /home/z6dong/BioChat/hugging_models/retriever_model_finetuned/${LIB}/assigned \
     --top_k 3
 ```
 Upon executing the above, the back-end service will be initialized.
 
-If you're operating the front-end and back-end services on separate devices, initiate the ngrok service script:
+When selecting different libraries on the UI page, the retriever's path will automatically be changed based on the library selected
+
+If you're operating the front-end and back-end services on separate devices, initiate the ngrok service script in a new terminal:
 ```shell
 ngrok http 5000
 ```
@@ -44,11 +47,13 @@ Otherwise, you can skip the above step. Modify the URL in utils/server/index.ts 
 ```shell
 export const url = "https://localhost:5000";
 ```
-Finally, install according to the [instructions](https://github.com/batmen-lab/2023_yanglu_biochatbot/tree/main/chatbot_ui_biomania) and start the front-end service with:
+Finally, install and start the front-end service in a new terminal with:
 
 run:
 ```shell
-npm run dev
+cd src/chatbot_ui_biomania
+npm i # install
+npm run dev # run
 ```
 
 Your chatbot server is now operational, primed to install libraries and process user queries.
@@ -75,7 +80,6 @@ An example of the subfolders within the data folder is shown below:
 
 ```
 data
-├── centroids.pkl
 ├── conversations
 │   ├── api_data.csv
 │   ├── test_freq.json
@@ -102,8 +106,9 @@ data
 │   ├── qiime2
 │   ├── scanpy
 │   ├── scikit-bio
-│   └── squidpy
-└── vectorizer.pkl
+│   ├── squidpy
+│   ├── vectorizer.pkl
+└── └── centroids.pkl
 ```
 
 By meticulously following the steps above, you'll have all the essential data and models perfectly organized for the project.
@@ -114,13 +119,7 @@ We also offer some demo chat, you can download it [here](https://drive.google.co
 
 ### Installation of new library
 
-Enter the materials link under the custom mode in the library selection. This allows the installation of a new library as illustrated below:
-
-![](./images/install_1.jpg)
-
-![](./images/install_2.jpg)
-
-![](./images/install_3.jpg)
+Enter the materials link under the custom mode in the library selection. This allows the installation of a new library.
 
 ### Training
 In addition to the UI service, we also provide a robust training script. Here are the steps for the same:
@@ -150,30 +149,32 @@ Download the necessary materials.
 python dataloader/get_API_init_from_sourcecode.py
 ```
 
-3. Generate API_composite.json with another script.
+3. (Optional) Generate API_composite.json with another script.
 ```shell
 python dataloader/get_API_composite_from_tutorial.py
 ```
 
 4. Enter the OpenAI key from a paid account. Following this, create instructions, generate various JSON files, and split the data.
 ```shell
-python dataloader/preprocess_retriever_data.py --LIB scanpy
+export LIB=squidpy
+python dataloader/preprocess_retriever_data.py --LIB ${LIB}
 ```
-Notice that the automatically generated API_inquiry_annotate.json do not have human annotated data here, you need to annotate the API_inquiry_annotate.json by yourself
+Notice that the automatically generated API_inquiry_annotate.json do not have human annotated data here, you need to annotate the API_inquiry_annotate.json by yourself if you want to test performance on human annotate data.
+
+We have implemented the use of asyncio to make requests to OpenAI services, which has reduced the waiting time for the API. However, when the number of API calls is too high, this may reach the rate limit of 180,000 requests per minute for GPT-3.5.
 
 5. Train the api/non-api classification model.
 ```shell
-python models/chitchat_classification.py --LIB scanpy
+python models/chitchat_classification.py --LIB ${LIB}
 ```
 
 6. Test bm25 retriever or fine-tune the retriever.
 ```shell
-python inference/retriever_bm25_inference.py --LIB scanpy --top_k 1
+python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
 ```
 
 Or, you can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
 ```shell
-export LIB=scanpy
 mkdir /home/z6dong/BioChat/hugging_models/retriever_model_finetuned/${LIB}
 python models/train_retriever.py \
     --data_path ./data/standard_process/${LIB}/retriever_train_data/ \
@@ -190,23 +191,23 @@ python models/train_retriever.py \
 
 test the inference using:
 ```shell 
-export LIB=scanpy
 export HUGGINGPATH=/home/z6dong/BioChat/hugging_models
 python inference/retriever_finetune_inference.py  \
-    --retrieval_model_path /home/z6dong/BioChat/hugging_models/retriever_model_finetuned/${LIB}/assigned/ \
+    --retrieval_model_path /home/z6dong/BioChat/hugging_models/retriever_model_finetuned/${LIB}/assigned \
     --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
     --input_query_file ./data/standard_process/${LIB}/API_inquiry_annotate.json \
     --idx_file ./data/standard_process/${LIB}/API_instruction_testval_query_ids.json \
-    --retrieved_api_nums 1
+    --retrieved_api_nums 3 \
+    --LIB ${LIB}
 
-export LIB=scanpy
 export HUGGINGPATH=/home/z6dong/BioChat/hugging_models
 python inference/retriever_finetune_inference.py  \
     --retrieval_model_path bert-base-uncased \
     --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
     --input_query_file ./data/standard_process/${LIB}/API_inquiry_annotate.json \
     --idx_file ./data/standard_process/${LIB}/API_instruction_testval_query_ids.json \
-    --retrieved_api_nums 1
+    --retrieved_api_nums 3 \
+    --LIB ${LIB}
 ```
 
 7. Test api name prediction using either the gpt baseline or the classification model.
@@ -222,7 +223,6 @@ Please refer to [lit-llama](https://github.com/Lightning-AI/lit-llama) for getti
 process data:
 ```shell
 CUDA_VISIBLE_DEVICES=0
-export LIB=scanpy
 export TOKENIZERS_PARALLELISM=true
 python models/data_classification.py \
     --pretrained_path /home/z6dong/BioChat/hugging_models/llama-2-finetuned/checkpoints/lite-llama2/lit-llama.pth \
@@ -239,12 +239,12 @@ python models/data_classification.py \
     --idx_file ./data/standard_process/${LIB}/API_instruction_testval_query_ids.json \
     --API_composite_dir ./data/standard_process/${LIB}/API_composite.json \
     --batch_size 8 \
-    --retrieved_path ./data/standard_process/${LIB}
+    --retrieved_path ./data/standard_process/${LIB} \
+    --LIB ${LIB}
 ```
 
 Then, finetune model:
 ```shell
-export LIB=scanpy
 CUDA_VISIBLE_DEVICES=0 \
 python models/train_classification.py \
     --data_dir ./data/standard_process/${LIB}/classification_train/ \
@@ -256,7 +256,6 @@ python models/train_classification.py \
 
 Finally, check the performance:
 ```shell
-export LIB=scanpy
 CUDA_VISIBLE_DEVICES=0 \
 python models/inference_classification.py \
     --data_dir ./data/standard_process/${LIB}/classification_train/ \
@@ -273,15 +272,15 @@ We offer code to generate comprehensive reports:
 Firstly, press `export chat` button on UI to get the chat json data. Convert the chat JSON into a Python code using the Chat2Py.py script.
 
 ```shell
-python report/Chat2Py.py ../demo_Preprocessing_and_clustering_3k_PBMCs.json
+python report/Chat2Py.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 ```
 
 #### For chat report
 
-Convert the chat JSON into a report using the Chat2PDF.py script. 
+Convert the chat JSON into an [ipynb report](https://github.com/batmen-lab/BioMANIA/blob/main/src/report/demo_Preprocessing_and_clustering_3k_PBMCs.ipynb) using the Chat2jupyter.py script.
 
 ```shell
-python report/Chat2PDF.py ../demo_Preprocessing_and_clustering_3k_PBMCs.json
+python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 ```
 
 The output files are located in the ./report folder.
