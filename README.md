@@ -6,9 +6,11 @@ Project Overview:
 Our project pipeline is illustrated below:
 ![](./images/overview_v2.jpg)
 
-We provide a demo chatbot UI 
+We provide chatbot UI 
 ![](./images/UI.jpg)
 
+Here are some scanpy demos 
+![](./images/demo_full.jpg)
 
 
 ### setting up
@@ -282,6 +284,8 @@ Convert the chat JSON into an [ipynb report](https://github.com/batmen-lab/BioMA
 ```shell
 python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 ```
+![](./images/jupyter.jpg)
+
 
 #### For performance report
 
