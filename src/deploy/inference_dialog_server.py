@@ -301,13 +301,13 @@ class Model:
         subprocess.run(command)
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="training retriever...",task_title="78") for callback in self.callbacks]
         self.indexxxx+=1
-        subprocess.run(["mkdir", f"/home/z6dong/BioChat/hugging_models/retriever_model_finetuned/{self.LIB}"])
+        subprocess.run(["mkdir", f"./hugging_models/retriever_model_finetuned/{self.LIB}"])
         command = [
             "python",
             "models/train_retriever.py",
             "--data_path", f"./data/standard_process/{self.LIB}/retriever_train_data/",
             "--model_name", "bert-base-uncased",
-            "--output_path", f"/home/z6dong/BioChat/hugging_models/retriever_model_finetuned/{self.LIB}",
+            "--output_path", f"./hugging_models/retriever_model_finetuned/{self.LIB}",
             "--num_epochs", "25",
             "--train_batch_size", "32",
             "--learning_rate", "1e-5",

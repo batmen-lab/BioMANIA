@@ -4,7 +4,7 @@ import torch.backends
 import platform
 import json
 
-LIB = 'qiime2' # qiime2 scikit-bio pyteomics scanpy
+LIB = 'squidpy' # qiime2 scikit-bio pyteomics scanpy
 
 ########### User Input
 with open('./configs/Lib_cheatsheet.json', 'r') as file:

@@ -33,7 +33,7 @@ For our demos, we use LIB=scanpy as an example:
 export LIB=scanpy
 CUDA_VISIBLE_DEVICES=0 \
 python deploy/inference_dialog_server.py \
-    --retrieval_model_path /home/z6dong/BioChat/hugging_models/retriever_model_finetuned/${LIB}/assigned \
+    --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
     --top_k 3
 ```
 Upon executing the above, the back-end service will be initialized.
@@ -177,11 +177,11 @@ python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
 
 Or, you can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
 ```shell
-mkdir /home/z6dong/BioChat/hugging_models/retriever_model_finetuned/${LIB}
+mkdir ./hugging_models/retriever_model_finetuned/${LIB}
 python models/train_retriever.py \
     --data_path ./data/standard_process/${LIB}/retriever_train_data/ \
     --model_name bert-base-uncased \
-    --output_path /home/z6dong/BioChat/hugging_models/retriever_model_finetuned/${LIB} \
+    --output_path ./hugging_models/retriever_model_finetuned/${LIB} \
     --num_epochs 25 \
     --train_batch_size 32 \
     --learning_rate 1e-5 \
@@ -193,16 +193,16 @@ python models/train_retriever.py \
 
 test the inference using:
 ```shell 
-export HUGGINGPATH=/home/z6dong/BioChat/hugging_models
+export HUGGINGPATH=./hugging_models
 python inference/retriever_finetune_inference.py  \
-    --retrieval_model_path /home/z6dong/BioChat/hugging_models/retriever_model_finetuned/${LIB}/assigned \
+    --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
     --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
     --input_query_file ./data/standard_process/${LIB}/API_inquiry_annotate.json \
     --idx_file ./data/standard_process/${LIB}/API_instruction_testval_query_ids.json \
     --retrieved_api_nums 3 \
     --LIB ${LIB}
 
-export HUGGINGPATH=/home/z6dong/BioChat/hugging_models
+export HUGGINGPATH=./hugging_models
 python inference/retriever_finetune_inference.py  \
     --retrieval_model_path bert-base-uncased \
     --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
@@ -227,12 +227,12 @@ process data:
 CUDA_VISIBLE_DEVICES=0
 export TOKENIZERS_PARALLELISM=true
 python models/data_classification.py \
-    --pretrained_path /home/z6dong/BioChat/hugging_models/llama-2-finetuned/checkpoints/lite-llama2/lit-llama.pth \
-    --tokenizer_path /home/z6dong/BioChat/hugging_models/llama-2-finetuned/checkpoints/tokenizer.model \
+    --pretrained_path ./hugging_models/llama-2-finetuned/checkpoints/lite-llama2/lit-llama.pth \
+    --tokenizer_path ./hugging_models/llama-2-finetuned/checkpoints/tokenizer.model \
     --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
-    --retriever_path /home/z6dong/BioChat/hugging_models/retriever_model_finetuned/${LIB}/assigned/ \
+    --retriever_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned/ \
     --data_dir ./data/standard_process/${LIB}/API_inquiry_annotate.json \
-    --out_dir /home/z6dong/BioChat/hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
+    --out_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
     --plot_dir ./plot/${LIB}/classification \
     --device_count 1 \
     --top_k 10 \
@@ -250,7 +250,7 @@ Then, finetune model:
 CUDA_VISIBLE_DEVICES=0 \
 python models/train_classification.py \
     --data_dir ./data/standard_process/${LIB}/classification_train/ \
-    --out_dir /home/z6dong/BioChat/hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
+    --out_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
     --plot_dir ./plot/${LIB}/classification \
     --max_iters 120 \
     --batch_size 8
@@ -261,7 +261,7 @@ Finally, check the performance:
 CUDA_VISIBLE_DEVICES=0 \
 python models/inference_classification.py \
     --data_dir ./data/standard_process/${LIB}/classification_train/ \
-    --checkpoint_dir /home/z6dong/BioChat/hugging_models/llama-2-finetuned/${LIB}/finetuned/combined_model_checkpoint.pth \
+    --checkpoint_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/combined_model_checkpoint.pth \
     --batch_size 1
 ```
 
@@ -276,6 +276,8 @@ Firstly, press `export chat` button on UI to get the chat json data. Convert the
 ```shell
 python report/Chat2Py.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 ```
+![](./images/pyfile.jpg)
+
 
 #### For chat report
 
@@ -292,7 +294,7 @@ python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.
 Combine and sort the performance figures into a short report.
 
 ```shell
-python report/PNG2PDF.py scanpy
+python report/PNG2report.py scanpy
 ```
 
 #### For common issue report

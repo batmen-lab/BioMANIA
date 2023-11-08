@@ -4,7 +4,6 @@ import pydoc
 import json
 import re
 import os
-from sklearn.neighbors import DistanceMetric
 from docstring_parser import parse
 from langchain.document_loaders import BSHTMLLoader
 from configs.model_config import LIB, LIB_ALIAS, CHEATSHEET, ANALYSIS_PATH, API_HTML_PATH
@@ -86,7 +85,6 @@ def resolve_forwardref(forward_ref_str):
         "List": typing.List,
         "Dict": typing.Dict,
         "Union": typing.Union,
-        "DistanceMetric": DistanceMetric,
     }
     try:
         return eval(forward_ref_str, namespace)
