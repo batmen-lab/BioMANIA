@@ -297,6 +297,11 @@ Combine and sort the performance figures into a short report.
 python report/PNG2report.py scanpy
 ```
 
+Please note that the generation of this report must be based on the premise that the models have already been trained. You need to first obtain the results of each model before running this script. Here is a reference for a [demo report](https://github.com/batmen-lab/BioMANIA/tree/main/src/report/performance_report.pdf).
+
+![](./images/performance_report.jpg)
+
+
 #### For common issue report
 
 Displaying common issues in the process of converting Python tools into libraries
@@ -325,7 +330,6 @@ TODO:
 We will provide the below files and the data of more tools later
 
 ```shell
-report/PNG2PDF.py 
 dataloader/get_API_composite_from_tutorial.py
 report/Py2report.py
 ```
