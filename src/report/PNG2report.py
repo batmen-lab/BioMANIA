@@ -227,7 +227,7 @@ def is_pair_in_merged_pairs(gold, pred, merged_pairs):
     # Check if the pair (gold, pred) or (pred, gold) exists in merged_pairs
     return (gold, pred) in merged_pairs or (pred, gold) in merged_pairs
 all_apis_from_pairs = set(api for pair in merged_pairs for api in pair)
-for fname in glob.glob('../../resources/gpt_resources/5-shot-classify_random_seed/*.json'):
+for fname in glob.glob('./5-shot-classify/*.json'):
     with open(fname) as f:
         res = json.load(f)
     original_correct = [ex['correct'] for ex in res]
