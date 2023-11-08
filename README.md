@@ -23,6 +23,18 @@ conda create -n biomania python=3.10
 conda activate biomania
 pip install -r requirements.txt
 ```
+Before running the application, you need to set your OpenAI API key. Please follow these steps:
+
+Create a secrets.json file in the directory `./configs/secrets.json` of the project.
+Add your OpenAI API key to the secrets.json file in the following format:
+```shell
+{
+    "OPENAI_KEY": "your-openai-api-key-here"
+}
+```
+
+For inference purposes, a standard OpenAI API key is sufficient.
+If you intend to use functionalities such as instruction generation or GPT API predictions, a paid OpenAI account is required as these features consume more resources and may reach rate limit.
 
 ### User Interface (UI)
 The BioMANIA project UI allows for an interactive session with the chatbot. Here's a brief on the code and how to get the UI up and running:
@@ -156,7 +168,7 @@ python dataloader/get_API_init_from_sourcecode.py
 python dataloader/get_API_composite_from_tutorial.py
 ```
 
-4. Enter the OpenAI key from a paid account. Following this, create instructions, generate various JSON files, and split the data.
+4. Following this, create instructions, generate various JSON files, and split the data.
 ```shell
 export LIB=squidpy
 python dataloader/preprocess_retriever_data.py --LIB ${LIB}
