@@ -33,7 +33,6 @@ data_values = {}
 data_values["retriever_synthetic"]= accuracy_data['val']['accuracy']
 data_values['retriever_human']=accuracy_data['test']['accuracy']
 data_values['retriever_samples']=[accuracy_data['Training']['samples'],accuracy_data['val']['samples'],accuracy_data['test']['samples']]
-LIB = 'scanpy'
 command = [
     'python', 'inference/retriever_bm25_inference.py',
     '--top_k', '3',
@@ -48,7 +47,6 @@ accuracy_data_bm25 = {match[1]: {"samples": int(match[0]), "accuracy": float(mat
 data_values["bm25_synthetic"]= accuracy_data_bm25['val']['accuracy']
 data_values['bm25_human']=accuracy_data_bm25['test']['accuracy']
 data_values['bm25_samples']=[accuracy_data_bm25['train']['samples'], accuracy_data_bm25['val']['samples'], accuracy_data_bm25['test']['samples']]
-LIB = 'scanpy'
 command = [
     'python', 'models/chitchat_classification.py',
     '--LIB', LIB
@@ -64,7 +62,6 @@ accuracy_match = re.search(accuracy_regex, terminal_output_data)
 accuracy = float(accuracy_match.group(1)) if accuracy_match else None
 data_values["chitchat_acc"]= accuracy
 data_values["chitchat_sample_size"]= sample_size
-LIB = 'scanpy'
 command = [
     'python', 'inference/retriever_finetune_inference.py',
     '--retrieval_model_path', "bert-base-uncased",
@@ -159,16 +156,14 @@ for i, (title, body) in enumerate(zip(section_titles, filled_section_texts), sta
     pdf.add_section(i, title, body)
 
 
-
 # run scripts for getting gpt api prediction performance
 import json
 from tqdm import auto as tqdm
 import logging
 logging.basicConfig(level=logging.CRITICAL)  # turn off logging
 # load data
-with open('../data/standard_process/scanpy/API_inquiry_annotate.json', 'r') as f:
+with open(f'./data/standard_process/{LIB}/API_inquiry_annotate.json', 'r') as f:
     data = json.load(f)
-
 # all-apis
 import re, os
 from string import punctuation
@@ -176,10 +171,9 @@ end_of_docstring_summary = re.compile(r'[{}\n]+'.format(re.escape(punctuation)))
 all_apis = {x['api_name']: end_of_docstring_summary.split(x['Docstring'])[0].strip() for x in data}
 all_apis = list(all_apis.items())
 all_apis_json = {i[0]:i[1] for i in all_apis}
-
 # For accuracy without ambiguous pair
 from collections import defaultdict
-with open("../data/standard_process/scanpy/API_composite.json", "r") as file:
+with open(f"./data/standard_process/{LIB}/API_composite.json", "r") as file:
     api_composite_data = json.load(file)
     
 api_composite_data = {key:api_composite_data[key] for key in api_composite_data if api_composite_data[key]['api_type']!='class'}
