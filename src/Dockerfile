@@ -10,9 +10,12 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+
 ENV LIB=scanpy
 ENV CUDA_VISIBLE_DEVICES=0
+ENV PYTHONPATH="/app:${PYTHONPATH}"
 
 EXPOSE 5000
 
-CMD ["sh", "-c", "LIB=${LIB} CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES} python3 deploy/inference_dialog_server.py --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned --top_k 3"]
+CMD sh -c "LIB=${LIB} CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES} python3 deploy/inference_dialog_server.py"
+

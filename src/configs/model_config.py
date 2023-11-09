@@ -84,12 +84,16 @@ LLM_HISTORY_LEN = 20
 FP16 = True
 LLM_DEVICE = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
 
-with open('./configs/secrets.json', 'r') as file:
+"""with open('./configs/secrets.json', 'r') as file:
     api_keys = json.load(file)
     OPENAI_API_KEY = api_keys['OPENAI_KEY']
-    HUGGINGFACEHUB_API_TOKEN = api_keys['HUGGINGFACEHUB_TOKEN']
     os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
-    os.environ["HUGGINGFACEHUB_API_TOKEN"] = HUGGINGFACEHUB_API_TOKEN
+    #HUGGINGFACEHUB_API_TOKEN = api_keys['HUGGINGFACEHUB_TOKEN']
+    #os.environ["HUGGINGFACEHUB_API_TOKEN"] = HUGGINGFACEHUB_API_TOKEN"""
+from dotenv import load_dotenv
+load_dotenv()
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
+os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 # Base cheatsheet
 with open('./configs/Base_cheatsheet.json', 'r') as file:

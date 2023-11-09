@@ -13,6 +13,21 @@ Here are some scanpy demos
 ![](./images/demo_full.jpg)
 
 
+### Run with Docker
+The BioMANIA project UI allows for an interactive session with the chatbot. 
+
+Start front-end UI service with:
+```shell
+docker pull chatbotuibiomania/biomania-frontend:v2
+docker run -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v2
+```
+
+Start back-end UI service with:
+```shell
+docker pull chatbotuibiomania/biomania-backend:v2
+docker run -e API_KEY="your-openai-api-key-here" -d -p 5000:5000 chatbotuibiomania/biomania-backend:v2
+```
+
 ### setting up
 To get started, download the code and set up the required environment:
 
@@ -25,29 +40,18 @@ pip install -r requirements.txt
 ```
 Before running the application, you need to set your OpenAI API key. Please follow these steps:
 
-Create a secrets.json file in the directory `./configs/secrets.json` of the project.
-Add your OpenAI API key to the secrets.json file in the following format:
+Add your OpenAI API key into .env file as:
 ```shell
-{
-    "OPENAI_KEY": "your-openai-api-key-here"
-}
+nano .env
+"OPENAI_API_KEY"="your-openai-api-key-here"
 ```
 
 For inference purposes, a standard OpenAI API key is sufficient.
 If you intend to use functionalities such as instruction generation or GPT API predictions, a paid OpenAI account is required as these features consume more resources and may reach rate limit.
 
 
-### Run with Docker
-
-Start front-end UI service with:
-```shell
-docker pull chatbotuibiomania/biomania-frontend:v2
-docker run -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v2
-```
-
-
 ### Run with script
-The BioMANIA project UI allows for an interactive session with the chatbot. Here's a brief on the code and how to get the UI up and running:
+Here's a brief on the code and how to get the UI up and running:
 
 For our demos, we use LIB=scanpy as an example:
 
@@ -234,7 +238,7 @@ python inference/retriever_finetune_inference.py  \
 
 GPT-baseline
 
-Firstly, change the OpenAI API key in secrets.json, and copy the corresponding json data from ./data/standard_process/${LIB} to ./gpt folder. Then run code inside gpt_baseline.ipynb to check results. You can either choose top_k, gpt3.5/gpt4 model, random shot/similar shot example, narrowed retrieved api list/whole api list parameters here.
+Run code inside gpt_baseline.ipynb to check results. You can either choose top_k, gpt3.5/gpt4 model, random shot/similar shot example, narrowed retrieved api list/whole api list parameters here.
 
 Besides, even though we use gpt prompt to predict api, we also provide an api-name prediction classification model
 

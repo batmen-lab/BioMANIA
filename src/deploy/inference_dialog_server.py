@@ -19,6 +19,8 @@ import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # 
 import concurrent.futures
+from dotenv import load_dotenv
+
 # inference pipeline
 from models.model import LLM_response, LLM_model
 from configs.model_config import *
@@ -162,6 +164,7 @@ class Model:
         self.callbacks = [self.callback]
         self.occupied = False
         self.LIB = "scanpy"
+        #load_dotenv()
         OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
         os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
         self.initialize_executor()
