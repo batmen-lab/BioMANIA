@@ -36,7 +36,17 @@ Add your OpenAI API key to the secrets.json file in the following format:
 For inference purposes, a standard OpenAI API key is sufficient.
 If you intend to use functionalities such as instruction generation or GPT API predictions, a paid OpenAI account is required as these features consume more resources and may reach rate limit.
 
-### User Interface (UI)
+
+### Run with Docker
+
+Start front-end UI service with:
+```shell
+docker pull chatbotuibiomania/biomania-frontend:latest
+docker run -d -p 3000:3000 chatbotuibiomania/biomania-frontend:latest
+```
+
+
+### Run with script
 The BioMANIA project UI allows for an interactive session with the chatbot. Here's a brief on the code and how to get the UI up and running:
 
 For our demos, we use LIB=scanpy as an example:
@@ -70,8 +80,7 @@ npm i # install
 npm run dev # run
 ```
 
-Your chatbot server is now operational, primed to install libraries and process user queries.
-
+Your chatbot server is now operational at `http://localhost:3000/en`, primed to process user queries.
 
 ### Inference
 If you prefer to initiate user queries without the installation step, download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).
@@ -170,7 +179,7 @@ python dataloader/get_API_composite_from_tutorial.py
 
 4. Following this, create instructions, generate various JSON files, and split the data.
 ```shell
-export LIB=squidpy
+export LIB=scanpy
 python dataloader/preprocess_retriever_data.py --LIB ${LIB}
 ```
 Notice that the automatically generated API_inquiry_annotate.json do not have human annotated data here, you need to annotate the API_inquiry_annotate.json by yourself if you want to test performance on human annotate data.

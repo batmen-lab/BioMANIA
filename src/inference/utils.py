@@ -1,5 +1,4 @@
 import json
-from inference.execution import CodeExecutor
 import os, datetime
 import matplotlib.pyplot as plt
 
@@ -136,6 +135,7 @@ def get_all_types_in_API(LIB):
     return types
 
 def fast_get_environment(pre_code):
+    from inference.execution_UI import CodeExecutor
     executor = CodeExecutor()
     executor.save_directory = './tmp'
     executor.execute_api_call(pre_code)

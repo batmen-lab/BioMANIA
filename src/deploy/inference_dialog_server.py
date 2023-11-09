@@ -162,9 +162,7 @@ class Model:
         self.callbacks = [self.callback]
         self.occupied = False
         self.LIB = "scanpy"
-        with open('./configs/secrets.json','r') as f:
-            tmp_API_key = json.load(f)
-        OPENAI_API_KEY = tmp_API_key['OPENAI_KEY']
+        OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
         os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
         self.initialize_executor()
         reset_result = self.reset_lib(self.LIB)
