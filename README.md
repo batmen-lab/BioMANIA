@@ -25,7 +25,7 @@ docker run -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v2
 Start back-end UI service with:
 ```shell
 docker pull chatbotuibiomania/biomania-backend:v2
-docker run -e API_KEY="your-openai-api-key-here" -d -p 5000:5000 chatbotuibiomania/biomania-backend:v2
+docker run -e OPENAI_API_KEY="your-openai-api-key-here" -d -p 5000:5000 chatbotuibiomania/biomania-backend:v2
 ```
 
 ### setting up
