@@ -328,7 +328,7 @@ class Model:
     def get_args(self):
         # Define the arguments here...
         parser = argparse.ArgumentParser(description="Inference Pipeline")
-        parser.add_argument("--retrieval_model_path", type=str, required=True, help="Path to the retrieval model")
+        parser.add_argument("--retrieval_model_path", type=str, default='./hugging_models/retriever_model_finetuned/scanpy/assigned', help="Path to the retrieval model")
         parser.add_argument("--top_k", type=int, default=3, help="Top K value for the retrieval")
         self.args = parser.parse_args()
     def load_composite_code(self, lib_name):

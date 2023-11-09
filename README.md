@@ -41,8 +41,8 @@ If you intend to use functionalities such as instruction generation or GPT API p
 
 Start front-end UI service with:
 ```shell
-docker pull chatbotuibiomania/biomania-frontend:latest
-docker run -d -p 3000:3000 chatbotuibiomania/biomania-frontend:latest
+docker pull chatbotuibiomania/biomania-frontend:v2
+docker run -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v2
 ```
 
 
@@ -62,21 +62,18 @@ Upon executing the above, the back-end service will be initialized.
 
 When selecting different libraries on the UI page, the retriever's path will automatically be changed based on the library selected
 
-If you're operating the front-end and back-end services on separate devices, initiate the ngrok service script in a new terminal:
+If you're operating the front-end and back-end services on separate devices, initiate the ngrok service script in a new terminal and get the print url like `https://[].ngrok-free.app`:
 ```shell
 ngrok http 5000
 ```
 
-Otherwise, you can skip the above step. Modify the URL in utils/server/index.ts to align with the ngrok page link after running ngrok http 5000:
-```shell
-export const url = "https://localhost:5000";
-```
 Finally, install and start the front-end service in a new terminal with:
 
 run:
 ```shell
 cd src/chatbot_ui_biomania
 npm i # install
+export BACKEND_URL="https://[].ngrok-free.app" # "https://localhost:5000";
 npm run dev # run
 ```
 
