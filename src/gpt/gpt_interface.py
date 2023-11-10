@@ -8,15 +8,14 @@ from dotenv import load_dotenv
 
 def setup_openai(fname, mode='azure'):
     assert mode in {'openai', 'azure'}
-    #openai.api_version = "2023-03-15-preview"
     load_dotenv()
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
-    openai.api_version = "2020-11-07"
     if mode == 'openai':
         openai.api_type = "open_ai"
         openai.api_base = "https://api.openai.com/v1"
         openai.api_key = OPENAI_API_KEY
     else:
+        #openai.api_version = "2023-03-15-preview"
         with open(fname) as f:
             secrets = json.load(f)
         openai.api_type = "azure"

@@ -1,20 +1,25 @@
-### ReadMe for BioMANIA Project
+### BioMANIA Project
 
-Welcome to the BioMANIA Project! This README provides a comprehensive guide to set up, run, and understand the BioMANIA project. Our primary focus is to offer a chatbot interface that seamlessly interacts with APIs, providing answers related to a range of libraries and frameworks.
+Welcome to the BioMANIA Project! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
+
+#### Project Overview
+
+Our project workflow is depicted in the images below, showcasing the pipeline, chatbot UI, and demos.
 
 Project Overview:
 Our project pipeline is illustrated below:
 ![](./images/overview_v2.jpg)
 
-We provide chatbot UI 
+Chatbot UI 
 ![](./images/UI.jpg)
 
 Here are some scanpy demos 
 ![](./images/demo_full.jpg)
 
 
-### Run with Docker
-The BioMANIA project UI allows for an interactive session with the chatbot. 
+#### Run with Docker
+
+For ease of use, we provide Docker images for both the frontend and backend services, specific to the Scanpy library at present. Future releases will expand this capability.
 
 > **For the Docker v2 demo, we have released a Docker image that includes the available models and data for `Scanpy`. At the moment, you can only check the execution for Scanpy under the v2 version. We are planning to release v3 later, which will accommodate more data and installation service.**
 
@@ -26,11 +31,13 @@ docker pull chatbotuibiomania/biomania-frontend:v2
 docker run -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v2
 ```
 
-Start back-end UI service on a device with at least one gpu:
+Start back-end UI service with:
 ```shell
 docker pull chatbotuibiomania/biomania-backend:v2
 docker run -e OPENAI_API_KEY="your-openai-api-key-here" -d -p 5000:5000 chatbotuibiomania/biomania-backend:v2
 ```
+
+##### Setting up services on separate devices
 
 If you're operating the front-end and back-end services on separate devices, initiate the ngrok service script in a new terminal on the same device with back-end device and get the print url like `https://[ngrok_id].ngrok-free.app` with:
 ```shell
@@ -42,9 +49,12 @@ Then you can start front-end UI service with
 docker run -e BACKEND_URL="https://[ngrok_id].ngrok-free.app" -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v2
 ```
 
-### setting up
-To get started, download the code and set up the required environment:
+#### Run with script
 
+##### Setting up for environment
+To prepare your environment for the BioMANIA project, follow these steps:
+
+1. Clone the repository and install dependencies:
 ```shell
 git clone https://github.com/batmen-lab/BioMANIA.git
 cd BioMANIA/src
@@ -52,65 +62,29 @@ conda create -n biomania python=3.10
 conda activate biomania
 pip install -r requirements.txt
 ```
-Before running the application, you need to set your OpenAI API key. Please follow these steps:
 
-Add your OpenAI API key into .env file as:
+2. Set up your OpenAI API key in the `src/.env` file.
 ```shell
-nano .env
 "OPENAI_API_KEY"="your-openai-api-key-here"
 ```
 
 For inference purposes, a standard OpenAI API key is sufficient.
-If you intend to use functionalities such as instruction generation or GPT API predictions, a paid OpenAI account is required as these features consume more resources and may reach rate limit.
+If you intend to use functionalities such as instruction generation or GPT API predictions, a paid OpenAI account is required as it may reach rate limit.
 
-
-### Run with script
-Here's a brief on the code and how to get the UI up and running:
-
-For our demos, we use LIB=scanpy as an example:
-
-```shell
-export LIB=scanpy
-CUDA_VISIBLE_DEVICES=0 \
-python deploy/inference_dialog_server.py \
-    --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
-    --top_k 3
-```
-Upon executing the above, the back-end service will be initialized.
-
-When selecting different libraries on the UI page, the retriever's path will automatically be changed based on the library selected
-
-If you're operating the front-end and back-end services on separate devices, initiate the ngrok service script in a new terminal and get the print url like `https://[ngrok_id].ngrok-free.app`:
-```shell
-ngrok http 5000
-```
-
-Finally, install and start the front-end service in a new terminal with:
-
-run:
-```shell
-cd src/chatbot_ui_biomania
-npm i # install
-export BACKEND_URL="https://[ngrok_id].ngrok-free.app" # "https://localhost:5000";
-npm run dev # run
-```
-
-Your chatbot server is now operational at `http://localhost:3000/en`, primed to process user queries.
-
-### Inference
-If you prefer to initiate user queries without the installation step, download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).
+##### Data and Model Organization
+Download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).
 
 Organize the downloaded files as follows:
 
-#### Data Organization:
+###### Data Organization:
 
 Place data files in: `src/data/standard_process/${LIB}/`
 
-#### Model Organization:
+###### Model Organization:
 
 Store model files in:  `src/hugging_models/retriever_model_finetuned/${LIB}/assigned/`
 
-#### Chitchat Data and Model Organization:
+###### Chitchat Data and Model Organization:
 
 Files should be located at: `src/data/`
 
@@ -155,13 +129,34 @@ We provide data and pre-trained models for available tools mentioned in our pape
 
 We also offer some demo chat, you can download it [here](https://drive.google.com/drive/folders/1V-vZeuKR59kq2IU3W_fW4bNCrZmRlSzD?usp=drive_link) and use `import data` button to visualize it in chatbot UI
 
-### Installation of new library
+##### Inference
 
-Enter the materials link under the custom mode in the library selection. This allows the installation of a new library.
+To get the UI running without Docker, you can use our script for inference. We use LIB=scanpy as an example:
 
-### Training
+Start back-end UI service with:
+```shell
+export LIB=scanpy
+CUDA_VISIBLE_DEVICES=0 \
+python deploy/inference_dialog_server.py \
+    --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
+    --top_k 3
+```
 
-In addition to the UI service, we also provide a robust training script. Here are the steps for the same:
+When selecting different libraries on the UI page, the retriever's path will automatically be changed based on the library selected
+
+Install and start the front-end service in a new terminal with:
+```shell
+cd src/chatbot_ui_biomania
+npm i # install
+export BACKEND_URL="https://[ngrok_id].ngrok-free.app" # "https://localhost:5000";
+npm run dev # run
+```
+
+Your chatbot server is now operational at `http://localhost:3000/en`, primed to process user queries.
+
+##### Training
+
+We provide a robust training script for additional customization and enhancement of the BioMANIA project. Follow the steps in the Training section to modify library settings, download materials, generate JSON files, and train models.
 
 1. Modify the library setting in configs/model_config.py.
 ```shell
@@ -253,7 +248,7 @@ python inference/retriever_finetune_inference.py  \
 
 GPT-baseline
 
-Run code inside gpt_baseline.ipynb to check results. You can either choose top_k, gpt3.5/gpt4 model, random shot/similar shot example, narrowed retrieved api list/whole api list parameters here.
+Run code inside gpt_baseline.ipynb to check results. You can either choose top_k, gpt3.5/gpt4 model, random shot/similar shot example, narrowed retrieved api list/whole api list parameters here. The performance described in our paper was evaluated using GPT versions GPT-3.5-turbo-16k-0613 and GPT-4-0613.
 
 Besides, even though we use gpt prompt to predict api, we also provide an api-name prediction classification model
 
@@ -302,11 +297,11 @@ python models/inference_classification.py \
     --batch_size 1
 ```
 
-### Report Generation
+#### Report Generation
 
-We offer code to generate comprehensive reports:
+BioMANIA can generate various reports, including Python files, Jupyter notebooks, performance summaries, and common issue logs. Follow the instructions in the Report Generation section to create these reports.
 
-#### For chat Python File: 
+##### For chat Python File: 
 
 Firstly, press `export chat` button on UI to get the chat json data. Convert the chat JSON into a Python code using the Chat2Py.py script.
 
@@ -316,7 +311,7 @@ python report/Chat2Py.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 ![](./images/pyfile.jpg)
 
 
-#### For chat report
+##### For chat report
 
 Convert the chat JSON into an [ipynb report](https://github.com/batmen-lab/BioMANIA/blob/main/src/report/demo_Preprocessing_and_clustering_3k_PBMCs.ipynb) using the Chat2jupyter.py script.
 
@@ -326,7 +321,7 @@ python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.
 ![](./images/jupyter.jpg)
 
 
-#### For performance report
+##### For performance report
 
 Combine and sort the performance figures into a short report.
 
@@ -339,7 +334,7 @@ Please note that the generation of this report must be based on the premise that
 ![](./images/performance_report.jpg)
 
 
-#### For common issue report
+##### For common issue report
 
 Displaying common issues in the process of converting Python tools into libraries
 
@@ -349,7 +344,7 @@ python report/Py2report.py scanpy
 
 The output files are located in the ./report folder.
 
-### Reference
+#### Reference and Acknowledgments
 
 We extend our gratitude to the following references:
 - [Toolbench](https://github.com/OpenBMB/ToolBench) 
@@ -370,3 +365,8 @@ We will provide the below files and the data of more tools later
 dataloader/get_API_composite_from_tutorial.py
 report/Py2report.py
 ```
+
+#### Version History
+
+- docker:v2 (2023-11-10)
+  - Initial release with analysis pipeline for `scanpy`.
