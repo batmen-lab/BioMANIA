@@ -379,7 +379,10 @@ report/Py2report.py
 ```
 
 ### Version History
-
+- v3 (Upcoming)
+  - Pass testing and release of code, data links, Docker images, and deployment support for 3-4 tools.
+  - Pass testing and release of materials for installation services on web.
+  - Pass testing and release of materials for supporting more tools.
 - v2 (2023-11-10)
   - Initial release with analysis pipeline for `scanpy`.
   - Add one-click deploy using railway.
