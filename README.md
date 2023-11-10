@@ -16,7 +16,7 @@ Here are some scanpy demos
 ### Run with Docker
 The BioMANIA project UI allows for an interactive session with the chatbot. 
 
-> **For the Docker v2 demo, we have released a Docker image that includes the available models and data for `Scanpy`. At the moment, you can only check the execution for Scanpy under the v2 version. We are planning to release v3 later, which will accommodate more data.**
+> **For the Docker v2 demo, we have released a Docker image that includes the available models and data for `Scanpy`. At the moment, you can only check the execution for Scanpy under the v2 version. We are planning to release v3 later, which will accommodate more data and installation service.**
 
 Start front-end UI service with:
 ```shell
