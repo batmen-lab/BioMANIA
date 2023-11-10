@@ -38,7 +38,7 @@ Then you can start front-end UI service with
 docker run -e BACKEND_URL="https://[ngrok_id].ngrok-free.app" -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v2
 ```
 
-> **For docker v2 demo, we only release docker with available model and data for scanpy. So only check API usage for scanpy under v2 version. We will release v3 for more data later.**
+> **For the Docker v2 demo, we have released a Docker image that includes the available models and data for `Scanpy`. At the moment, you can only check the execution for Scanpy under the v2 version. We are planning to release v3 later, which will accommodate more data.**
 
 ### setting up
 To get started, download the code and set up the required environment:
