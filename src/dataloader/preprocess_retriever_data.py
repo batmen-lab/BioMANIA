@@ -62,7 +62,7 @@ async def process_prompt_async(api_name, api, llm, tokenizer, prompt_template):
     results = []
     for response_dict in response_list:
         api_tmp = copy.deepcopy(api)
-        if api_name not in response_dict['Query']:  # 筛选，去除这个有明显API的
+        if api_name not in response_dict['Query']:  # filter out the response which contains API
             query = response_dict['Query']
             api_tmp['query'] = query
             results.append(api_tmp)

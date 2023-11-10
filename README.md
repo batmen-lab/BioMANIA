@@ -22,11 +22,23 @@ docker pull chatbotuibiomania/biomania-frontend:v2
 docker run -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v2
 ```
 
-Start back-end UI service with:
+Start back-end UI service on a device with at least one gpu:
 ```shell
 docker pull chatbotuibiomania/biomania-backend:v2
 docker run -e OPENAI_API_KEY="your-openai-api-key-here" -d -p 5000:5000 chatbotuibiomania/biomania-backend:v2
 ```
+
+If you're operating the front-end and back-end services on separate devices, initiate the ngrok service script in a new terminal on the same device with back-end device and get the print url like `https://[ngrok_id].ngrok-free.app` with:
+```shell
+ngrok http 5000
+```
+
+Then you can start front-end UI service with
+```shell
+docker run -e BACKEND_URL="https://[ngrok_id].ngrok-free.app" -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v2
+```
+
+For docker v2 demo, we only release docker with available model and data for scanpy. So only check API usage for scanpy under v2 version. We will release v3 for more data later.
 
 ### setting up
 To get started, download the code and set up the required environment:
@@ -66,7 +78,7 @@ Upon executing the above, the back-end service will be initialized.
 
 When selecting different libraries on the UI page, the retriever's path will automatically be changed based on the library selected
 
-If you're operating the front-end and back-end services on separate devices, initiate the ngrok service script in a new terminal and get the print url like `https://[].ngrok-free.app`:
+If you're operating the front-end and back-end services on separate devices, initiate the ngrok service script in a new terminal and get the print url like `https://[ngrok_id].ngrok-free.app`:
 ```shell
 ngrok http 5000
 ```
@@ -77,7 +89,7 @@ run:
 ```shell
 cd src/chatbot_ui_biomania
 npm i # install
-export BACKEND_URL="https://[].ngrok-free.app" # "https://localhost:5000";
+export BACKEND_URL="https://[ngrok_id].ngrok-free.app" # "https://localhost:5000";
 npm run dev # run
 ```
 
@@ -146,6 +158,7 @@ We also offer some demo chat, you can download it [here](https://drive.google.co
 Enter the materials link under the custom mode in the library selection. This allows the installation of a new library.
 
 ### Training
+
 In addition to the UI service, we also provide a robust training script. Here are the steps for the same:
 
 1. Modify the library setting in configs/model_config.py.
