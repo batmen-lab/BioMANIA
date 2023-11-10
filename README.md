@@ -23,7 +23,7 @@ We provide a Railway deployment template that allows you to deploy to Railway wi
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/Mp32Sg?referralCode=iEkWIc)
 
-You'll need to fill in the OpenAI API key in the Variables page of the biomania-backend service. Additionally, you'll need to manually enable 'Public Domain' in the Settings/Networking session  of the biomania-frontend service, then copy the URL and open it in your browser to access the frontend.
+You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable 'Public Domain' in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
 
 > **Railway offers CPU-only runtime, and Docker deployment takes approximately 2 minutes. After obtaining a public domain, it may take around 1 minute before available. When switching to different libraries while using the frontend, data and models will be reloaded, taking approximately 1 minute.**
 
