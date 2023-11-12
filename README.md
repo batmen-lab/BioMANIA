@@ -2,6 +2,14 @@
 
 Welcome to the BioMANIA Project! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
 
+### Quick start
+
+We provide a Railway deployment template that allows you to deploy to Railway with a single click. 
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/Mp32Sg?referralCode=iEkWIc)
+
+You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable 'Public Domain' in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
+
 ### Project Overview
 
 Our project workflow is depicted in the images below, showcasing the pipeline, chatbot UI, and demos.
@@ -19,11 +27,7 @@ Here are some scanpy demos
 
 ### Run with Railway
 
-We provide a Railway deployment template that allows you to deploy to Railway with a single click. 
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/Mp32Sg?referralCode=iEkWIc)
-
-You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable 'Public Domain' in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
+Refer to section `Quick start` for deployment instructions.
 
 > **Railway offers CPU-only runtime, and Docker deployment takes approximately 2 minutes. After obtaining a public domain, it may take around 1 minute before available. When switching to different libraries while using the frontend, data and models will be reloaded, taking approximately 1 minute.**
 
