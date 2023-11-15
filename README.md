@@ -7,7 +7,7 @@
 <img style="height:22pt" src="https://img.shields.io/badge/-Railway-purple?style=flat&logo=railway">
 </a>
 
-Welcome to the BioMANIA Project! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks. Our paper is available here: [BioRxiv](https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1).
+Welcome to the BioMANIA Project! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
 
 ## Quick start
 
