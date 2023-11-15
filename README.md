@@ -1,8 +1,15 @@
-## BioMANIA Project
+# BioMANIA Project
 
-Welcome to the BioMANIA Project! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
+<a target="_blank" href="https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1">
+<img style="height:22pt" src="https://img.shields.io/badge/-Paper-burgundy?style=flat&logo=arxiv">
+</a><a target="_blank" href="https://github.com/batmen-lab/BioMANIA">
+<img style="height:22pt" src="https://img.shields.io/badge/-Code-black?style=flat&logo=github"></a><a target="_blank" href="https://railway.app/template/Mp32Sg?referralCode=iEkWIc">
+<img style="height:22pt" src="https://img.shields.io/badge/-Railway-purple?style=flat&logo=railway">
+</a>
 
-### Quick start
+Welcome to the BioMANIA Project! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks. Our paper is available here: [BioRxiv](https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1).
+
+## Quick start
 
 We provide a Railway deployment template that allows you to deploy to Railway with a single click. 
 
@@ -10,7 +17,7 @@ We provide a Railway deployment template that allows you to deploy to Railway wi
 
 You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable 'Public Domain' in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
 
-### Project Overview
+## Project Overview
 
 Our project workflow is depicted in the images below, showcasing the pipeline, chatbot UI, and demos.
 
@@ -25,7 +32,7 @@ Here are some scanpy demos
 ![](./images/demo_full.jpg)
 
 
-### Run with Railway
+## Run with Railway
 
 Refer to section `Quick start` for deployment instructions.
 
@@ -33,7 +40,7 @@ Refer to section `Quick start` for deployment instructions.
 
 > **Our template currently provides version docker:v2, and it will be updated with the latest versions in the future.**
 
-### Run with Docker
+## Run with Docker
 
 For ease of use, we provide Docker images for both the frontend and backend services, specific to the Scanpy library at present. Future releases will expand this capability.
 
@@ -53,7 +60,7 @@ docker pull chatbotuibiomania/biomania-backend:v2
 docker run -e OPENAI_API_KEY="your-openai-api-key-here" -d -p 5000:5000 chatbotuibiomania/biomania-backend:v2
 ```
 
-#### Setting up services on separate devices
+## Setting up services on separate devices
 
 If you're operating the front-end and back-end services on separate devices, initiate the [ngrok service](https://ngrok.com/docs/getting-started/) script in a new terminal on the same device with back-end device and get the print url like `https://[ngrok_id].ngrok-free.app` with:
 ```shell
@@ -65,9 +72,9 @@ Then you can start front-end UI service with
 docker run -e BACKEND_URL="https://[ngrok_id].ngrok-free.app" -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v2
 ```
 
-### Run with script
+## Run with script
 
-#### Setting up for environment
+## Setting up for environment
 To prepare your environment for the BioMANIA project, follow these steps:
 
 1. Clone the repository and install dependencies:
@@ -87,20 +94,20 @@ pip install -r requirements.txt
 For inference purposes, a standard OpenAI API key is sufficient.
 If you intend to use functionalities such as instruction generation or GPT API predictions, a paid OpenAI account is required as it may reach rate limit.
 
-#### Data and Model Organization
+## Data and Model Organization
 Download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).
 
 Organize the downloaded files as follows:
 
-#### Data Organization:
+## Data Organization:
 
 Place data files in: `src/data/standard_process/${LIB}/`
 
-#### Model Organization:
+## Model Organization:
 
 Store model files in:  `src/hugging_models/retriever_model_finetuned/${LIB}/assigned/`
 
-#### Chitchat Data and Model Organization:
+## Chitchat Data and Model Organization:
 
 Files should be located at: `src/data/`
 
@@ -109,14 +116,12 @@ An example of the subfolders within the data folder is shown below:
 ```
 data
 ├── conversations
-│   ├── api_data.csv
 │   ├── test_freq.json
 │   ├── test_rare.json
 │   ├── train.json
 │   ├── valid_freq.json
 │   └── valid_rare.json
 ├── others-data
-│   ├── api_data.csv
 │   ├── combined_data.csv
 │   ├── dialogue_questions.csv
 │   ├── final_data.csv
@@ -127,16 +132,19 @@ data
 │   ├── qna_chitchat_witty.tsv
 │   ├── test_data.csv
 │   └── train_data.csv
-├── standard_process
-│   ├── scanpy
-│   │   ├── API_composite.json
-│   │   ├── API_init.json
-│   │   ├── API_inquiry.json
-│   │   ├── API_inquiry_annotate.json
-│   │   ├── API_instruction_testval_query_ids.json
-│   │   ├── retriever_train_data
-│   │   ├── vectorizer.pkl
-└── └── └── centroids.pkl
+└── standard_process
+    ├── scanpy
+    │   ├── API_composite.json
+    │   ├── API_init.json
+    │   ├── API_inquiry.json
+    │   ├── API_inquiry_annotate.json
+    │   ├── API_instruction_testval_query_ids.json
+    │   ├── Composite_API.py
+    │   ├── api_data.csv
+    │   ├── centroids.pkl
+    │   ├── classification_train
+    │   ├── retriever_train_data
+    │   └── vectorizer.pkl
 ```
 
 By meticulously following the steps above, you'll have all the essential data and models perfectly organized for the project.
@@ -145,7 +153,7 @@ We provide data and pre-trained models for available tools mentioned in our pape
 
 We also offer some demo chat, you can download it [here](https://drive.google.com/drive/folders/1V-vZeuKR59kq2IU3W_fW4bNCrZmRlSzD?usp=drive_link) and use `import data` button to visualize it in chatbot UI
 
-#### Inference
+## Inference
 
 To get the UI running without Docker, you can use our script for inference. We use LIB=scanpy as an example:
 
@@ -170,7 +178,7 @@ npm run dev # run
 
 Your chatbot server is now operational at `http://localhost:3000/en`, primed to process user queries.
 
-#### Training
+## Training
 
 We provide a robust training script for additional customization and enhancement of the BioMANIA project. Follow the steps in the Training section to modify library settings, download materials, generate JSON files, and train models.
 
@@ -313,11 +321,11 @@ python models/inference_classification.py \
     --batch_size 1
 ```
 
-### Report Generation
+## Report Generation
 
 BioMANIA can generate various reports, including Python files, Jupyter notebooks, performance summaries, and common issue logs. Follow the instructions in the Report Generation section to create these reports.
 
-#### For chat Python File: 
+## For chat Python File: 
 
 Firstly, press `export chat` button on UI to get the chat json data. Convert the chat JSON into a Python code using the Chat2Py.py script.
 
@@ -327,7 +335,7 @@ python report/Chat2Py.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 ![](./images/pyfile.jpg)
 
 
-#### For chat report
+## For chat report
 
 Convert the chat JSON into an [ipynb report](https://github.com/batmen-lab/BioMANIA/blob/main/src/report/demo_Preprocessing_and_clustering_3k_PBMCs.ipynb) using the Chat2jupyter.py script.
 
@@ -337,7 +345,7 @@ python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.
 ![](./images/jupyter.jpg)
 
 
-#### For performance report
+## For performance report
 
 Combine and sort the performance figures into a short report.
 
@@ -350,7 +358,7 @@ Please note that the generation of this report must be based on the premise that
 ![](./images/performance_report.jpg)
 
 
-#### For common issue report
+## For common issue report
 
 Displaying common issues in the process of converting Python tools into libraries
 
@@ -360,7 +368,7 @@ python report/Py2report.py scanpy
 
 The output files are located in the ./report folder.
 
-### Reference and Acknowledgments
+## Reference and Acknowledgments
 
 We extend our gratitude to the following references:
 - [Toolbench](https://github.com/OpenBMB/ToolBench) 
@@ -382,7 +390,7 @@ dataloader/get_API_composite_from_tutorial.py
 report/Py2report.py
 ```
 
-### Version History
+## Version History
 - v3 (Upcoming)
   - Pass testing and release of code, data links, Docker images, and deployment support for 3-4 tools.
   - Pass testing and release of materials for installation services on web.
@@ -390,3 +398,7 @@ report/Py2report.py
 - v2 (2023-11-10)
   - Initial release with analysis pipeline for `scanpy`.
   - Add one-click deploy using railway.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=batmen-lab/BioMANIA.git&type=Date)](https://star-history.com/#batmen-lab/BioMANIA.git&Date)

@@ -38,7 +38,7 @@ def process_apiquery():
         json_data = json.load(file)
     questions = [entry['query'] for entry in json_data]
     df = pd.DataFrame({'Question': questions, 'Source': 'api-query'})
-    df.to_csv('./data/conversations/api_data.csv', index=False)
+    df.to_csv(f'./data/standard_process/{args.LIB}/api_data.csv', index=False)
 
 process_topicalchat()
 process_chitchat()
@@ -63,7 +63,7 @@ def sampledata_combine(train_count_data1=1000, train_count_data2=1000, train_cou
 import pandas as pd
 data1 = pd.read_csv('./data/others-data/dialogue_questions.csv')
 data2 = pd.read_csv('./data/others-data/combined_data.csv')
-data3 = pd.read_csv('./data/others-data/api_data.csv')
+data3 = pd.read_csv(f'./data/standard_process/{args.LIB}/api_data.csv')
 min_length = min(len(data1), len(data2), len(data3))
 train_sample_num = int(min_length * 0.8)
 test_sample_num = int(min_length * 0.2)
