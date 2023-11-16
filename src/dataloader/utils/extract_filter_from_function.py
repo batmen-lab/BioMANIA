@@ -1,4 +1,4 @@
-import json
+import json, os, re
 from base_graph_ast import *
 
 from configs.model_config import *
@@ -188,6 +188,7 @@ def split_string_with_limit(string, limit):
 
 
 if __name__=='__main__':
+    # test
     # load json
     with open(os.path.join(LIB_ANALYSIS_PATH,'API_func.json'), 'r') as file:
         data = json.load(file)

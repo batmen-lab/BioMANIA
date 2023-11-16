@@ -38,6 +38,8 @@ def get_dynamic_types():
 
 def type_to_string(t):
     type_str = str(t)
+    if 'cython_function_or_method' in type_str:
+        return "method" # label cython func/method as "method"
     if "<class '" in type_str:
         return type_str.split("'")[1]
     elif hasattr(t, "_name"):
@@ -228,10 +230,18 @@ def get_api_type(member):
         return 'property'
     elif isinstance(member, functools.partial):
         return 'functools.partial'
-    elif type(member) in [int, float, str, tuple, bool, list, dict]:
+    elif type(member) in [int, float, str, tuple, bool, list, dict, set]:
         return 'constant'
+    elif type(member)==re.Pattern:
+        return 'rePattern'
+    elif 'cython_function_or_method' in str(type(member)):
+        return 'method'
+    elif 'builtin_function_or_method' in str(type(member)):
+        return 'builtin'
+    elif 'getset_descriptor' in str(type(member)):
+        return 'getset_descriptor'
     else:
-        return 'unknown'# built-in
+        return 'unknown'# built-in or getset_descriptor
 
 def import_member(api_string, expand=True):
     """
@@ -288,7 +298,7 @@ def get_docparam_from_source(web_APIs):
     failure_count = 0
     results = {}
     expand = are_most_strings_modules(web_APIs)
-    print('Most api modules: ', expand, '!')
+    print('==>Is api page html reliable: ', not expand, '!')
     for api_string in web_APIs:
         members = import_member(api_string, expand)
         if not members:
@@ -453,21 +463,27 @@ def filter_specific_apis(data):
     """
     filtered_data = {}
     filter_counts = {
-        "api_type_module_constant_property": 0,
+        "api_type_module_constant_property_getsetdescriptor": 0,
+        "api_type_unwant_func": 0,
         "api_type_unknown": 0,
         "empty_docstring": 0
     }
-    filter_API = {"api_type_module_constant_property": [],
+    filter_API = {"api_type_module_constant_property_getsetdescriptor": [],
+        "api_type_unwant_func": [],
         "api_type_unknown": [],
         "empty_docstring": []}
     for api, details in data.items():
         api_type = details.get('api_type', None)
         docstring = details.get('Docstring', None)
-        if api_type in ["module", "constant", "property"]:
-            filter_counts["api_type_module_constant_property"] += 1
-            filter_API["api_type_module_constant_property"].append(api)
+        if api_type in ["module", "constant", "property", "getset_descriptor"]:
+            filter_counts["api_type_module_constant_property_getsetdescriptor"] += 1
+            filter_API["api_type_module_constant_property_getsetdescriptor"].append(api)
             continue
-        if api_type == "unknown":
+        if api_type in ["builtin", 'functools.partial', "rePattern"]:
+            filter_counts["api_type_unwant_func"] += 1
+            filter_API["api_type_unwant_func"].append(api)
+            continue
+        if api_type in ["unknown"]:
             filter_counts["api_type_unknown"] += 1
             filter_API["api_type_unknown"].append(api)
             continue
@@ -477,7 +493,9 @@ def filter_specific_apis(data):
             filter_API["empty_docstring"].append(api)
             continue
         filtered_data[api] = details
-    print(filter_counts, filter_API)
+    print('==>Filtering APIs!')
+    print(json.dumps(filter_counts,indent=4))
+    print(json.dumps(filter_API,indent=4))
     assert sum(filter_counts.values())+len(filtered_data)==len(data)
     return filtered_data
 
@@ -494,7 +512,7 @@ def main_get_API_init(lib_name,lib_alias,analysis_path,api_html_path=None):
             content = process_html(api_html_path)
         else:
             print('Please double check the given html! File format error!')
-            #raise ValueError
+            raise ValueError
         pattern = re.compile(r"(\b\w+(\.\w+)+\b)")
         ori_content_keys = list(set([match[0] for match in pattern.findall(content)]))
         ori_content_keys = [i for i in ori_content_keys if lib_alias in i]
@@ -512,7 +530,9 @@ def main_get_API_init(lib_name,lib_alias,analysis_path,api_html_path=None):
     print('Get API #numbers are: ', len(results))
     tmp_results = filter_specific_apis(results)
     print('After filtering non-calling #numbers are: ', len(tmp_results))
-    output_file = os.path.join(analysis_path,lib_name,"API_init.json")
+    # output_file = os.path.join(analysis_path,lib_name,"API_init.json")
+    os.makedirs(os.path.join('data','standard_process',lib_name), exist_ok=True)
+    output_file = os.path.join('data','standard_process',lib_name,"API_init.json")
     for api_name, api_info in tmp_results.items():
         api_info['relevant APIs'] = []
         api_info['type'] = 'singleAPI'
@@ -521,7 +541,8 @@ def main_get_API_init(lib_name,lib_alias,analysis_path,api_html_path=None):
 
 def main_get_API_basic(analysis_path,cheatsheet):
     # STEP1: get API from cheatsheet, save to basic_API.json
-    output_file = os.path.join(analysis_path,"API_base.json")
+    #output_file = os.path.join(analysis_path,"API_base.json")
+    output_file = os.path.join('data','standard_process',"API_base.json")
     result_list = []
     print('Start getting docparam from source')
     for api in cheatsheet:
@@ -538,4 +559,5 @@ def main_get_API_basic(analysis_path,cheatsheet):
 
 if __name__=='__main__':
     main_get_API_init(LIB,LIB_ALIAS,ANALYSIS_PATH,API_HTML_PATH)
-    main_get_API_basic(ANALYSIS_PATH,CHEATSHEET)
+    # currently we do not need the API_base.json
+    #main_get_API_basic(ANALYSIS_PATH,CHEATSHEET)

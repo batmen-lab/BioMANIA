@@ -5,7 +5,10 @@
 </a><a target="_blank" href="https://github.com/batmen-lab/BioMANIA">
 <img style="height:22pt" src="https://img.shields.io/badge/-Code-black?style=flat&logo=github"></a><a target="_blank" href="https://railway.app/template/Mp32Sg?referralCode=iEkWIc">
 <img style="height:22pt" src="https://img.shields.io/badge/-Railway-purple?style=flat&logo=railway">
+</a><a target="_blank" href="https://hub.docker.com/repositories/chatbotuibiomania">
+<img style="height:22pt" src="https://img.shields.io/badge/-Docker-blue?style=flat&logo=docker">
 </a>
+
 
 Welcome to the BioMANIA Project! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
 
@@ -15,7 +18,7 @@ We provide a Railway deployment template that allows you to deploy to Railway wi
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/Mp32Sg?referralCode=iEkWIc)
 
-You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable 'Public Domain' in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
+You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable `Public Domain` in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
 
 ## Project Overview
 
@@ -74,7 +77,7 @@ docker run -e BACKEND_URL="https://[ngrok_id].ngrok-free.app" -d -p 3000:3000 ch
 
 ## Run with script
 
-## Setting up for environment
+### Setting up for environment
 To prepare your environment for the BioMANIA project, follow these steps:
 
 1. Clone the repository and install dependencies:
@@ -182,7 +185,7 @@ Your chatbot server is now operational at `http://localhost:3000/en`, primed to 
 
 We provide a robust training script for additional customization and enhancement of the BioMANIA project. Follow the steps in the Training section to modify library settings, download materials, generate JSON files, and train models.
 
-1. Modify the library setting in configs/model_config.py.
+1. Modify the library setting in `configs/model_config.py`, and add the url links to `Lib_cheatsheet.json`.
 ```shell
 LIB = 'scanpy'
 USER_INPUT =     
@@ -200,7 +203,19 @@ USER_INPUT =
     ...
 }
 ```
-Download the necessary materials.
+
+> **For example, for `scikit-learn`, the LIB is `scikit-learn`, while the LIB_ALIAS is `sklearn`. API_HTML_PATH is the API list page.**
+
+> **Among these materials, only `LIB` and  `LIB_ALIAS` are `NECESSARY`. You can just leave other urls as `None`. We download API_HTML_PATH instead of the whole READTHEDOC for saving time.**
+
+Download the necessary readthedoc materials to folder `../../resources/readthedoc_files` with:
+```shell
+python dataloader/utils/other_download.py
+```
+
+Install the PyPI library by `pip install {LIB}` or other ways that recommended from their Github.
+
+For further web UI, don't forget to add the new lib information to `BioMANIA/chatbot_ui_biomania/components/Chat/LibCardSelect.tsx`. Also add the new lib logo to `BioMANIA/chatbot_ui_biomania/public/apps/`.
 
 2. Generate API_init.json using the provided script.
 ```shell
@@ -247,7 +262,7 @@ python models/train_retriever.py \
     --plot_dir ./plot/${LIB}/retriever/
 ```
 
-test the inference using:
+test the inference performance using:
 ```shell 
 export HUGGINGPATH=./hugging_models
 python inference/retriever_finetune_inference.py  \

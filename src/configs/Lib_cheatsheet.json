@@ -20,7 +20,7 @@
     "scvi-tools": {
         "LIB": "scvi-tools",
         "LIB_ALIAS": "scvi",
-        "API_HTML_PATH": "scvi-tools.org/en/stable/api/index.html",
+        "API_HTML_PATH": "docs.scvi-tools.org/en/stable/api/index.html",
         "GITHUB_LINK": "https://github.com/scverse/scvi-tools",
         "READTHEDOC_LINK": "https://docs.scvi-tools.org/en/stable/",
         "TUTORIAL_HTML_PATH":"docs.scvi-tools.org/en/latest/tutorials",
@@ -29,7 +29,7 @@
     "scenicplus": {
         "LIB": "scenicplus",
         "LIB_ALIAS": "scenicplus",
-        "API_HTML_PATH": "scenicplus.readthedocs.io/en/latest/api",
+        "API_HTML_PATH": "scenicplus.readthedocs.io/en/latest/api.html",
         "GITHUB_LINK": "https://github.com/aertslab/scenicplus",
         "READTHEDOC_LINK": "https://scenicplus.readthedocs.io/en/latest/",
         "TUTORIAL_HTML_PATH": "scenicplus.readthedocs.io/en/latest/examples/",
@@ -47,20 +47,20 @@
     "qiime2": {
         "LIB": "qiime2",
         "LIB_ALIAS": "qiime2",
-        "API_HTML_PATH": null,
+        "API_HTML_PATH": "https://docs.qiime2.org/2023.9/interfaces/artifact-api/index.html",
         "GITHUB_LINK": "https://github.com/qiime2/qiime2",
-        "READTHEDOC_LINK": "https://docs.qiime2.org/2023.5/",
-        "TUTORIAL_HTML_PATH":"docs.qiime2.org/2023.5/tutorials",
+        "READTHEDOC_LINK": "https://docs.qiime2.org/2023.9/",
+        "TUTORIAL_HTML_PATH":"docs.qiime2.org/2023.9/tutorials",
         "TUTORIAL_GITHUB": null
     },
     "eletoolkit": {
         "LIB": "eletoolkit",
         "LIB_ALIAS": "ete4",
-        "API_HTML_PATH": "http://etetoolkit.org/docs/latest/tutorial/index.html",
+        "API_HTML_PATH": "etetoolkit.github.io/ete/reference/index.html",
         "GITHUB_LINK": "https://github.com/etetoolkit/ete",
-        "READTHEDOC_LINK": "http://etetoolkit.org/",
+        "READTHEDOC_LINK": "https://etetoolkit.github.io/ete/",
         "TUTORIAL_GITHUB":null, 
-        "TUTORIAL_HTML_PATH":"etetoolkit.org/docs/latest/tutorial/"
+        "TUTORIAL_HTML_PATH":"etetoolkit.org/docs/latest/tutorial"
     },
     "pyopenms": {
         "LIB": "pyopenms",
@@ -74,7 +74,7 @@
     "pyteomics": {
         "LIB": "pyteomics",
         "LIB_ALIAS": "pyteomics",
-        "API_HTML_PATH": "pyteomics.readthedocs.io/en/stable/api",
+        "API_HTML_PATH": "pyteomics.readthedocs.io/en/stable/genindex.html",
         "GITHUB_LINK": "https://github.com/levitsky/pyteomics",
         "READTHEDOC_LINK": "https://pyteomics.readthedocs.io/en/stable/",
         "TUTORIAL_HTML_PATH":"https://pyteomics.readthedocs.io/en/stable/examples/",
@@ -83,9 +83,9 @@
     "scikit-bio": {
         "LIB": "scikit-bio",
         "LIB_ALIAS": "skbio",
-        "API_HTML_PATH": "scikit-bio.org/docs/latest/index.html",
+        "API_HTML_PATH": "scikit.bio/docs/latest/index.html",
         "GITHUB_LINK": "https://github.com/biocore/scikit-bio",
-        "READTHEDOC_LINK": "scikit-bio.org/docs/latest/",
+        "READTHEDOC_LINK": "https://scikit.bio/docs/latest/",
         "TUTORIAL_HTML_PATH": null,
         "TUTORIAL_GITHUB": null
     },

@@ -4,7 +4,8 @@ import torch.backends
 import platform
 import json
 
-LIB = 'squidpy' # qiime2 scikit-bio pyteomics scanpy
+LIB = 'tskit' # eletoolkit scvi-tools qiime2 scikit-bio pyteomics scanpy squidpy scenicplus pyopenms biopython deap biotite
+# emperor gneiss tskit
 
 ########### User Input
 with open('./configs/Lib_cheatsheet.json', 'r') as file:
@@ -42,11 +43,11 @@ if not os.path.exists(LIB_GITHUB_PATH):
 
 # hugging_models
 if platform.system() == 'Linux':
-    HUGGINGPATH = "/home/z6dong/BioChat/hugging_models"
+    HUGGINGPATH = "./hugging_models"
 elif platform.system() == 'Darwin':
-    HUGGINGPATH = "/Users/doradong/hugging_models"
+    HUGGINGPATH = "./hugging_models"
 else:
-    HUGGINGPATH = "/home/z6dong/BioChat/hugging_models"
+    HUGGINGPATH = "./hugging_models"
 hugging_model = {
     "chatglm-6b":"THUDM/chatglm-6b",
     "chatglm2-6b":"THUDM/chatglm2-6b",
