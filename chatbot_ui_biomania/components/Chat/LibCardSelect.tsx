@@ -2,11 +2,18 @@ import { useEffect, useContext, useState } from 'react';
 import HomeContext from '@/pages/api/home/home.context';
 
 const libImages: { [key: string]: string } = {
+  'scanpy': '/apps/scanpy.jpg',
   'squidpy': '/apps/squidpy.jpg',
   'pyteomics': '/apps/pyteomics.jpg',
-  'qiime2': '/apps/qiime2.jpg',
+  'qiime2': '/apps/qiime2.png',
   'scikitbio': '/apps/scikitbio.jpg',
-  'scanpy': '/apps/scanpy.jpg',
+  'biopython': '/apps/biopython.png',
+  'biotite': '/apps/biotite.png',
+  'deap': '/apps/deap.png',
+  'eletoolkit': '/apps/eletoolkit.jpg',
+  'pyopenms': '/apps/pyopenms.png',
+  'SCENIC': '/apps/SCENIC.png',
+  'scvitools': '/apps/scvitools.svg',
   'custom': '/apps/customize.jpg',
 };
 
@@ -27,11 +34,18 @@ export const LibCardSelect = () => {
 
   useEffect(() => {
     const newLibs = [
+      { id: 'scanpy', name: 'scanpy' },
       { id: 'squidpy', name: 'squidpy' },
       { id: 'pyteomics', name: 'pyteomics' },
       { id: 'qiime2', name: 'qiime2' },
-      { id: 'scikitbio', name: 'scikitBio' },
-      { id: 'scanpy', name: 'scanpy' },
+      { id: 'scikitbio', name: 'scikit-bio' },
+      { id: 'biopython', name: 'biopython' },
+      { id: 'biotite', name: 'biotite' },
+      { id: 'deap', name: 'deap' },
+      { id: 'eletoolkit', name: 'eletoolkit' },
+      { id: 'pyopenms', name: 'pyopenms' },
+      { id: 'SCENIC', name: 'scenicplus' },
+      { id: 'scvitools', name: 'scvi-tools' },
       { id: 'custom', name: 'custom' },
     ];
   
@@ -106,7 +120,7 @@ export const LibCardSelect = () => {
               type="text" 
               placeholder="GitHub URL" 
               style={{ color: 'black' }} 
-              onChange={(e) => setCustomGitHubURL(e.target.value)}  // 添加这一行
+              onChange={(e) => setCustomGitHubURL(e.target.value)}
             />
           </div>
           <div>
@@ -115,7 +129,7 @@ export const LibCardSelect = () => {
               type="text" 
               placeholder="ReadTheDocs URL" 
               style={{ color: 'black' }} 
-              onChange={(e) => setCustomReadTheDocsURL(e.target.value)}  // 添加这一行
+              onChange={(e) => setCustomReadTheDocsURL(e.target.value)}
             />
           </div>
           <div>
@@ -140,10 +154,16 @@ export const LibCardSelect = () => {
             <label>LIB ALIAS: </label>
             <input 
               type="text" 
-              placeholder="LIB ALIAS (e.g. sklearn for scikit-learn)" 
+              placeholder="LIB ALIAS" 
               style={{ color: 'black' }} 
               onChange={(e) => setcustomLIBALIAS(e.target.value)} 
             />
+          </div>
+          <div>
+            <label>LIB ALIAS: </label>
+            <span style={{ color: 'white', border: '1px solid gray', padding: '0px 0px' }}>
+              {}
+            </span>
           </div>
         </div>
       )}
@@ -202,8 +222,13 @@ export const LibCardSelect = () => {
           margin-bottom: 20px;
         }
         label {
-          font-weight: bold;
+          flex-shrink: 0; 
           margin-right: 20px;
+          white-space: nowrap; 
+        }
+        input {
+          flex-grow: 1;
+          min-width: 0;
         }
       `}</style>
     </>

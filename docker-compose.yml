@@ -1,0 +1,22 @@
+version: '3.10'
+
+services:
+  frontend:
+    build: ./chatbot_ui_biomania
+    ports:
+      - "3000:3000" 
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  backend:
+    build: ./src
+    ports:
+      - "5000:5000" 
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

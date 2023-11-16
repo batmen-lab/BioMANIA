@@ -47,7 +47,7 @@
     "qiime2": {
         "LIB": "qiime2",
         "LIB_ALIAS": "qiime2",
-        "API_HTML_PATH": "https://docs.qiime2.org/2023.9/interfaces/artifact-api/index.html",
+        "API_HTML_PATH": "docs.qiime2.org/2023.9/interfaces/artifact-api/index.html",
         "GITHUB_LINK": "https://github.com/qiime2/qiime2",
         "READTHEDOC_LINK": "https://docs.qiime2.org/2023.9/",
         "TUTORIAL_HTML_PATH":"docs.qiime2.org/2023.9/tutorials",
@@ -65,7 +65,7 @@
     "pyopenms": {
         "LIB": "pyopenms",
         "LIB_ALIAS": "pyopenms",
-        "API_HTML_PATH": "pyopenms.readthedocs.io/en/latest/apidocs",
+        "API_HTML_PATH": "pyopenms.readthedocs.io/en/latest/apidocs/",
         "GITHUB_LINK": "https://github.com/OpenMS/OpenMS",
         "READTHEDOC_LINK": "https://pyopenms.readthedocs.io",
         "TUTORIAL_HTML_PATH":"pyopenms.readthedocs.io/en/latest/user_guide",
@@ -123,7 +123,7 @@
         "GITHUB_LINK": "https://github.com/DEAP/deap",
         "READTHEDOC_LINK": "https://deap.readthedocs.io/en/master/",
         "TUTORIAL_HTML_PATH": "deap.readthedocs.io/en/master/tutorials/",
-        "TUTORIAL_GITHUB": null
+        "TUTORIAL_GITHUB": "https://github.com/DEAP/notebooks"
     },
     "tskit": {
         "LIB": "tskit",

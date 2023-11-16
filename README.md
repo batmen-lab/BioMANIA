@@ -97,24 +97,10 @@ pip install -r requirements.txt
 For inference purposes, a standard OpenAI API key is sufficient.
 If you intend to use functionalities such as instruction generation or GPT API predictions, a paid OpenAI account is required as it may reach rate limit.
 
-## Data and Model Organization
+### Data and Model Organization
 Download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).
 
-Organize the downloaded files as follows:
-
-## Data Organization:
-
-Place data files in: `src/data/standard_process/${LIB}/`
-
-## Model Organization:
-
-Store model files in:  `src/hugging_models/retriever_model_finetuned/${LIB}/assigned/`
-
-## Chitchat Data and Model Organization:
-
-Files should be located at: `src/data/`
-
-An example of the subfolders within the data folder is shown below:
+Organize the downloaded files at `src/data` or `src/hugging_models` as follows:
 
 ```
 data
@@ -148,6 +134,13 @@ data
     │   ├── classification_train
     │   ├── retriever_train_data
     │   └── vectorizer.pkl
+    └── ...
+
+hugging_models
+└── retriever_model_finetuned
+    ├── scanpy
+    ├── squidpy
+    └── ...
 ```
 
 By meticulously following the steps above, you'll have all the essential data and models perfectly organized for the project.
@@ -156,7 +149,7 @@ We provide data and pre-trained models for available tools mentioned in our pape
 
 We also offer some demo chat, you can download it [here](https://drive.google.com/drive/folders/1V-vZeuKR59kq2IU3W_fW4bNCrZmRlSzD?usp=drive_link) and use `import data` button to visualize it in chatbot UI
 
-## Inference
+### Inference
 
 To get the UI running without Docker, you can use our script for inference. We use LIB=scanpy as an example:
 
@@ -181,7 +174,7 @@ npm run dev # run
 
 Your chatbot server is now operational at `http://localhost:3000/en`, primed to process user queries.
 
-## Training
+### Training
 
 We provide a robust training script for additional customization and enhancement of the BioMANIA project. Follow the steps in the Training section to modify library settings, download materials, generate JSON files, and train models.
 
@@ -238,6 +231,8 @@ We have implemented the use of asyncio to make requests to OpenAI services, whic
 
 5. Train the api/non-api classification model.
 ```shell
+export LIB=pyteomics
+CUDA_VISIBLE_DEVICES=4
 python models/chitchat_classification.py --LIB ${LIB}
 ```
 
@@ -248,6 +243,7 @@ python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
 
 Or, you can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
 ```shell
+CUDA_VISIBLE_DEVICES=3
 mkdir ./hugging_models/retriever_model_finetuned/${LIB}
 python models/train_retriever.py \
     --data_path ./data/standard_process/${LIB}/retriever_train_data/ \
@@ -340,7 +336,7 @@ python models/inference_classification.py \
 
 BioMANIA can generate various reports, including Python files, Jupyter notebooks, performance summaries, and common issue logs. Follow the instructions in the Report Generation section to create these reports.
 
-## For chat Python File: 
+### For chat Python File: 
 
 Firstly, press `export chat` button on UI to get the chat json data. Convert the chat JSON into a Python code using the Chat2Py.py script.
 
@@ -350,7 +346,7 @@ python report/Chat2Py.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 ![](./images/pyfile.jpg)
 
 
-## For chat report
+### For chat report
 
 Convert the chat JSON into an [ipynb report](https://github.com/batmen-lab/BioMANIA/blob/main/src/report/demo_Preprocessing_and_clustering_3k_PBMCs.ipynb) using the Chat2jupyter.py script.
 
@@ -360,7 +356,7 @@ python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.
 ![](./images/jupyter.jpg)
 
 
-## For performance report
+### For performance report
 
 Combine and sort the performance figures into a short report.
 
@@ -373,7 +369,7 @@ Please note that the generation of this report must be based on the premise that
 ![](./images/performance_report.jpg)
 
 
-## For common issue report
+### For common issue report
 
 Displaying common issues in the process of converting Python tools into libraries
 

@@ -4,7 +4,7 @@ import torch.backends
 import platform
 import json
 
-LIB = 'tskit' # eletoolkit scvi-tools qiime2 scikit-bio pyteomics scanpy squidpy scenicplus pyopenms biopython deap biotite
+LIB = 'pyopenms' # eletoolkit scvi-tools qiime2 scikit-bio pyteomics scanpy squidpy scenicplus pyopenms biopython deap biotite
 # emperor gneiss tskit
 
 ########### User Input

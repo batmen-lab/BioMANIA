@@ -6,6 +6,18 @@ __pycache__/
 # C extensions
 *.so
 
+# Mac
+**/.DS_Store
+
+# React
+**/.next/*
+**/node_modules/*
+
+# Specialized
+src/data/*
+chatbot_ui_biomania/.next/*
+chatbot_ui_biomania/node_modules/*
+
 # Distribution / packaging
 .Python
 build/

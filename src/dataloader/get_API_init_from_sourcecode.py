@@ -235,13 +235,13 @@ def get_api_type(member):
     elif type(member)==re.Pattern:
         return 'rePattern'
     elif 'cython_function_or_method' in str(type(member)):
-        return 'method'
+        return 'cython'
     elif 'builtin_function_or_method' in str(type(member)):
         return 'builtin'
     elif 'getset_descriptor' in str(type(member)):
         return 'getset_descriptor'
     else:
-        return 'unknown'# built-in or getset_descriptor
+        return 'unknown'# TypeVar
 
 def import_member(api_string, expand=True):
     """
@@ -317,6 +317,14 @@ def get_docparam_from_source(web_APIs):
                     short_desc = parsed_doc.short_description or ""
                     long_desc = parsed_doc.long_description or ""
                     description = short_desc + long_desc
+                    if short_desc and long_desc:
+                        description = short_desc+long_desc
+                    elif short_desc:
+                        description = short_desc
+                    elif long_desc:
+                        description = long_desc
+                    else:
+                        description = ""
                     if isinstance(member, property) and member.fget:
                         if hasattr(member.fget, '__annotations__'):
                             prop_type = format_type(member.fget.__annotations__.get('return', ''))
@@ -353,7 +361,14 @@ def get_docparam_from_source(web_APIs):
                     params, returns, example = get_returnparam_docstring(current_member_doc)
                     api_short_desc = parse(current_member_doc).short_description or ""
                     api_long_desc = parse(current_member_doc).long_description or ""
-                    api_desc = api_short_desc+api_long_desc
+                    if api_short_desc and api_long_desc:
+                        api_desc = api_short_desc+api_long_desc
+                    elif api_short_desc:
+                        api_desc = api_short_desc
+                    elif api_long_desc:
+                        api_desc = api_long_desc
+                    else:
+                        api_desc = ""
                     result_params = {}
                     try:
                         signature = inspect.signature(member) if callable(member) else None
@@ -466,20 +481,26 @@ def filter_specific_apis(data):
         "api_type_module_constant_property_getsetdescriptor": 0,
         "api_type_unwant_func": 0,
         "api_type_unknown": 0,
-        "empty_docstring": 0
+        "empty_docstring": 0,
+        "empty_input_output":0,
     }
     filter_API = {"api_type_module_constant_property_getsetdescriptor": [],
         "api_type_unwant_func": [],
         "api_type_unknown": [],
-        "empty_docstring": []}
+        "empty_docstring": [],
+        "empty_input_output":[],}
     for api, details in data.items():
-        api_type = details.get('api_type', None)
-        docstring = details.get('Docstring', None)
+        api_type = details['api_type']
+        docstring = details['Docstring']
+        parameters = details['Parameters']
+        Returns_type = details['Returns']['type']
+        Returns_description = details['Returns']['description']
         if api_type in ["module", "constant", "property", "getset_descriptor"]:
             filter_counts["api_type_module_constant_property_getsetdescriptor"] += 1
             filter_API["api_type_module_constant_property_getsetdescriptor"].append(api)
             continue
-        if api_type in ["builtin", 'functools.partial', "rePattern"]:
+        # We filter out `cython` type API, because some are compiled functions.
+        if api_type in ["builtin", 'functools.partial', "rePattern", "cython"]:
             filter_counts["api_type_unwant_func"] += 1
             filter_API["api_type_unwant_func"].append(api)
             continue
@@ -492,10 +513,16 @@ def filter_specific_apis(data):
             filter_counts["empty_docstring"] += 1
             filter_API["empty_docstring"].append(api)
             continue
+        # These API is not our targeted API. We filter it because there are too many `method` type API in some libs.
+        # TODO: We might include them in future for robustness.
+        if (not parameters) and (not Returns_type) and (not Returns_description):
+            filter_counts["empty_input_output"] += 1
+            filter_API["empty_input_output"].append(api)
+            continue
         filtered_data[api] = details
     print('==>Filtering APIs!')
     print(json.dumps(filter_counts,indent=4))
-    print(json.dumps(filter_API,indent=4))
+    #print(json.dumps(filter_API,indent=4))
     assert sum(filter_counts.values())+len(filtered_data)==len(data)
     return filtered_data
 
