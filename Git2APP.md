@@ -52,16 +52,17 @@ Create empty `__init__.py` files in each directory where you want to define a mo
 
 ```
 github_repo/
-    ├── src/
-    │   └── your_package/
-    │       ├── __init__.py
-    │       ├── module1.py
-    │       ├── module2.py
-		│       └── subpackage/
-		│           ├── __init__.py
-		│           └── module3.py
-    ├── setup.py
-    └── README.md
+├── src/
+│   └── your_package/
+│       ├── __init__.py
+│       ├── module1.py
+│       ├── module2.py
+│       └── subpackage/
+│           ├── __init__.py
+│           └── module3.py
+│
+├── setup.py
+└── README.md
 ```
 
 Make sure both `__init__.py` files are present. Here's a basic example of  `github_repo/src/your_package/__init__.py` file:

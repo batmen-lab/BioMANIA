@@ -178,6 +178,8 @@ Your chatbot server is now operational at `http://localhost:3000/en`, primed to 
 
 We provide a robust training script for additional customization and enhancement of the BioMANIA project. Follow the steps in the Training section to modify library settings, download materials, generate JSON files, and train models.
 
+Currently we support creating BioMANIA app starting from the source code, and it's even better if it's a PyPI standard package. We provide a [tutorial](Git2APP.md) to convert github source code to our BioMANIA app!
+
 1. Modify the library setting in `configs/model_config.py`, and add the url links to `Lib_cheatsheet.json`.
 ```shell
 LIB = 'scanpy'
@@ -215,7 +217,7 @@ For further web UI, don't forget to add the new lib information to `BioMANIA/cha
 python dataloader/get_API_init_from_sourcecode.py
 ```
 
-> **You might want to DIY the filtering rules in  `filter_specific_apis` inside get_API_init_from_sourcecode.py file. Currently we remove API type with `property/constant/builtin`, remove API without docstring, API without input/output simultaneously. Most retained APIs are of type `function/method/Class`, which is more meaningful for user query inference.**
+> **Notice: You might want to DIY the filtering rules in  `filter_specific_apis` inside get_API_init_from_sourcecode.py file. Currently we remove API type with `property/constant/builtin`, remove API without docstring, API without input/output simultaneously. Most retained APIs are of type `function/method/Class`, which is more meaningful for user query inference. You can check your API_init.json and modify rules accordingly!**
 
 3. (Optional) Generate API_composite.json with another script. 
 ```shell
