@@ -143,7 +143,7 @@ pip install git+https://github.com/your_github_page/your_repository.git.
 
 **2.2. Create BioMANIA app:**
 
-Follow the steps in `Run with script/Training` section in readme file to create data files under `data/standard_process/your_project_name` and model files under `hugging_models`
+Follow the steps in [`Run with script/Training`](README.md#training) section in `README` to create data files under `data/standard_process/your_project_name` and model files under `hugging_models`
 
 ```python
 data/standard_process/your_project_name
@@ -189,7 +189,7 @@ hugging_models
 
 **2.3 Use UI service.**
 
-Follow the steps in `Run with script/Inference` section to start UI service. Don’t forget to set an OpenAI key in `.env` file as recommended in `README`.
+Follow the steps in [`Run with script/Inference`](README.md#inference) section in `README` to start UI service. Don’t forget to set an OpenAI key in `.env` file as recommended in `README`.
 
 Remember to update the app's accordingly to your repository improvements.
 
