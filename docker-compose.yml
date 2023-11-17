@@ -1,22 +1,17 @@
 version: '3.10'
 
 services:
-  frontend:
-    build: ./chatbot_ui_biomania
+  biomania-frontend:
+    image: chatbotuibiomania/biomania-frontend:v1.1.2
     ports:
-      - "3000:3000" 
-    depends_on:
-      - backend
-    networks:
-      - app-network
+      - "3000:3000"
+    restart: always
 
-  backend:
-    build: ./src
+
+  biomania-backend:
+    image: chatbotuibiomania/biomania-backend:v1.1.2
+    environment:
+      - OPENAI_API_KEY=""
     ports:
-      - "5000:5000" 
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge
+      - "5000:5000"
+    restart: always

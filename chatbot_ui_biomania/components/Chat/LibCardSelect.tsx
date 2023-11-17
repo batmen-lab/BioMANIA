@@ -37,16 +37,16 @@ export const LibCardSelect = () => {
       { id: 'scanpy', name: 'scanpy' },
       { id: 'squidpy', name: 'squidpy' },
       { id: 'pyteomics', name: 'pyteomics' },
-      { id: 'qiime2', name: 'qiime2' },
+      //{ id: 'qiime2', name: 'qiime2' },
       { id: 'scikit-bio', name: 'scikit-bio' },
-      { id: 'biopython', name: 'biopython' },
-      { id: 'biotite', name: 'biotite' },
+      //{ id: 'biopython', name: 'biopython' },
+      //{ id: 'biotite', name: 'biotite' },
       { id: 'deap', name: 'deap' },
       { id: 'eletoolkit', name: 'eletoolkit' },
       { id: 'pyopenms', name: 'pyopenms' },
       { id: 'scenicplus', name: 'scenicplus' },
-      { id: 'scvi-tools', name: 'scvi-tools' },
-      { id: 'custom', name: 'custom' },
+      //{ id: 'scvi-tools', name: 'scvi-tools' },
+      //{ id: 'custom', name: 'custom' },
     ];
   
     const existingLibIds = methods.map(lib => lib.id);

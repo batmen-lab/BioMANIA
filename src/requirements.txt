@@ -31,7 +31,7 @@ pyteomics==4.6.3
 python_dotenv
 rank_bm25==0.2.2
 rdflib==7.0.0
-ReportLab==4.0.7
+ReportLab
 Requests==2.31.0
 scikit_bio==0.5.9
 scikit_learn==1.2.2
@@ -47,5 +47,5 @@ tensorboard==2.15.1
 torch==2.1.0
 tqdm==4.66.1
 transformers==4.35.0
-triton==2.1.0
 typing_extensions==4.8.0
+# triton

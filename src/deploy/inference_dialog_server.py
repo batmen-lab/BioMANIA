@@ -21,6 +21,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 import concurrent.futures
 from dotenv import load_dotenv
 from string import punctuation
+import warnings
+warnings.filterwarnings("ignore")
 
 # inference pipeline
 from models.model import LLM_response, LLM_model
@@ -954,3 +956,4 @@ signal.signal(signal.SIGINT, handle_keyboard_interrupt)
 
 if __name__ == '__main__':
     app.run(use_reloader=False, host="0.0.0.0", debug=True, port=5000)
+    #app.run(use_reloader=False, host="biomania-frontend", debug=True, port=5000)
