@@ -215,9 +215,17 @@ For further web UI, don't forget to add the new lib information to `BioMANIA/cha
 python dataloader/get_API_init_from_sourcecode.py
 ```
 
-3. (Optional) Generate API_composite.json with another script.
+> **You might want to DIY the filtering rules in  `filter_specific_apis` inside get_API_init_from_sourcecode.py file. Currently we remove API type with `property/constant/builtin`, remove API without docstring, API without input/output simultaneously. Most retained APIs are of type `function/method/Class`, which is more meaningful for user query inference.**
+
+3. (Optional) Generate API_composite.json with another script. 
 ```shell
 python dataloader/get_API_composite_from_tutorial.py
+```
+
+If you skip this step, don't forget to generate a file of `./data/standard_process/{Lib}/API_composite.json` to guarantee the following steps can run smoothly.
+
+```shell
+cp -r ./data/standard_process/${Lib}/API_init.json ./data/standard_process/${Lib}/API_composite.json
 ```
 
 4. Following this, create instructions, generate various JSON files, and split the data.
@@ -231,8 +239,6 @@ We have implemented the use of asyncio to make requests to OpenAI services, whic
 
 5. Train the api/non-api classification model.
 ```shell
-export LIB=pyteomics
-CUDA_VISIBLE_DEVICES=4
 python models/chitchat_classification.py --LIB ${LIB}
 ```
 
@@ -243,7 +249,7 @@ python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
 
 Or, you can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
 ```shell
-CUDA_VISIBLE_DEVICES=3
+CUDA_VISIBLE_DEVICES=0
 mkdir ./hugging_models/retriever_model_finetuned/${LIB}
 python models/train_retriever.py \
     --data_path ./data/standard_process/${LIB}/retriever_train_data/ \

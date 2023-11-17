@@ -142,5 +142,23 @@
         "READTHEDOC_LINK": "https://www.biotite-python.org/",
         "TUTORIAL_HTML_PATH": "www.biotite-python.org/tutorial/target/index.html",
         "TUTORIAL_GITHUB": null
+    },
+    "sonata":{
+        "LIB": "sonata",
+        "LIB_ALIAS": "sonata",
+        "API_HTML_PATH": null,
+        "GITHUB_LINK": null,
+        "READTHEDOC_LINK": null,
+        "TUTORIAL_HTML_PATH": null,
+        "TUTORIAL_GITHUB": null
+    },
+    "MIOSTONE":{
+        "LIB": "MIOSTONE",
+        "LIB_ALIAS": "MIOSTONE",
+        "API_HTML_PATH": null,
+        "GITHUB_LINK": null,
+        "READTHEDOC_LINK": null,
+        "TUTORIAL_HTML_PATH": null,
+        "TUTORIAL_GITHUB": null
     }
 }
