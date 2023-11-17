@@ -8,7 +8,7 @@ app = Flask(__name__)
 cors = CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 # standard lib
-import argparse, json, signal, time, copy, base64, requests, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess
+import argparse, json, signal, time, copy, base64, requests, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess, re
 from datetime import datetime
 from urllib.parse import urlparse
 # Computational
@@ -20,6 +20,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # 
 import concurrent.futures
 from dotenv import load_dotenv
+from string import punctuation
 
 # inference pipeline
 from models.model import LLM_response, LLM_model
@@ -188,25 +189,22 @@ class Model:
         self.retrieve_query_mode = "similar"
         print("Server ready")
     def reset_lib(self, lib_name):
+        #lib_name = lib_name.strip()
         print('================')
-        print('==>Start reset the Lib!')
+        print(f'==>Start reset the Lib {lib_name}!')
         # reset and reload all the LIB-related data/models
         # suppose that all data&model are prepared already in their path
         try:
             self.ambiguous_pair = find_similar_two_pairs(lib_name)
             self.ambiguous_api = list(set(api for api_pair in self.ambiguous_pair for api in api_pair))
-            print('==>starting reset lib!')
-            self.LIB = lib_name
-            self.corpus_tsv_path = f"./data/standard_process/{self.LIB}/retriever_train_data/corpus.tsv"
-            self.API_file = f"./data/standard_process/{self.LIB}/API_composite.json"
-            self.load_data(self.API_file)
+            self.load_data(f"./data/standard_process/{lib_name}/API_composite.json")
             print('==>loaded API json done')
-            #self.load_composite_code(self.LIB)
+            #self.load_composite_code(lib_name)
             #print('==>loaded API composite done')
             t1 = time.time()
             print('==>Start loading model!')
             self.load_llm_model()
-            print('==>loaded llm model!')
+            print('loaded llm model!')
             retrieval_model_path = self.args.retrieval_model_path
             parts = retrieval_model_path.split('/')
             if len(parts)>=3: # only work for path containing LIB, otherwise, please reenter the path in script
@@ -214,19 +212,22 @@ class Model:
                     parts = parts[:-1]
                 new_path = '/'.join(parts)
             retrieval_model_path = new_path
-            self.retriever = ToolRetriever(LIB=self.LIB,corpus_tsv_path=self.corpus_tsv_path, model_path=retrieval_model_path)
-            print('==>loaded retriever!')
+            self.retriever = ToolRetriever(LIB=lib_name,corpus_tsv_path=f"./data/standard_process/{lib_name}/retriever_train_data/corpus.tsv", model_path=retrieval_model_path)
+            print('loaded retriever!')
             #self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
-            self.executor.execute_api_call(f"import {self.LIB}", "import")
-            import re, os
-            from string import punctuation
+            self.executor.execute_api_call(f"import {lib_name}", "import")
+            # pyteomics tutorial needs these import libs
+            self.executor.execute_api_call(f"import os, gzip, numpy as np, matplotlib.pyplot as plt", "import")
+            self.executor.execute_api_call(f"from urllib.request import urlretrieve", "import")
+            self.executor.execute_api_call(f"from pyteomics import fasta, parser, mass, achrom, electrochem, auxiliary", "import")
             end_of_docstring_summary = re.compile(r'[{}\n]+'.format(re.escape(punctuation)))
             all_apis = {x: end_of_docstring_summary.split(self.API_composite[x]['Docstring'])[0].strip() for x in self.API_composite}
             all_apis = list(all_apis.items())
             self.description_json = {i[0]:i[1] for i in all_apis}
-            print('End loading model!')
+            print('==>Successfully loading model!')
             print('loading model cost: ', time.time()-t1, 's')
             reset_result = "Success"
+            self.LIB = lib_name
         except:
             print('at least one data or model is not ready, please install lib first!')
             reset_result = "Fail"
@@ -388,14 +389,17 @@ class Model:
             self.indexxxx+=1
     def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True):
         self.indexxxx = 1
+        # only reset lib when changing lib
         if lib!=self.LIB:
-            reset_result = self.reset_lib(self.LIB)
+            reset_result = self.reset_lib(lib)
             if reset_result=='Fail':
+                print('Reset lib fail! Exit the dialog!')
                 return 
             self.LIB = lib
         self.conversation_started=conversation_started
-        # reset
+        # only clear namespace when starting new conversations
         if self.conversation_started in ["True", True]:
+            print('==>new conversation_started!')
             print('reset status!')
             self.user_states="initial"
             self.initialize_executor()
@@ -407,6 +411,8 @@ class Model:
             for var_name in list(locals()):
                 if var_name.startswith('result_'):
                     del locals()[var_name]
+        else:
+            print('==>old conversation_continued!')
         if self.user_states == "initial":
             print('start initial!')
             while not self.queue.empty():
@@ -449,8 +455,9 @@ class Model:
             success = False
             for attempt in range(3):
                 try:
+                    print(f'==>Ask GPT: {api_predict_prompt}')
                     response, _ = LLM_response(self.llm, self.tokenizer, api_predict_prompt, history=[], kwargs={})  # llm
-                    print('GPT response:', response)
+                    print('==>GPT response:', response)
                     # hack for if GPT answers this or that
                     response = response.split(',')[0].split("(")[0].split(' or ')[0]
                     response = response.split(':')[0]# for robustness, sometimes gpt will return api:description
@@ -773,6 +780,7 @@ class Model:
             content = self.buf.getvalue()
             # if execute, visualize value
             vari = [i.strip() for i in code.split('(')[0].split('=')]
+            print(f'-----code: {code}')
             print(f'-----vari: {vari}')
             tips_for_execution_success = True
             if len(vari)>1:
@@ -871,11 +879,7 @@ def stream():
         api_html = ""
         lib_alias = ""
 
-    if conversation_started:
-        print('new conversation_started!')
-    else:
-        print('old conversation_continued!')
-    
+    # process uploaded files
     if len(raw_files)>0:
         print('length of files:',len(raw_files))
         for i in range(len(raw_files)):
@@ -902,9 +906,6 @@ def stream():
         if new_lib_doc_url:
             print('new_lib_doc_url is not none, start installing lib!')
             model.install_lib(new_lib_github_url, new_lib_doc_url, api_html, Lib, lib_alias)
-        if conversation_started:
-            print('The conversation is restarted, now reset the Lib!')
-            reset_result = model.reset_lib(Lib)
         with concurrent.futures.ThreadPoolExecutor() as executor:
             print('start running pipeline!')
             future = executor.submit(model.run_pipeline, user_input, Lib, top_k, files, conversation_started)

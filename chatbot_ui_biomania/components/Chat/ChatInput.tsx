@@ -123,7 +123,7 @@ export const ChatInput = ({
     const isFirstMessage = selectedConversation?.messages.length === 0;
     onSend({ role: 'user', content, tools: [], recommendations: [], files: attachedFiles, conversation_started: isFirstMessage}, plugin);
     setContent('');
-    setAttachedFiles([]); // 清空已上传的文件
+    setAttachedFiles([]);
     setPlugin(null);
     if (window.innerWidth < 640 && textareaRef && textareaRef.current) {
       textareaRef.current.blur();

@@ -523,17 +523,19 @@ def filter_specific_apis(data):
             continue
         # Remove API that imported from external lib 
         # (used for github repo 2 biomania app only)
-        tmp_all_members = import_member(api, expand=True)
-        print(api, tmp_all_members)
-        try:
-            tmp_all_members[0][1].__modules__
-            print(LIB, tmp_all_members[0][1].__modules__)
-            if LIB not in str(tmp_all_members[0][1].__modules__):
-                filter_counts["external_lib_function"] += 1
-                filter_API["external_lib_function"].append(api)
-                continue
-        except:
-            pass
+        remove_extra_API = False
+        if remove_extra_API:
+            tmp_all_members = import_member(api, expand=True)
+            #print(api, tmp_all_members)
+            try:
+                tmp_all_members[0][1].__modules__
+                print(LIB, tmp_all_members[0][1].__modules__)
+                if LIB not in str(tmp_all_members[0][1].__modules__):
+                    filter_counts["external_lib_function"] += 1
+                    filter_API["external_lib_function"].append(api)
+                    continue
+            except:
+                pass
         filtered_data[api] = details
     print('==>Filtering APIs!')
     print(json.dumps(filter_counts,indent=4))

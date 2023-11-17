@@ -1,20 +1,20 @@
 import { useEffect, useContext, useState } from 'react';
 import HomeContext from '@/pages/api/home/home.context';
 
-const libImages: { [key: string]: string } = {
+export const libImages: { [key: string]: string } = {
   'scanpy': '/apps/scanpy.jpg',
   'squidpy': '/apps/squidpy.jpg',
   'pyteomics': '/apps/pyteomics.jpg',
-  'qiime2': '/apps/qiime2.png',
-  'scikitbio': '/apps/scikitbio.jpg',
-  'biopython': '/apps/biopython.png',
-  'biotite': '/apps/biotite.png',
+  //'qiime2': '/apps/qiime2.png',
+  'scikit-bio': '/apps/scikitbio.jpg',
+  //'biopython': '/apps/biopython.png',
+  //'biotite': '/apps/biotite.png',
   'deap': '/apps/deap.png',
   'eletoolkit': '/apps/eletoolkit.jpg',
   'pyopenms': '/apps/pyopenms.png',
-  'SCENIC': '/apps/SCENIC.png',
-  'scvitools': '/apps/scvitools.svg',
-  'custom': '/apps/customize.jpg',
+  'scenicplus': '/apps/SCENIC.png',
+  //'scvi-tools': '/apps/scvitools.svg',
+  //'custom': '/apps/customize.jpg',
 };
 
 export const LibCardSelect = () => {
@@ -38,14 +38,14 @@ export const LibCardSelect = () => {
       { id: 'squidpy', name: 'squidpy' },
       { id: 'pyteomics', name: 'pyteomics' },
       { id: 'qiime2', name: 'qiime2' },
-      { id: 'scikitbio', name: 'scikit-bio' },
+      { id: 'scikit-bio', name: 'scikit-bio' },
       { id: 'biopython', name: 'biopython' },
       { id: 'biotite', name: 'biotite' },
       { id: 'deap', name: 'deap' },
       { id: 'eletoolkit', name: 'eletoolkit' },
       { id: 'pyopenms', name: 'pyopenms' },
-      { id: 'SCENIC', name: 'scenicplus' },
-      { id: 'scvitools', name: 'scvi-tools' },
+      { id: 'scenicplus', name: 'scenicplus' },
+      { id: 'scvi-tools', name: 'scvi-tools' },
       { id: 'custom', name: 'custom' },
     ];
   

@@ -22,7 +22,7 @@ You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomani
 
 ## Project Overview
 
-Our project workflow is depicted in the images below, showcasing the pipeline, chatbot UI, and demos.
+Our project workflow is depicted in the images below, showcasing the pipeline, chatbot UI, and tutorials.
 
 Project Overview:
 Our project pipeline is illustrated below:
@@ -41,26 +41,22 @@ Refer to section `Quick start` for deployment instructions.
 
 > **Railway offers CPU-only runtime, and Docker deployment takes approximately 2 minutes. After obtaining a public domain, it may take around 1 minute before available. When switching to different libraries while using the frontend, data and models will be reloaded, taking approximately 1 minute.**
 
-> **Our template currently provides version docker:v2, and it will be updated with the latest versions in the future.**
-
 ## Run with Docker
 
 For ease of use, we provide Docker images for both the frontend and backend services, specific to the Scanpy library at present. Future releases will expand this capability.
 
-> **For the Docker v2 demo, we have released a Docker image that includes the available models and data for `Scanpy`. At the moment, you can only check the execution for Scanpy under the v2 version. We are planning to release v3 later, which will accommodate more data and installation service.**
-
-> **To use installation service, please follow python scripts to add new library currently.**
+> **For the Docker v1.1.2, we have released a Docker image that includes the 12 available tools mentioned in paper. Currently the new APP installation service are available through script instead of UI. You are welcomed to follow the below python scripts to add new APP based on your tool!**
 
 Start front-end UI service with:
 ```shell
-docker pull chatbotuibiomania/biomania-frontend:v2
-docker run -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v2
+docker pull chatbotuibiomania/biomania-frontend:v1.1.2
+docker run -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v1.1.2
 ```
 
 Start back-end UI service with:
 ```shell
-docker pull chatbotuibiomania/biomania-backend:v2
-docker run -e OPENAI_API_KEY="your-openai-api-key-here" -d -p 5000:5000 chatbotuibiomania/biomania-backend:v2
+docker pull chatbotuibiomania/biomania-backend:v1.1.2
+docker run -e OPENAI_API_KEY="your-openai-api-key-here" -d -p 5000:5000 chatbotuibiomania/biomania-backend:v1.1.2
 ```
 
 ## Setting up services on separate devices
@@ -72,7 +68,7 @@ ngrok http 5000
 
 Then you can start front-end UI service with
 ```shell
-docker run -e BACKEND_URL="https://[ngrok_id].ngrok-free.app" -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v2
+docker run -e BACKEND_URL="https://[ngrok_id].ngrok-free.app" -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v1.1.2
 ```
 
 ## Run with script
@@ -147,7 +143,7 @@ By meticulously following the steps above, you'll have all the essential data an
 
 We provide data and pre-trained models for available tools mentioned in our paper. For experimenting with more libraries, use our library installation service.
 
-We also offer some demo chat, you can download it [here](https://drive.google.com/drive/folders/1V-vZeuKR59kq2IU3W_fW4bNCrZmRlSzD?usp=drive_link) and use `import data` button to visualize it in chatbot UI
+We also offer some demo chat, you can download it [here](https://drive.google.com/drive/folders/1V-vZeuKR59kq2IU3W_fW4bNCrZmRlSzD?usp=drive_link) and use `import data` button to visualize it in chatbot UI. Notice that these demo chat are converted from the PyPI readthedoc tutorials. You can check the original tutorial link through the `tutorial_links.txt` in the google drive link.
 
 ### Inference
 
@@ -410,11 +406,12 @@ report/Py2report.py
 ```
 
 ## Version History
-- v3 (Upcoming)
-  - Pass testing and release of code, data links, Docker images, and deployment support for 3-4 tools.
-  - Pass testing and release of materials for installation services on web.
-  - Pass testing and release of materials for supporting more tools.
-- v2 (2023-11-10)
+- v1.1.2 (2023-11-17)
+  - Release docker with support for 8 PyPI bio tools. We will release more libs in a later version.
+  - Add [`manual`](Git2APP.md) support for converting github repo/source code to BioMANIA APP.
+  - Support for switching libs during a dialog. Now you can let multiple tool cooperate inside one dialog!
+  - Add demo chat for these tools through [google drive](https://drive.google.com/drive/folders/1V-vZeuKR59kq2IU3W_fW4bNCrZmRlSzD?usp=drive_link).
+- v1.1.1 (2023-11-10)
   - Initial release with analysis pipeline for `scanpy`.
   - Add one-click deploy using railway.
 
