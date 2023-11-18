@@ -8,6 +8,8 @@ services:
     ports:
       - "3000:3000"
     restart: always
+    networks:
+      - mynetwork
 
 
   biomania-backend:
@@ -17,3 +19,8 @@ services:
     ports:
       - "5000:5000"
     restart: always
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:

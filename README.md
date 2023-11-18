@@ -3,7 +3,7 @@
 <a target="_blank" href="https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1">
 <img style="height:22pt" src="https://img.shields.io/badge/-Paper-burgundy?style=flat&logo=arxiv">
 </a><a target="_blank" href="https://github.com/batmen-lab/BioMANIA">
-<img style="height:22pt" src="https://img.shields.io/badge/-Code-black?style=flat&logo=github"></a><a target="_blank" href="https://railway.app/template/t87fN4?referralCode=iEkWIc">
+<img style="height:22pt" src="https://img.shields.io/badge/-Code-black?style=flat&logo=github"></a><a target="_blank" href="https://railway.app/template/U70DE0?referralCode=iEkWIc">
 <img style="height:22pt" src="https://img.shields.io/badge/-Railway-purple?style=flat&logo=railway">
 </a><a target="_blank" href="https://hub.docker.com/repositories/chatbotuibiomania">
 <img style="height:22pt" src="https://img.shields.io/badge/-Docker-blue?style=flat&logo=docker">
@@ -11,19 +11,19 @@
 
 Welcome to the BioMANIA Project! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
 
-## Quick start
-
-We provide a Railway deployment template that allows you to deploy to Railway with a single click. 
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/t87fN4?referralCode=iEkWIc)
-
-You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable `Public Domain` in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
-
 ## Web access online demo
 
-We provide an [online demo](https://biomania-frontend-production-4095.up.railway.app). We will provide another more stable [online demo](https://biomania.ngrok.io/en) hosted on our server soon!
+We provide an [online demo](https://biomania.ngrok.io/en) hosted on our server!
 
-> **This has only one backend, which may lead to request confusion when multiple users request simultaneously. The stability of the operation is affected by the device's network. Because it runs on the CPU, switching between different libraries takes about half a minute to load models and data. We recommend prioritizing running it locally with GPU, which takes only about 3 seconds to switch between different libraries.**
+> **This has only one backend, which may lead to request confusion when multiple users request simultaneously. The stability of the operation is affected by the device's network. When it runs on the CPU, switching between different libraries takes about half a minute to load models and data. We recommend prioritizing running it locally with GPU, which takes only about 3 seconds to switch between different libraries!**
+
+## Quick start
+
+We provide a Railway deployment template that allows you to deploy to Railway with a single click. (231118-Under developing.)
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/U70DE0?referralCode=iEkWIc)
+
+You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable `Public Domain` in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
 
 ## Project Overview
 
@@ -44,13 +44,9 @@ Here are some scanpy demos
 
 Refer to section `Quick start` for deployment instructions.
 
-> **Railway offers CPU-only runtime, and Docker deployment takes approximately 2 minutes. After obtaining a public domain, it may take around 1 minute before available. When switching to different libraries while using the frontend, data and models will be reloaded, taking approximately 1 minute.**
-
 ## Run with Docker
 
 For ease of use, we provide Docker images for both the frontend and backend services, specific to the Scanpy library at present. Future releases will expand this capability.
-
-> **For the Docker v1.1.2, we have released a Docker image that includes the 8 available tools mentioned in paper. Currently the new APP installation service are available through script instead of UI service. You are welcomed to follow the below python scripts to add new APP for your tool!**
 
 Pull front-end UI service with:
 ```shell
@@ -66,7 +62,7 @@ Add OpenAI API key to biomania/docker-compose.yml
 
 Start service with
 ```shell
-cd biomania # use the docker-compose.yml
+cd BioMANIA # use the docker-compose.yml to build
 docker-compose build
 docker-compose up -d
 ```
@@ -85,6 +81,11 @@ ngrok http 5000
 Then you can start front-end UI service with
 ```shell
 docker run -e BACKEND_URL="https://[ngrok_id].ngrok-free.app" -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v1.1.2
+```
+
+And run back-end service on another device with
+```shell
+docker run -e OPENAI_API_KEY="" -d -p 5000:5000 chatbotuibiomania/biomania-backend:v1.1.2
 ```
 
 ## Run with script
