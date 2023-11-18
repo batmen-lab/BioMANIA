@@ -14,8 +14,7 @@ export class OpenAIError extends Error {
   }
 }
 
-// export const url = "https://localhost:5000"; // process.env.BACKEND_URL || "https://localhost:5000"
-export const url = "https://biomania-backend:5000";
+export const url = process.env.BACKEND_URL || "http://localhost:5000"
 const streamUrl = url + '/stream';
 
 

@@ -956,4 +956,3 @@ signal.signal(signal.SIGINT, handle_keyboard_interrupt)
 
 if __name__ == '__main__':
     app.run(use_reloader=False, host="0.0.0.0", debug=True, port=5000)
-    #app.run(use_reloader=False, host="biomania-frontend", debug=True, port=5000)

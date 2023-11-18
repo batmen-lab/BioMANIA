@@ -71,7 +71,9 @@ docker-compose build
 docker-compose up -d
 ```
 
-Then check UI service with `https//localhost:3000/en`.
+Then check UI service with `http://localhost:3000/en`.
+
+> **Be careful for the `http/https`, `PORT`, `url` in `chatbot_ui_biomania/utils/server/index.ts` as it will affect the connection between backend and frontend service.**
 
 ## Setting up services on separate devices
 
@@ -178,7 +180,7 @@ Install and start the front-end service in a new terminal with:
 ```shell
 cd src/chatbot_ui_biomania
 npm i # install
-export BACKEND_URL="https://[ngrok_id].ngrok-free.app" # "https://localhost:5000";
+export BACKEND_URL="https://[ngrok_id].ngrok-free.app" # "http://localhost:5000";
 npm run dev # run
 ```
 
