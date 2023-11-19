@@ -11,17 +11,20 @@
 
 Welcome to the BioMANIA Project! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
 
-## video demo
+## Video demo
 
 Our demonstration showcases how to utilize a chatbot to simultaneously use scanpy and squidpy in a single conversation, including loading data, invoking functions for analysis, and presenting outputs in the form of code, images, and tables
 
 ![](./demo/video_demo.gif)
 
-Notice that the inference speed depends on OpenAI key and back-end device. A paid OpenAI key and running back-end on GPU will speed up the inference quite a lot!
-
 ## Web access online demo
 
 We provide an [online demo](https://biomania.ngrok.io/en) hosted on our server!
+
+Tips:
+- Notice that the inference speed depends on OpenAI key and back-end device. A paid OpenAI key and running back-end on GPU will speed up the inference quite a lot!
+- All uploaded files are saved under `./tmp` folder. Please enter `./tmp/`+your_file_name when the API requires filename parameters.
+- Some tools need an individual environment (like qiime2). Under this case, currently you need to switch to that conda environment and run with script.
 
 > **This has only one backend, which may lead to request confusion when multiple users request simultaneously. The stability of the operation is affected by the device's network. When it runs on the CPU, switching between different libraries takes about half a minute to load models and data. We recommend prioritizing running it locally with GPU, which takes only about 3 seconds to switch between different libraries!**
 
