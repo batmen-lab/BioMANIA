@@ -71,7 +71,7 @@ class CodeExecutor:
                     else:
                         matching_params[param_name] = {
                             "type": param_info["type"],
-                            "value": param_info["value"],  # If no match, set to original
+                            "value": param_info["value"],  # If not find matched parameters, set value as default
                             "valuefrom": 'userinput',
                             "optional": param_info["optional"],
                         }
@@ -139,11 +139,11 @@ class CodeExecutor:
         return "", ""
     def format_value(self, value, value_type):
         if "str" in value_type:
-            if '"' in value:
+            value = str(value).strip()
+            if value.startswith(("'", '"')) and value.endswith(("'", '"')):
                 return value
-            elif "'" in value:
-                return value
-            return f"'{value}'"
+            else:
+                return f"'{value}'"
         elif value_type in ["int", "float", "bool"]:
             return str(value)
         else:
@@ -173,9 +173,14 @@ class CodeExecutor:
         import_code, type_api = self.get_import_code(api_name)
         if import_code in [i['code'] for i in self.execute_code if i['code_type']=='import' and i['success']=='True']:
             # if already imported
+            print('api already imported!')
             pass
         else:
-            self.execute_api_call(import_code, "import")
+            print('api not imported, import now!')
+            print(import_code)
+            tmp_result = self.execute_api_call(import_code, "import")
+            if tmp_result:
+                print(f'Error during importing of api calling! {tmp_result}')
         api_parts = api_name.split('.')
         # Convert the parameters to the format 'param_name=param_value' or 'param_value' based on optionality
         params_formatted = self.format_arguments(selected_params)
@@ -228,6 +233,7 @@ class CodeExecutor:
             return ''
         except Exception as e:
             error = f"{e}"
+            print('error in execute api call:', error)
             self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'False', 'error': error})
             return error
     def save_variables_to_json(self):

@@ -297,7 +297,7 @@ export const ChatInput = ({
                     style={{ maxWidth: 'calc(100% - 10px)' }}
                   >
                     <IconFile size={16} className="text-blue-500"/>
-                    <span className="text-sm">{file.name}</span>
+                    <span className="text-sm text-black">{file.name}</span>
                     <button onClick={() => handleFileDelete(id)} className="text-red-500">
                       <IconX size={16} className="text-red-500"/>
                     </button>

@@ -6,7 +6,7 @@ import Divider from '@mui/material/Divider';
 import { useTheme } from '@mui/material/styles';
 import TableCard from './TableCard';
 import ImageProgressCard from './ImageProgressCard';
-import ReactMarkdown from 'react-markdown'; // 添加 Markdown 渲染库，需安装相应依赖
+import ReactMarkdown from 'react-markdown';
 
 interface LoggingCardProps {
   title: string;

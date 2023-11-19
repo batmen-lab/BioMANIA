@@ -11,6 +11,14 @@
 
 Welcome to the BioMANIA Project! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
 
+## video demo
+
+Our demonstration showcases how to utilize a chatbot to simultaneously use scanpy and squidpy in a single conversation, including loading data, invoking functions for analysis, and presenting outputs in the form of code, images, and tables
+
+![](./demo/video_demo.gif)
+
+Notice that the inference speed depends on OpenAI key and back-end device. A paid OpenAI key and running back-end on GPU will speed up the inference quite a lot!
+
 ## Web access online demo
 
 We provide an [online demo](https://biomania.ngrok.io/en) hosted on our server!
@@ -160,7 +168,7 @@ By meticulously following the steps above, you'll have all the essential data an
 
 We provide data and pre-trained models for available tools mentioned in our paper. For experimenting with more libraries, use our library installation service.
 
-We also offer some demo chat, you can download it [here](https://drive.google.com/drive/folders/1V-vZeuKR59kq2IU3W_fW4bNCrZmRlSzD?usp=drive_link) and use `import data` button to visualize it in chatbot UI. Notice that these demo chat are converted from the PyPI readthedoc tutorials. You can check the original tutorial link through the `tutorial_links.txt` in the google drive link.
+We also offer some demo chat, you can find them in `./demo` and use `import data` button to visualize it in chatbot UI. Notice that these demo chat are converted from the PyPI readthedoc tutorials. You can check the original tutorial link through the `tutorial_links.txt`.
 
 ### Inference
 
@@ -424,7 +432,7 @@ report/Py2report.py
 
 ## Version History
 - v1.1.3 (comming soon)
-  - Add demo chat for these tools through [google drive](https://drive.google.com/drive/folders/1V-vZeuKR59kq2IU3W_fW4bNCrZmRlSzD?usp=drive_link).
+  - Add demo chat for these tools under `BioMANIA/demo`.
   - Support for 12 tools
   - Support web access on our server
   - Support UI installation APP service

@@ -34,7 +34,7 @@ from deploy.utils import dataframe_to_markdown, convert_image_to_base64
 from prompt.parameters import prepare_parameters_prompt
 from prompt.summary import prepare_summary_prompt
 
-basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict']
+basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'List', 'Dict']
 
 def change_format(input_params, param_name_list):
     """
@@ -77,6 +77,9 @@ def generate_api_calling(api_name, api_details, returned_content_str):
                     param_value = "'"+str(param_value)+"'"
             # added condition to differentiate between basic and non-basic types
             if any(item in param_type for item in basic_types):
+                param_value = param_value if ((param_value not in [ 'None']) and param_value) else "@"
+            # add some general rules for basic types.
+            elif ('openable' in param_type) or ('filepath' in param_type) or ('URL' in param_type):
                 param_value = param_value if ((param_value not in [ 'None']) and param_value) else "@"
             else:
                 param_value = param_value if ((param_value not in [ 'None']) and param_value) else "$"
@@ -214,6 +217,7 @@ class Model:
                     parts = parts[:-1]
                 new_path = '/'.join(parts)
             retrieval_model_path = new_path
+            print('load retrieval_model_path in: ', retrieval_model_path)
             self.retriever = ToolRetriever(LIB=lib_name,corpus_tsv_path=f"./data/standard_process/{lib_name}/retriever_train_data/corpus.tsv", model_path=retrieval_model_path)
             print('loaded retriever!')
             #self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
