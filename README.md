@@ -15,7 +15,11 @@ Welcome to the BioMANIA Project! This guide provides detailed instructions on ho
 
 Our demonstration showcases how to utilize a chatbot to simultaneously use scanpy and squidpy in a single conversation, including loading data, invoking functions for analysis, and presenting outputs in the form of code, images, and tables
 
-![](./demo/video_demo.gif)
+<div align="center">
+
+https://github.com/batmen-lab/BioMANIA/tree/main/demo/video_demo.mp4
+
+</div>
 
 ## Web access online demo
 
@@ -60,19 +64,19 @@ Refer to section `Quick start` for deployment instructions.
 For ease of use, we provide Docker images for both the frontend and backend services, specific to the Scanpy library at present. Future releases will expand this capability.
 
 Pull front-end UI service with:
-```shell
+```bash
 docker pull chatbotuibiomania/biomania-frontend:v1.1.2
 ```
 
 Pull back-end UI service with:
-```shell
+```bash
 docker pull chatbotuibiomania/biomania-backend:v1.1.2
 ```
 
 Add OpenAI API key to biomania/docker-compose.yml
 
 Start service with
-```shell
+```bash
 cd BioMANIA # use the docker-compose.yml to build
 docker-compose build
 docker-compose up -d
@@ -85,17 +89,17 @@ Then check UI service with `http://localhost:3000/en`.
 ## Setting up services on separate devices
 
 If you're operating the front-end and back-end services on separate devices, initiate the [ngrok service](https://ngrok.com/docs/getting-started/) script in a new terminal on the same device with back-end device and get the print url like `https://[ngrok_id].ngrok-free.app` with:
-```shell
+```bash
 ngrok http 5000
 ```
 
 Then you can start front-end UI service with
-```shell
+```bash
 docker run -e BACKEND_URL="https://[ngrok_id].ngrok-free.app" -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v1.1.2
 ```
 
 And run back-end service on another device with
-```shell
+```bash
 docker run -e OPENAI_API_KEY="" -d -p 5000:5000 chatbotuibiomania/biomania-backend:v1.1.2
 ```
 
@@ -105,7 +109,7 @@ docker run -e OPENAI_API_KEY="" -d -p 5000:5000 chatbotuibiomania/biomania-backe
 To prepare your environment for the BioMANIA project, follow these steps:
 
 1. Clone the repository and install dependencies:
-```shell
+```bash
 git clone https://github.com/batmen-lab/BioMANIA.git
 cd BioMANIA/src
 conda create -n biomania python=3.10
@@ -114,7 +118,7 @@ pip install -r requirements.txt
 ```
 
 2. Set up your OpenAI API key in the `src/.env` file.
-```shell
+```bash
 "OPENAI_API_KEY"="your-openai-api-key-here"
 ```
 
@@ -178,7 +182,7 @@ We also offer some demo chat, you can find them in `./demo` and use `import data
 To get the UI running without Docker, you can use our script for inference. We use LIB=scanpy as an example:
 
 Start back-end UI service with:
-```shell
+```bash
 export LIB=scanpy
 CUDA_VISIBLE_DEVICES=0 \
 python deploy/inference_dialog_server.py \
@@ -189,7 +193,7 @@ python deploy/inference_dialog_server.py \
 When selecting different libraries on the UI page, the retriever's path will automatically be changed based on the library selected
 
 Install and start the front-end service in a new terminal with:
-```shell
+```bash
 cd src/chatbot_ui_biomania
 npm i # install
 export BACKEND_URL="https://[ngrok_id].ngrok-free.app" # "http://localhost:5000";
@@ -205,7 +209,7 @@ We provide a robust training script for additional customization and enhancement
 Currently we support creating BioMANIA app starting from the source code, and it's even better if it's a PyPI standard package. We provide a [tutorial](Git2APP.md) to convert github source code to our BioMANIA app!
 
 1. Modify the library setting in `configs/model_config.py`, and add the url links to `Lib_cheatsheet.json`.
-```shell
+```bash
 LIB = 'scanpy'
 USER_INPUT =     
 {
@@ -228,7 +232,7 @@ USER_INPUT =
 > **Among these materials, only `LIB` and  `LIB_ALIAS` are `NECESSARY`. You can just leave other urls as `None`. We download API_HTML_PATH instead of the whole READTHEDOC for saving time.**
 
 Download the necessary readthedoc materials to folder `../../resources/readthedoc_files` with:
-```shell
+```bash
 python dataloader/utils/other_download.py
 ```
 
@@ -237,25 +241,25 @@ Install the PyPI library by `pip install {LIB}` or other ways that recommended f
 For further web UI, don't forget to add the new lib information to `BioMANIA/chatbot_ui_biomania/components/Chat/LibCardSelect.tsx`. Also add the new lib logo to `BioMANIA/chatbot_ui_biomania/public/apps/`.
 
 2. Generate API_init.json using the provided script.
-```shell
+```bash
 python dataloader/get_API_init_from_sourcecode.py
 ```
 
 > **Notice: You might want to DIY the filtering rules in  `filter_specific_apis` inside get_API_init_from_sourcecode.py file. Currently we remove API type with `property/constant/builtin`, remove API without docstring, API without input/output simultaneously. Most retained APIs are of type `function/method/Class`, which is more meaningful for user query inference. You can check your API_init.json and modify rules accordingly!**
 
 3. (Optional) Generate API_composite.json with another script. 
-```shell
+```bash
 python dataloader/get_API_composite_from_tutorial.py
 ```
 
 If you skip this step, don't forget to generate a file of `./data/standard_process/{Lib}/API_composite.json` to guarantee the following steps can run smoothly.
 
-```shell
+```bash
 cp -r ./data/standard_process/${Lib}/API_init.json ./data/standard_process/${Lib}/API_composite.json
 ```
 
 4. Following this, create instructions, generate various JSON files, and split the data.
-```shell
+```bash
 export LIB=scanpy
 python dataloader/preprocess_retriever_data.py --LIB ${LIB}
 ```
@@ -264,17 +268,17 @@ Notice that the automatically generated API_inquiry_annotate.json do not have hu
 We have implemented the use of asyncio to make requests to OpenAI services, which has reduced the waiting time for the API. However, when the number of API calls is too high, this may reach the rate limit of 180,000 requests per minute for GPT-3.5.
 
 5. Train the api/non-api classification model.
-```shell
+```bash
 python models/chitchat_classification.py --LIB ${LIB}
 ```
 
 6. Test bm25 retriever or fine-tune the retriever.
-```shell
+```bash
 python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
 ```
 
 Or, you can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
-```shell
+```bash
 CUDA_VISIBLE_DEVICES=0
 mkdir ./hugging_models/retriever_model_finetuned/${LIB}
 python models/train_retriever.py \
@@ -291,7 +295,7 @@ python models/train_retriever.py \
 ```
 
 test the inference performance using:
-```shell 
+```bash 
 export HUGGINGPATH=./hugging_models
 python inference/retriever_finetune_inference.py  \
     --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
@@ -322,7 +326,7 @@ Besides, even though we use gpt prompt to predict api, we also provide an api-na
 Please refer to [lit-llama](https://github.com/Lightning-AI/lit-llama) for getting llama weights and preprocessing. 
 
 process data:
-```shell
+```bash
 CUDA_VISIBLE_DEVICES=0
 export TOKENIZERS_PARALLELISM=true
 python models/data_classification.py \
@@ -345,7 +349,7 @@ python models/data_classification.py \
 ```
 
 Then, finetune model:
-```shell
+```bash
 CUDA_VISIBLE_DEVICES=0 \
 python models/train_classification.py \
     --data_dir ./data/standard_process/${LIB}/classification_train/ \
@@ -356,7 +360,7 @@ python models/train_classification.py \
 ```
 
 Finally, check the performance:
-```shell
+```bash
 CUDA_VISIBLE_DEVICES=0 \
 python models/inference_classification.py \
     --data_dir ./data/standard_process/${LIB}/classification_train/ \
@@ -372,7 +376,7 @@ BioMANIA can generate various reports, including Python files, Jupyter notebooks
 
 Firstly, press `export chat` button on UI to get the chat json data. Convert the chat JSON into a Python code using the Chat2Py.py script.
 
-```shell
+```bash
 python report/Chat2Py.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 ```
 ![](./images/pyfile.jpg)
@@ -382,7 +386,7 @@ python report/Chat2Py.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 
 Convert the chat JSON into an [ipynb report](https://github.com/batmen-lab/BioMANIA/blob/main/src/report/demo_Preprocessing_and_clustering_3k_PBMCs.ipynb) using the Chat2jupyter.py script.
 
-```shell
+```bash
 python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 ```
 ![](./images/jupyter.jpg)
@@ -392,7 +396,7 @@ python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.
 
 Combine and sort the performance figures into a short report.
 
-```shell
+```bash
 python report/PNG2report.py scanpy
 ```
 
@@ -405,7 +409,7 @@ Please note that the generation of this report must be based on the premise that
 
 Displaying common issues in the process of converting Python tools into libraries
 
-```shell
+```bash
 python report/Py2report.py scanpy
 ```
 
@@ -428,7 +432,7 @@ TODO:
 
 We will provide the below files and the data of more tools later
 
-```shell
+```
 dataloader/get_API_composite_from_tutorial.py
 report/Py2report.py
 ```
