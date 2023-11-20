@@ -1,4 +1,4 @@
-# BioMANIA Project
+# BioMANIA
 
 <a target="_blank" href="https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1">
 <img style="height:22pt" src="https://img.shields.io/badge/-Paper-burgundy?style=flat&logo=arxiv">
@@ -15,11 +15,7 @@ Welcome to the BioMANIA Project! This guide provides detailed instructions on ho
 
 Our demonstration showcases how to utilize a chatbot to simultaneously use scanpy and squidpy in a single conversation, including loading data, invoking functions for analysis, and presenting outputs in the form of code, images, and tables
 
-<div align="center">
-  <video width="320" height="240" controls>
-    <source src="https://raw.githubusercontent.com/batmen-lab/BioMANIA/main/demo/video_demo.mp4" type="video/mp4">
-  </video>
-</div>
+![]<img src="demo/video_demo.gif" style="width:800px;height:460px;animation: play 0.25s steps(10) infinite;">
 
 ## Web access online demo
 
