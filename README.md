@@ -17,7 +17,7 @@ Our demonstration showcases how to utilize a chatbot to simultaneously use scanp
 
 <div align="center">
   <video width="320" height="240" controls>
-    <source src="https://github.com/batmen-lab/BioMANIA/raw/main/demo/video_demo.mp4" type="video/mp4">
+    <source src="https://raw.githubusercontent.com/batmen-lab/BioMANIA/main/demo/video_demo.mp4" type="video/mp4">
   </video>
 </div>
 
