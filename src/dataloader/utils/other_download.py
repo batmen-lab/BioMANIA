@@ -1,7 +1,13 @@
-import subprocess
-import os
-from configs.model_config import READTHEDOC_PATH, API_HTML, TUTORIAL_GITHUB, ANALYSIS_PATH, LIB
+import subprocess, argparse, os
+from configs.model_config import READTHEDOC_PATH, ANALYSIS_PATH, get_all_variable_from_cheatsheet
 from urllib.parse import urlparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
+args = parser.parse_args()
+
+info_json = get_all_variable_from_cheatsheet(args.LIB)
+API_HTML, TUTORIAL_GITHUB = [info_json[key] for key in ['API_HTML', 'TUTORIAL_GITHUB']]
 
 def download_readthedoc(readthedoc_path, api_html):
     """name = urlparse(READTHEDOC_LINK).netloc
@@ -42,4 +48,4 @@ def download_tutorial(tutorial_github, analysis_path, lib_name):
 
 if __name__ == "__main__":
     download_readthedoc(READTHEDOC_PATH, API_HTML)
-    download_tutorial(TUTORIAL_GITHUB, ANALYSIS_PATH, LIB)
+    download_tutorial(TUTORIAL_GITHUB, ANALYSIS_PATH, args.LIB)

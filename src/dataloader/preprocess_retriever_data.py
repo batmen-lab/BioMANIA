@@ -1,10 +1,9 @@
 # instruction_generation
 # prepare for retriever data
-import json
-import ast
-import random
-import os, re
-from tqdm import tqdm
+import json, os, re, copy, ast, random, time, cProfile, pstats, argparse, asyncio
+
+from tqdm import tqdm as tqdm_normal
+from tqdm.asyncio import tqdm_asyncio
 import pandas as pd
 from sklearn.utils import shuffle
 from models.model import LLM_response, LLM_model
@@ -13,14 +12,12 @@ from prompt.instruction import Task_Description_of_Singletool_oneapi_Instruction
 Other_Requirements_singletool_oneapi, Task_Description_of_Singletool_oneapi_Instructions_simple, \
 Other_Requirements_singletool_oneapi_simple
 from inference.utils import process_retrieval_document, compress_api_str_from_list
-import asyncio
-import time
-import cProfile
-import pstats
-import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--LIB', type=str, help='')
+parser.add_argument('--LIB', type=str, help='PyPI tool')
+parser.add_argument('--concurrency', type=int, default=80, help='adjust the maximum concurrency according to the rate limit of OpenAI API account')
 args = parser.parse_args()
+
+semaphore = asyncio.Semaphore(args.concurrency)
 
 prompt_oneapi = f"{Task_Description_of_Singletool_oneapi_Instructions}\n{Other_Requirements_singletool_oneapi}"
 prompt_oneapi_simple = f"{Task_Description_of_Singletool_oneapi_Instructions_simple}\n{Other_Requirements_singletool_oneapi_simple}"
@@ -39,7 +36,7 @@ async def async_LLM_response(llm, tokenizer, prompt, history=[], kwargs={}):
     response, history = await loop.run_in_executor(None, LLM_response, llm, tokenizer, prompt, history, kwargs)
     return response, history
 
-async def process_prompt_async(api_name, api, llm, tokenizer, prompt_template):
+async def process_prompt_async(api_name, api, llm, tokenizer, prompt_template, progress):
     prompt_ans = compress_api_str_from_list(api)
     prompt = f'\nGiven API information starts: \n{prompt_ans}\nGiven API information ends\n{prompt_template}'
     retry_count = 0
@@ -50,7 +47,7 @@ async def process_prompt_async(api_name, api, llm, tokenizer, prompt_template):
         response, _ = await async_LLM_response(llm, tokenizer, prompt)
         try:
             response_list = unify_response_format(response)
-            if response_list and isinstance(response_list, list) and isinstance(response_list[0], dict):
+            if response_list and isinstance(response_list, list) and isinstance(response_list[0], dict) and all('Query' in response for response in response_list):
                 valid_response = response_list
                 break
         except:
@@ -67,8 +64,9 @@ async def process_prompt_async(api_name, api, llm, tokenizer, prompt_template):
             api_tmp['query'] = query
             results.append(api_tmp)
         del api_tmp
+    # update progress bar
+    progress.update(1)
     return results
-import copy
 
 async def preprocess_instruction_generation(API_composite, QUERY_FILE):
     # step1: Instruction Generation, compress API, build prompt
@@ -83,11 +81,17 @@ async def preprocess_instruction_generation(API_composite, QUERY_FILE):
     results = []
     #tasks = [process_api_async(api_name, ori_data[api_name], llm, tokenizer) for api_name in tqdm(ori_data)]
     all_tasks = []
-    for api_name in tqdm(ori_data):
-        all_tasks.append(process_prompt_async(api_name, ori_data[api_name], llm, tokenizer, prompt_oneapi))
-        all_tasks.append(process_prompt_async(api_name, ori_data[api_name], llm, tokenizer, prompt_oneapi_simple))
+    print('Start instruction generation ...')
+    print('Num. of Tasks is twice of the num. of APIs ...')
+    progress = tqdm_asyncio(total=len(ori_data) * 2)
+    for api_name in tqdm_asyncio(ori_data):
+        async with semaphore:
+            all_tasks.append(process_prompt_async(api_name, ori_data[api_name], llm, tokenizer, prompt_oneapi, progress))
+            all_tasks.append(process_prompt_async(api_name, ori_data[api_name], llm, tokenizer, prompt_oneapi_simple, progress))
     # Run the tasks and collect results
     results_from_tasks = await asyncio.gather(*(all_tasks))
+    # close progres bar
+    progress.close()
     # Process the ordered results
     results = copy.deepcopy([item for sublist in results_from_tasks for item in sublist])
     for i in range(len(results)):
@@ -157,7 +161,7 @@ def preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX
     test_pairs = []
     val_pairs = []
     def process_data(data, pairs):
-        for doc in tqdm(data):
+        for doc in tqdm_normal(data):
             doc_content = {
                 "api_calling": doc['api_calling'],
                 "api_name": doc['api_calling'][0].split('(')[0],

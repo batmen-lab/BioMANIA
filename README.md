@@ -15,7 +15,7 @@ Welcome to the BioMANIA Project! This guide provides detailed instructions on ho
 
 Our demonstration showcases how to utilize a chatbot to simultaneously use scanpy and squidpy in a single conversation, including loading data, invoking functions for analysis, and presenting outputs in the form of code, images, and tables
 
-![]<img src="demo/video_demo.gif" style="width:800px;height:460px;animation: play 0.25s steps(10) infinite;">
+<img src="demo/video_demo.gif" style="width:800px;height:460px;animation: play 0.25s steps(10) infinite;">
 
 ## Web access online demo
 
@@ -43,12 +43,6 @@ Our project workflow is depicted in the images below, showcasing the pipeline, c
 Project Overview:
 Our project pipeline is illustrated below:
 ![](./images/overview_v2.jpg)
-
-Chatbot UI 
-![](./images/UI.jpg)
-
-Here are some scanpy demos 
-![](./images/demo_full.jpg)
 
 
 ## Run with Railway
@@ -171,7 +165,9 @@ By meticulously following the steps above, you'll have all the essential data an
 
 We provide data and pre-trained models for available tools mentioned in our paper. For experimenting with more libraries, use our library installation service.
 
-We also offer some demo chat, you can find them in `./demo` and use `import data` button to visualize it in chatbot UI. Notice that these demo chat are converted from the PyPI readthedoc tutorials. You can check the original tutorial link through the `tutorial_links.txt`.
+We also offer some demo chat, you can find them in [`./demo`](https://github.com/batmen-lab/BioMANIA/blob/main/demo) and use `import data` button to visualize it in chatbot UI. Notice that these demo chat are converted from the PyPI readthedoc tutorials. You can check the original tutorial link through the `tutorial_links.txt`.
+
+![](./images/demo_full.jpg)
 
 ### Inference
 
@@ -204,10 +200,8 @@ We provide a robust training script for additional customization and enhancement
 
 Currently we support creating BioMANIA app starting from the source code, and it's even better if it's a PyPI standard package. We provide a [tutorial](Git2APP.md) to convert github source code to our BioMANIA app!
 
-1. Modify the library setting in `configs/model_config.py`, and add the url links to `Lib_cheatsheet.json`.
+1. Modify the library setting in `Lib_cheatsheet.json`.
 ```bash
-LIB = 'scanpy'
-USER_INPUT =     
 {
     ...
     'scanpy':{
@@ -220,16 +214,32 @@ USER_INPUT =
         "TUTORIAL_GITHUB":"https://github.com/scverse/scanpy-tutorials",
     },
     ...
+    # simplest input
+    'your_lib':{
+        "LIB":'your_lib_name', # NECESSARY
+        "LIB_ALIAS":'your_lib_alias', # NECESSARY
+        "API_HTML_PATH": null, # OPTIONAL
+        "GITHUB_LINK": null, # OPTIONAL
+        "READTHEDOC_LINK": null, # OPTIONAL
+        "TUTORIAL_HTML_PATH": null, # OPTIONAL
+        "TUTORIAL_GITHUB": null, # OPTIONAL
+    }
 }
 ```
 
 > **For example, for `scikit-learn`, the LIB is `scikit-learn`, while the LIB_ALIAS is `sklearn`. API_HTML_PATH is the API list page.**
 
-> **Among these materials, only `LIB` and  `LIB_ALIAS` are `NECESSARY`. You can just leave other urls as `None`. We download API_HTML_PATH instead of the whole READTHEDOC for saving time.**
+> **We download API_HTML_PATH instead of the whole READTHEDOC for saving time.**
 
-Download the necessary readthedoc materials to folder `../../resources/readthedoc_files` with:
+
+
+(Optional) Download the necessary readthedoc materials to folder `../../resources/readthedoc_files` with:
 ```bash
-python dataloader/utils/other_download.py
+# download materials according to your provided url links
+python dataloader/utils/other_download.py --LIB ${LIB}
+# generate codes for your downloaded tutorial files, support for either html, ipynb.
+python dataloader/utils/tutorial_loader_strategy.py --LIB ${LIB} --file_type 'html'
+# These two scripts are required for getting `API_composite.json`. Feel free to skip this if you don't need `API_composite.json`.
 ```
 
 Install the PyPI library by `pip install {LIB}` or other ways that recommended from their Github.
@@ -238,30 +248,30 @@ For further web UI, don't forget to add the new lib information to `BioMANIA/cha
 
 2. Generate API_init.json using the provided script.
 ```bash
-python dataloader/get_API_init_from_sourcecode.py
+python dataloader/get_API_init_from_sourcecode.py --LIB ${LIB}
 ```
 
 > **Notice: You might want to DIY the filtering rules in  `filter_specific_apis` inside get_API_init_from_sourcecode.py file. Currently we remove API type with `property/constant/builtin`, remove API without docstring, API without input/output simultaneously. Most retained APIs are of type `function/method/Class`, which is more meaningful for user query inference. You can check your API_init.json and modify rules accordingly!**
 
-3. (Optional) Generate API_composite.json with another script. 
+3. (Optional) Generate API_composite.json automatically with:
 ```bash
-python dataloader/get_API_composite_from_tutorial.py
+python dataloader/get_API_composite_from_tutorial.py --LIB ${LIB}
 ```
 
-If you skip this step, don't forget to generate a file of `./data/standard_process/{Lib}/API_composite.json` to guarantee the following steps can run smoothly.
+If you skip this step, don't forget to generate a file of `./data/standard_process/{LIB}/API_composite.json` to guarantee the following steps can run smoothly.
 
 ```bash
-cp -r ./data/standard_process/${Lib}/API_init.json ./data/standard_process/${Lib}/API_composite.json
+cp -r ./data/standard_process/${LIB}/API_init.json ./data/standard_process/${LIB}/API_composite.json
 ```
 
 4. Following this, create instructions, generate various JSON files, and split the data.
 ```bash
-export LIB=scanpy
-python dataloader/preprocess_retriever_data.py --LIB ${LIB}
+python dataloader/preprocess_retriever_data.py --concurrency 80 --LIB ${LIB}
 ```
-Notice that the automatically generated API_inquiry_annotate.json do not have human annotated data here, you need to annotate the API_inquiry_annotate.json by yourself if you want to test performance on human annotate data.
 
-We have implemented the use of asyncio to make requests to OpenAI services, which has reduced the waiting time for the API. However, when the number of API calls is too high, this may reach the rate limit of 180,000 requests per minute for GPT-3.5.
+Tips:
+- The automatically generated API_inquiry_annotate.json do not have human annotated data here, you need to annotate the API_inquiry_annotate.json by yourself if you want to test performance on human annotate data.
+- Adjust the maximum concurrency according to the rate limit of OpenAI account. The time cost is related with the total number of APIs in the lib and the OpenAI account.
 
 5. Train the api/non-api classification model.
 ```bash
@@ -275,6 +285,7 @@ python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
 
 Or, you can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
 ```bash
+export LIB=scanpy
 CUDA_VISIBLE_DEVICES=0
 mkdir ./hugging_models/retriever_model_finetuned/${LIB}
 python models/train_retriever.py \
@@ -429,17 +440,18 @@ TODO:
 We will provide the below files and the data of more tools later
 
 ```
-dataloader/get_API_composite_from_tutorial.py
 report/Py2report.py
 ```
 
 ## Version History
-- v1.1.3 (comming soon)
-  - Add demo chat for these tools under `BioMANIA/demo`.
-  - Support for 12 tools
-  - Support web access on our server
+- v1.1.4 (comming soon)
   - Support UI installation APP service
-  - Upload two files mentioned above.
+  - Support for R execution
+- v1.1.3 (comming soon)
+  - Support web access on our server. Provide data/models for 12 tools mentioned in our paper through drive link.
+  - Upload Composite API generation related codes.
+  - Add demo chat for these tools under `BioMANIA/demo`.
+  - Support manually set maximum concurrency for bulk instruction generation, added a visualization bar.
 - v1.1.2 (2023-11-17)
   - Release docker with support for 8 PyPI bio tools. We will release more libs in a later version.
   - Add [`manual`](Git2APP.md) support for converting github repo/source code to BioMANIA APP.

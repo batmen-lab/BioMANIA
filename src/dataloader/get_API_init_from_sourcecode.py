@@ -1,16 +1,16 @@
-import inspect
-import collections
-import pydoc
-import json
-import re
-import os
+import pydoc, argparse, json, re, os, collections, inspect, importlib, typing, functools
 from docstring_parser import parse
 from langchain.document_loaders import BSHTMLLoader
-from configs.model_config import LIB, LIB_ALIAS, CHEATSHEET, ANALYSIS_PATH, API_HTML_PATH
+from configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet, get_all_basic_func_from_cheatsheet
 from dataloader.extract_function_from_sourcecode import get_returnparam_docstring
-import importlib
-import typing
-import functools
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--LIB', type=str, help='PyPI tool')
+args = parser.parse_args()
+info_json = get_all_variable_from_cheatsheet(args.LIB)
+LIB_ALIAS, API_HTML, TUTORIAL_GITHUB, API_HTML_PATH = [info_json[key] for key in ['LIB_ALIAS', 'API_HTML', 'TUTORIAL_GITHUB','API_HTML_PATH']]
+LIB = args.LIB
+CHEATSHEET = get_all_basic_func_from_cheatsheet()
 
 # STEP1: get API from web
 # STEP2: get docstring/parameters from source code, based on API
@@ -604,4 +604,4 @@ def main_get_API_basic(analysis_path,cheatsheet):
 if __name__=='__main__':
     main_get_API_init(LIB,LIB_ALIAS,ANALYSIS_PATH,API_HTML_PATH)
     # currently we do not need the API_base.json
-    #main_get_API_basic(ANALYSIS_PATH,CHEATSHEET)
+    main_get_API_basic(ANALYSIS_PATH,CHEATSHEET)

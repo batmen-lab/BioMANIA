@@ -1,13 +1,16 @@
 from abc import ABC, abstractmethod
-import os, re, ast, json
-import subprocess
+import os, re, ast, json, requests, argparse, nbformat, subprocess
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from datetime import datetime
-import requests
-import nbformat
 
-from configs.model_config import *
+from configs.model_config import ANALYSIS_PATH
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
+parser.add_argument('--file_type', type=str, default='ipynb', help='tutorial files type')
+args = parser.parse_args()
+LIB_ANALYSIS_PATH = os.path.join(ANALYSIS_PATH, args.LIB)
 
 # base
 class CodeLoader(ABC):
@@ -19,18 +22,20 @@ class CodeLoader(ABC):
         """Save the code to a .py file."""
         filename = os.path.basename(source)
         base = os.path.splitext(filename)[0]
-        py_filepath = os.path.join(output_folder, f"{base}.py")
+        py_filepath = os.path.join(LIB_ANALYSIS_PATH, "Git_Tut_py", f"{base}.py")
         with open(py_filepath, 'w') as f:
             f.write(code)
 
 # html
 class HtmlCodeLoader(CodeLoader):
-    def load_json(self, directory):
-        html_dict = self._generate_html_dict(directory)
+    def load_json(self, filepath):
+        html_dict = self._generate_html_dict(filepath)
         return html_dict
 
-    def _generate_html_dict(self, directory):
+    def _generate_html_dict(self, filepath):
+        directory = os.path.dirname(filepath)
         html_dict = {}
+        print('-------', directory, os.listdir(directory))
         for filename in os.listdir(directory):
             if filename.endswith(".html"):
                 key = filename.split('.')[0]
@@ -130,6 +135,21 @@ class HtmlCodeLoader(CodeLoader):
         """Save the html_dict to a .json file."""
         with open(os.path.join(directory, 'html_code_dict.json'), 'w') as f:
             json.dump(html_dict, f, indent=4)
+    def save_as_code(self,json_input, directory):
+        for key, value in json_input.items():
+            file_name = key.replace(' ', '_').replace('\\u2014', '-') + '.py'
+            code_snippets = [item['code'] for item in value if 'code' in item]
+            with open(os.path.join(directory, file_name), 'w') as f:
+                for snippet in code_snippets:
+                    for code_line in snippet.split('\n'):
+                        # check if code_line is valid
+                        if code_line.startswith('['):
+                            continue
+                        try:
+                            ast.parse(code_line)
+                            f.write(code_line + '\n\n')
+                        except:
+                            continue
 
 # url
 class URLCodeLoader(CodeLoader):
@@ -211,13 +231,22 @@ class CodeLoaderContext:
 
     def load_and_save(self):
         self.code_json = {}
+        count=0
         for root, dirs, files in os.walk(self.input_folder):
             for file in files:
                 if file.split('.')[-1] in self.file_types: # ,'rst'
+                    count+=1
                     filepath = os.path.join(root, file)
                     code = self.loader.load_json(filepath)
                     self.code_json[file.split('.')[0]]=code
-                    self.save_json_to_code(code,os.path.join(self.output_folder, file.replace('.ipynb', '.py')))
+                    if file.split('.')[-1]=='ipynb':
+                        self.save_json_to_code(code,os.path.join(self.output_folder, file.replace('.ipynb', '.py')))
+                    elif file.split('.')[-1]=='html':
+                        self.loader.save_as_code(code, self.output_folder)
+        if count==0:
+            print(f'Empty input folder, no files found in type {self.file_types}')
+        else:
+            print(f'Have successfully turned files in type {self.file_types} to python code!')
     
     def execute(self):
         import os
@@ -244,15 +273,15 @@ class CodeLoaderContext:
         print(f"Successful files: {success_files}")
         print(f"Files with errors: {error_files}")
 
-def main_convert_tutorial_to_py(strategy_type='ipynb', file_types=['ipynb'], execute = False):
+def main_convert_tutorial_to_py(LIB_ANALYSIS_PATH, strategy_type='ipynb', file_types=['ipynb'], execute = False):
     input_folder = os.path.join(LIB_ANALYSIS_PATH,"Git_Tut")
     output_folder = os.path.join(LIB_ANALYSIS_PATH,"Git_Tut_py")
 
     context = CodeLoaderContext(input_folder, output_folder, strategy_type,file_types)
     context.load_and_save()
-    if execute:
+    if execute: # if check each ipynb can run, this will cost a lot of time!
         context.execute()
     return context
 
 if __name__=='__main__':
-    main_convert_tutorial_to_py()
+    main_convert_tutorial_to_py(LIB_ANALYSIS_PATH, strategy_type=args.file_type, file_types=[args.file_type])
