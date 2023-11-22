@@ -17,7 +17,6 @@ export class OpenAIError extends Error {
 export const url = process.env.BACKEND_URL || "http://localhost:5000"
 const streamUrl = url + '/stream';
 
-
 export const BioMANIAStream = async (
   method: string,
   messages: Message[],

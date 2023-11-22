@@ -1,6 +1,8 @@
 
-FROM nvidia/cuda:12.2.2-devel-ubuntu22.04
-
+FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+# Install bash and basic network tools
+RUN apt-get update && apt-get install -y bash
+RUN apt-get update && apt-get install -y net-tools iputils-ping curl
 RUN apt-get update && apt-get install -y python3 python3-pip
 
 WORKDIR /app

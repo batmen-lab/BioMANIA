@@ -3,13 +3,15 @@
 <a target="_blank" href="https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1">
 <img style="height:22pt" src="https://img.shields.io/badge/-Paper-burgundy?style=flat&logo=arxiv">
 </a><a target="_blank" href="https://github.com/batmen-lab/BioMANIA">
-<img style="height:22pt" src="https://img.shields.io/badge/-Code-black?style=flat&logo=github"></a><a target="_blank" href="https://railway.app/template/U70DE0?referralCode=iEkWIc">
+<img style="height:22pt" src="https://img.shields.io/badge/-Code-black?style=flat&logo=github"></a><a target="_blank" href="https://railway.app/template/pIWnQr">
 <img style="height:22pt" src="https://img.shields.io/badge/-Railway-purple?style=flat&logo=railway">
 </a><a target="_blank" href="https://hub.docker.com/repositories/chatbotuibiomania">
 <img style="height:22pt" src="https://img.shields.io/badge/-Docker-blue?style=flat&logo=docker">
 </a>
 
-Welcome to the BioMANIA Project! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
+Welcome to the BioMANIA! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
+
+Importantly, this README primarily supports the conversion of PyPI tools. We also offer tutorial of conversions for [Python source code](Git2APP.md) and [R](R2APP.md) (231123-Still under developing)! Please refer to the separate README for these processes.
 
 ## Video demo
 
@@ -30,9 +32,9 @@ Tips:
 
 ## Quick start
 
-We provide a Railway deployment template that allows you to deploy to Railway with a single click. (231118-Under developing.)
+We provide a Railway deployment template that allows you to deploy to Railway with a single click.
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/U70DE0?referralCode=iEkWIc)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/pIWnQr)
 
 You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable `Public Domain` in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
 
@@ -51,32 +53,47 @@ Refer to section `Quick start` for deployment instructions.
 
 ## Run with Docker
 
-For ease of use, we provide Docker images for both the frontend and backend services, specific to the Scanpy library at present. Future releases will expand this capability.
+For ease of use, we provide Docker images for both the frontend and backend services.
 
-Pull front-end UI service with:
 ```bash
-docker pull chatbotuibiomania/biomania-frontend:v1.1.2
-```
-
-Pull back-end UI service with:
-```bash
-docker pull chatbotuibiomania/biomania-backend:v1.1.2
+# Pull front-end UI service with:
+docker pull chatbotuibiomania/biomania-frontend:v1.1.3
+# Pull back-end UI service with:
+docker pull chatbotuibiomania/biomania-backend:v1.1.3
 ```
 
 Add OpenAI API key to biomania/docker-compose.yml
 
 Start service with
 ```bash
-cd BioMANIA # use the docker-compose.yml to build
+cd BioMANIA # use the docker-compose.yml to build, return to the BioMANIA path
 docker-compose build
 docker-compose up -d
 ```
 
 Then check UI service with `http://localhost:3000/en`.
 
-> **Be careful for the `http/https`, `PORT`, `url` in `chatbot_ui_biomania/utils/server/index.ts` as it will affect the connection between backend and frontend service.**
+Important Tips for Running Docker Without Bugs:
+- Be careful for the `http/https`, `PORT`, `url` in `chatbot_ui_biomania/utils/server/index.ts` as it will affect the connection between backend and frontend service.
+- To run docker on GPU, you need to install `nvidia-docker` and [`nvidia container toolkit`](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html). Run `docker info | grep "Default Runtime"` to check if your device can run docker with gpu.
+- Feel free to adjust the [cuda image version](https://hub.docker.com/r/nvidia/cuda/tags?page=1) inside the `src/Dockerfile` to configure it for different CUDA settings which is compatible for your device, or you can remove the `runtime: nvidia` from the `docker-compose.yml` to run it using the CPU.
+- Please double check that the firewall allows communication between containers.
 
-## Setting up services on separate devices
+### Building docker locally
+As we contain data and retriever models for 12 tools in the docker image, it is quite large, we suggest download data and models for corresponding library tool and build locally.
+
+```bash
+cd BioMANIA # use the docker-compose.yml to build, return to the BioMANIA path
+# build images
+docker build -t [your_frontend_docker_image_name] -f chatbot_ui_biomania/Dockerfile chatbot_ui_biomania/
+docker build -t [your_backend_docker_image_name] -f src/Dockerfile src/
+# CHANGE THE `your_frontend_docker_image_name` AND `your_backend_docker_image_name` IN `docker-compose.yml`
+# run dockers under the same network
+docker-compose build
+docker-compose up -d
+```
+
+### Setting up services on separate devices
 
 If you're operating the front-end and back-end services on separate devices, initiate the [ngrok service](https://ngrok.com/docs/getting-started/) script in a new terminal on the same device with back-end device and get the print url like `https://[ngrok_id].ngrok-free.app` with:
 ```bash
@@ -85,12 +102,12 @@ ngrok http 5000
 
 Then you can start front-end UI service with
 ```bash
-docker run -e BACKEND_URL="https://[ngrok_id].ngrok-free.app" -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v1.1.2
+docker run -e BACKEND_URL="https://[ngrok_id].ngrok-free.app" -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v1.1.3
 ```
 
 And run back-end service on another device with
 ```bash
-docker run -e OPENAI_API_KEY="" -d -p 5000:5000 chatbotuibiomania/biomania-backend:v1.1.2
+docker run -e OPENAI_API_KEY="" -d -p 5000:5000 chatbotuibiomania/biomania-backend:v1.1.3
 ```
 
 ## Run with script
@@ -112,11 +129,12 @@ pip install -r requirements.txt
 "OPENAI_API_KEY"="your-openai-api-key-here"
 ```
 
-For inference purposes, a standard OpenAI API key is sufficient.
-If you intend to use functionalities such as instruction generation or GPT API predictions, a paid OpenAI account is required as it may reach rate limit.
+- For inference purposes, a standard OpenAI API key is sufficient.
+- If you intend to use functionalities such as instruction generation or GPT API predictions, a paid OpenAI account is required as it may reach rate limit. 
+- Feel free to switch the `model_name='gpt-3.5-turbo-16k'` to `gpt-4` in `src/models/model.py` if you want.
 
-### Data and Model Organization
-Download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).
+### Prepare for Data and Model
+Download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link). For those library data, you can download only the one you need.
 
 Organize the downloaded files at `src/data` or `src/hugging_models` as follows:
 
@@ -169,36 +187,28 @@ We also offer some demo chat, you can find them in [`./demo`](https://github.com
 
 ![](./images/demo_full.jpg)
 
-### Inference
+### Prepare for front-end UI service
 
-To get the UI running without Docker, you can use our script for inference. We use LIB=scanpy as an example:
-
-Start back-end UI service with:
 ```bash
-export LIB=scanpy
-CUDA_VISIBLE_DEVICES=0 \
-python deploy/inference_dialog_server.py \
-    --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
-    --top_k 3
+# Under folder BioMANIA/src/chatbot_ui_biomania
+npm i # install
 ```
 
-When selecting different libraries on the UI page, the retriever's path will automatically be changed based on the library selected
+### Inference with pretrained models
 
-Install and start the front-end service in a new terminal with:
+Start both services for back-end and front-end UI with:
 ```bash
-cd src/chatbot_ui_biomania
-npm i # install
-export BACKEND_URL="https://[ngrok_id].ngrok-free.app" # "http://localhost:5000";
-npm run dev # run
+# Under folder `BioMANIA/`
+sh start_script.sh
 ```
 
 Your chatbot server is now operational at `http://localhost:3000/en`, primed to process user queries.
 
-### Training
+> **When selecting different libraries on the UI page, the retriever's path will automatically be changed based on the library selected**
+
+### Training from scratch
 
 We provide a robust training script for additional customization and enhancement of the BioMANIA project. Follow the steps in the Training section to modify library settings, download materials, generate JSON files, and train models.
-
-Currently we support creating BioMANIA app starting from the source code, and it's even better if it's a PyPI standard package. We provide a [tutorial](Git2APP.md) to convert github source code to our BioMANIA app!
 
 1. Modify the library setting in `Lib_cheatsheet.json`.
 ```bash
@@ -230,8 +240,6 @@ Currently we support creating BioMANIA app starting from the source code, and it
 > **For example, for `scikit-learn`, the LIB is `scikit-learn`, while the LIB_ALIAS is `sklearn`. API_HTML_PATH is the API list page.**
 
 > **We download API_HTML_PATH instead of the whole READTHEDOC for saving time.**
-
-
 
 (Optional) Download the necessary readthedoc materials to folder `../../resources/readthedoc_files` with:
 ```bash
@@ -278,12 +286,13 @@ Tips:
 python models/chitchat_classification.py --LIB ${LIB}
 ```
 
-6. Test bm25 retriever or fine-tune the retriever.
+6. (Optional) Test bm25 retriever
 ```bash
 python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
 ```
 
-Or, you can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
+7. Fine-tune the retriever.
+You can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
 ```bash
 export LIB=scanpy
 CUDA_VISIBLE_DEVICES=0
@@ -291,6 +300,25 @@ mkdir ./hugging_models/retriever_model_finetuned/${LIB}
 python models/train_retriever.py \
     --data_path ./data/standard_process/${LIB}/retriever_train_data/ \
     --model_name bert-base-uncased \
+    --output_path ./hugging_models/retriever_model_finetuned/${LIB} \
+    --num_epochs 25 \
+    --train_batch_size 32 \
+    --learning_rate 1e-5 \
+    --warmup_steps 500 \
+    --max_seq_length 256 \
+    --optimize_top_k 3 \
+    --plot_dir ./plot/${LIB}/retriever/
+```
+
+Or, you can finetune based on pretrained models from other libs.
+```bash
+export LIB=scanpy
+export OTHER_LIB=squidpy
+CUDA_VISIBLE_DEVICES=0
+mkdir ./hugging_models/retriever_model_finetuned/${LIB}
+python models/train_retriever.py \
+    --data_path ./data/standard_process/${LIB}/retriever_train_data/ \
+    --model_name ./hugging_models/retriever_model_finetuned/${OTHER_LIB}/assigned/ \
     --output_path ./hugging_models/retriever_model_finetuned/${LIB} \
     --num_epochs 25 \
     --train_batch_size 32 \
@@ -311,7 +339,10 @@ python inference/retriever_finetune_inference.py  \
     --idx_file ./data/standard_process/${LIB}/API_instruction_testval_query_ids.json \
     --retrieved_api_nums 3 \
     --LIB ${LIB}
+```
 
+Or compare the inference performance with:
+```bash
 export HUGGINGPATH=./hugging_models
 python inference/retriever_finetune_inference.py  \
     --retrieval_model_path bert-base-uncased \
@@ -322,7 +353,7 @@ python inference/retriever_finetune_inference.py  \
     --LIB ${LIB}
 ```
 
-7. Test api name prediction using either the gpt baseline or the classification model.
+8. Test api name prediction using either the gpt baseline or the classification model.
 
 GPT-baseline
 
@@ -444,16 +475,23 @@ report/Py2report.py
 ```
 
 ## Version History
-- v1.1.4 (comming soon)
-  - Support UI installation APP service
-  - Support for R execution
-- v1.1.3 (comming soon)
+- v1.1.5 (comming soon!)
+  - Support UI installation APP service!
+  - Release docker for batmen-lab developed tools, and R tools.
+  - Free user from manually adding docstring when converting Github source code to our tool through scripts!!
+  - Support sharing your APP and install others' APP through one click!!
+- v1.1.4 (2023-11-22)
+  - Add [`manual`](R2APP.md) support for converting R code to API_init.json. Will support for converting R code to APP later!
+  - Release docker v1.1.3 with support for 12 PyPI biotools. Notice that some tools are only available under their own conda environment!!
+  - Resolved issues related to Docker networking and Docker CUDA.
+  - Improved the stability of the server demo by ensuring that it runs continuously in the background.
+- v1.1.3 (2023-11-20)
   - Support web access on our server. Provide data/models for 12 tools mentioned in our paper through drive link.
   - Upload Composite API generation related codes.
   - Add demo chat for these tools under `BioMANIA/demo`.
   - Support manually set maximum concurrency for bulk instruction generation, added a visualization bar.
 - v1.1.2 (2023-11-17)
-  - Release docker with support for 8 PyPI bio tools. We will release more libs in a later version.
+  - Release docker v1.1.2 with support for 8 PyPI bio tools. We will release more libs in a later version.
   - Add [`manual`](Git2APP.md) support for converting github repo/source code to BioMANIA APP.
   - Support for switching libs during a dialog. Now you can let multiple tool cooperate inside one dialog!
 - v1.1.1 (2023-11-10)

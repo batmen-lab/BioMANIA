@@ -256,6 +256,7 @@ def import_member(api_string, expand=True):
         member_name_sequence = api_parts[i:]
         module = None
         try:
+            # for python
             module = importlib.import_module(module_name_attempt)
         except ImportError:
             continue
