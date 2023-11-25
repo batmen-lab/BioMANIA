@@ -163,27 +163,33 @@ pip install git+https://github.com/your_github_page/your_repository.git.
 
 **2.2. Create BioMANIA app:**
 
-Get `API_init_prepare.json` with this script:
+To obtain `API_init_prepare.json`, use the following script:
 ```shell
 export LIB=scanpy
 python Git2APP/get_API_init_from_sourcecode.py --LIB ${LIB}
 ```
 
-Notice that you can modify `filter_specific_apis` to change the filtering rules.
+Note: You have the option to alter the filtering rules by modifying filter_specific_apis.
 
-Add docstring and get `API_init.json` with this script:
+(Optional) Add docstring and get `API_init.json` with this script:
 ```shell
 python Git2APP/get_API_docstring_from_sourcecode.py --LIB ${LIB}
 ```
 
-It only runs on API which doesn't have docstring or well-documented parameters, it will skip the remaining API which reaches the inference standard. Notice that running this script needs an OpenAI paid account.
+This script is designed to execute only on APIs lacking docstrings or well-documented parameters. It automatically skips APIs that meet the established documentation standards. Please note that running this script requires a paid OpenAI account.
 
-The above scripts modified a little bit based on the steps in [`Run with script/Training`](README.md#training) section in `README` to create data files under `data/standard_process/your_project_name` and model files under `hugging_models`
+If you already have a well-documented code, generate API_init.json with:
+```shell
+cp -r data/standard_process/${LIB}/API_init_prepare.json data/standard_process/${LIB}/API_init.json 
+```
+
+For subsequent steps, refer to the [`Run with script/Training`](README.md#training) section in the README. Following these instructions will result in the generation of data files in data/standard_process/your_project_name and model files in hugging_models.
 
 ```python
 data/standard_process/your_project_name
 ├── API_composite.json
 ├── API_init.json
+├── API_init_prepare.json
 ├── API_inquiry.json
 ├── API_inquiry_annotate.json
 ├── API_instruction_testval_query_ids.json
