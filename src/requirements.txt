@@ -21,7 +21,7 @@ nbformat==5.9.2
 networkx==3.2.1
 numpy==1.26.1
 openai==0.28.1
-pandas
+#pandas==1.5.0
 peft==0.6.0
 protobuf==3.20.0
 pydantic==1.10.7
@@ -48,6 +48,8 @@ torch==2.1.0
 tqdm==4.66.1
 transformers==4.35.0
 typing_extensions==4.8.0
-#git+https://github.com/aertslab/scenicplus
-#https://github.com/etetoolkit/ete/archive/ete4.zip
 # triton
+# -e git+https://github.com/aertslab/scenicplus@e4bdd9f5b7fea1a43d5cb55e2ccb3c221fe7d279#egg=scenicplus
+# https://github.com/etetoolkit/ete/archive/ete4.zip
+MIOSTONE @ git+https://github.com/DoraDong-2023/MIOSTONE.git@968114ddece964bc160d9770436c4e4c719a6a52
+sonata @ git+https://github.com/DoraDong-2023/SONATA.git@7bf4352f936f084985408939f489e916130a8a5c

@@ -13,6 +13,32 @@ import setuptools
 import glob
 import os
 
+fname = 'requirements.txt'
+with open(fname, 'r', encoding='utf-8') as f:
+	requirements =  f.read().splitlines()
+
+required = []
+dependency_links = []
+
+# Do not add to required lines pointing to Git repositories
+EGG_MARK = '#egg='
+for line in requirements:
+	if line.startswith('-e git:') or line.startswith('-e git+') or \
+		line.startswith('git:') or line.startswith('git+'):
+		line = line.lstrip('-e ')  # in case that is using "-e"
+		if EGG_MARK in line:
+			package_name = line[line.find(EGG_MARK) + len(EGG_MARK):]
+			repository = line[:line.find(EGG_MARK)]
+			required.append('%s @ %s' % (package_name, repository))
+			dependency_links.append(line)
+		else:
+			print('Dependency to a git repository should have the format:')
+			print('git+ssh://git@github.com/xxxxx/xxxxxx#egg=package_name')
+	else:
+		if line.startswith('_'):
+			continue
+		required.append(line)
+
 setuptools.setup(
      name='your_project_name',
      use_scm_version=True,
@@ -82,9 +108,17 @@ from . import subpackage
 
 Don't forget to check that code at the same level needs to use relative imports. For example, when module1 calls module2, it should be done as follows: `from .module2 import your_function_name`.
 
+Notice that if files and submodules have the same name, it may lead to circular import issues.
+
 **1.3. Add docstring**
 
-Now, you need to add docstrings in your source code and refine the function definitions.  Here's a basic example of an effective `docstring` :
+Now, you need to add docstrings in your source code and refine the function definitions. You can either choose running our provided script to get docstring with GPT:
+
+```bash
+
+```
+
+It is better that if you can design the docstrings by yourself as it is more accurate. `NumPy` format is preferred than `reStructuredText` and `Google` format. Here's a basic example of an effective docstring :
 
 ```python
 from typing import Union
@@ -113,22 +147,7 @@ def compute_gini_gain(dataset: Union[pd.DataFrame, list], node: TreeNode) -> flo
     return gini_gain
 ```
 
-You can refer to the prompts available in BioMANIA to add the function body, or design by yourself.
-
-```python
-# Task Description:
-
-"""You are an expert in Python programming. Your task is to write the docstring for the given information of an invisible function. Interpret the assigned inputs and return variables in the docstring.
-
-The description of used APIs inside this code is: {API description}
-The input and output parameter information is as below:
-- Parameters: {func inputs}
-- Returns: {func outputs}
-- The other description associated with the code is: {description text}
-- Please extract the core information in 1-2 sentences and polish it. Docstring description should only use 1-2 sentences.
-
-Your Response format is detailed docstring. Please do not include other information except for response information, in reStructuredText format. Never include specific API information in description."""
-```
+You can refer to the prompts available in [BioMANIA](https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1) to add the function body, or either using the [prompt](./src/Git2APP/get_API_docstring_from_sourcecode.py) that modified based on that.
 
 **Step 2: Use BioMANIA**
 
@@ -144,7 +163,22 @@ pip install git+https://github.com/your_github_page/your_repository.git.
 
 **2.2. Create BioMANIA app:**
 
-Follow the steps in [`Run with script/Training`](README.md#training) section in `README` to create data files under `data/standard_process/your_project_name` and model files under `hugging_models`
+Get `API_init_prepare.json` with this script:
+```shell
+export LIB=scanpy
+python Git2APP/get_API_init_from_sourcecode.py --LIB ${LIB}
+```
+
+Notice that you can modify `filter_specific_apis` to change the filtering rules.
+
+Add docstring and get `API_init.json` with this script:
+```shell
+python Git2APP/get_API_docstring_from_sourcecode.py --LIB ${LIB}
+```
+
+It only runs on API which doesn't have docstring or well-documented parameters, it will skip the remaining API which reaches the inference standard. Notice that running this script needs an OpenAI paid account.
+
+The above scripts modified a little bit based on the steps in [`Run with script/Training`](README.md#training) section in `README` to create data files under `data/standard_process/your_project_name` and model files under `hugging_models`
 
 ```python
 data/standard_process/your_project_name
@@ -170,7 +204,7 @@ data/standard_process/your_project_name
 
 hugging_models
 └── retriever_model_finetuned
-    ├── deap
+    ├── your_project_name
     │   ├── assigned
     │   │   ├── 1_Pooling
     │   │   ├── README.md

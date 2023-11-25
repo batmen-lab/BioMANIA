@@ -28,8 +28,8 @@ COPY chatbot_ui_biomania/ /app/chatbot_ui_biomania/
 RUN cd /app/chatbot_ui_biomania && npm install && npm run build
 
 # Copy the start script
-COPY start_script.sh /app/
-RUN chmod +x /app/start_script.sh
+COPY docker_start_script.sh /app/
+RUN chmod +x /app/docker_start_script.sh
 
 # Set environment variables
 ENV LIB=scanpy
@@ -41,4 +41,4 @@ ENV BACKEND_URL="http://localhost:5000"
 EXPOSE 3000
 
 # Start command
-CMD ["/app/start_script.sh"]
+CMD ["/app/docker_start_script.sh"]

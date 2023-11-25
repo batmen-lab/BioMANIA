@@ -160,5 +160,14 @@
         "READTHEDOC_LINK": null,
         "TUTORIAL_HTML_PATH": null,
         "TUTORIAL_GITHUB": null
+    },
+    "pandas":{
+        "LIB": "pandas",
+        "LIB_ALIAS": "pandas",
+        "API_HTML_PATH": null,
+        "GITHUB_LINK": null,
+        "READTHEDOC_LINK": null,
+        "TUTORIAL_HTML_PATH": null,
+        "TUTORIAL_GITHUB": null
     }
 }

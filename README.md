@@ -3,7 +3,7 @@
 <a target="_blank" href="https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1">
 <img style="height:22pt" src="https://img.shields.io/badge/-Paper-burgundy?style=flat&logo=arxiv">
 </a><a target="_blank" href="https://github.com/batmen-lab/BioMANIA">
-<img style="height:22pt" src="https://img.shields.io/badge/-Code-black?style=flat&logo=github"></a><a target="_blank" href="https://railway.app/template/pIWnQr">
+<img style="height:22pt" src="https://img.shields.io/badge/-Code-black?style=flat&logo=github"></a><a target="_blank" href="https://railway.app/template/WyEd-d">
 <img style="height:22pt" src="https://img.shields.io/badge/-Railway-purple?style=flat&logo=railway">
 </a><a target="_blank" href="https://hub.docker.com/repositories/chatbotuibiomania">
 <img style="height:22pt" src="https://img.shields.io/badge/-Docker-blue?style=flat&logo=docker">
@@ -21,12 +21,13 @@ Our demonstration showcases how to utilize a chatbot to simultaneously use scanp
 
 ## Web access online demo
 
-We provide an [online demo](https://biomania.ngrok.io/en) hosted on our server!
+We provide an [online demo](https://biomania.ngrok.io/en) hosted on our server! And an [online demo](https://biomania-frontend-production-4095.up.railway.app/en) hosted on railway.
 
 Tips:
+- Some tools need an individual environment (like qiime2, scenicplus). Under this case, currently you need to switch to that conda environment manually and run with script. 
+- We have implemented switching different libraries inside one dialog. You can 
 - Notice that the inference speed depends on OpenAI key and back-end device. A paid OpenAI key and running back-end on GPU will speed up the inference quite a lot!
 - All uploaded files are saved under `./tmp` folder. Please enter `./tmp/`+your_file_name when the API requires filename parameters.
-- Some tools need an individual environment (like qiime2). Under this case, currently you need to switch to that conda environment and run with script.
 
 > **This has only one backend, which may lead to request confusion when multiple users request simultaneously. The stability of the operation is affected by the device's network. When it runs on the CPU, switching between different libraries takes about half a minute to load models and data. We recommend prioritizing running it locally with GPU, which takes only about 3 seconds to switch between different libraries!**
 
@@ -34,7 +35,7 @@ Tips:
 
 We provide a Railway deployment template that allows you to deploy to Railway with a single click.
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/pIWnQr)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/WyEd-d)
 
 You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable `Public Domain` in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
 
@@ -56,46 +57,37 @@ Refer to section `Quick start` for deployment instructions.
 For ease of use, we provide Docker images for both the frontend and backend services.
 
 ```bash
+# Pull back-end service and front-end UI service with:
+docker pull chatbotuibiomania/biomania-together:v1.1.3
+```
+
+Start service with
+```bash
+# run on gpu
+docker run -e OPENAI_API_KEY="" --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.3
+# or on cpu
+docker run -e OPENAI_API_KEY="" -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.3
+```
+
+Then check UI service with `http://localhost:3000/en`.
+
+Important Tips for Running Docker Without Bugs:
+- Be careful for the `http/https`, `PORT`, `url` in `chatbot_ui_biomania/utils/server/index.ts`, and the effectiveness of the API key, as they will affect the connection between backend and frontend service.
+- To run docker on GPU, you need to install `nvidia-docker` and [`nvidia container toolkit`](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html). Run `docker info | grep "Default Runtime"` to check if your device can run docker with gpu.
+- Feel free to adjust the [cuda image version](https://hub.docker.com/r/nvidia/cuda/tags?page=1) inside the `src/Dockerfile` to configure it for different CUDA settings which is compatible for your device, or you can remove the `runtime: nvidia` from the `docker-compose.yml` to run it using the CPU.
+- Please double check that the firewall allows communication between containers.
+
+### Setting up services on separate devices
+
+If you're operating the front-end and back-end services on separate devices, pull the frontend and backend service separately on different devices.
+```bash
 # Pull front-end UI service with:
 docker pull chatbotuibiomania/biomania-frontend:v1.1.3
 # Pull back-end UI service with:
 docker pull chatbotuibiomania/biomania-backend:v1.1.3
 ```
 
-Add OpenAI API key to biomania/docker-compose.yml
-
-Start service with
-```bash
-cd BioMANIA # use the docker-compose.yml to build, return to the BioMANIA path
-docker-compose build
-docker-compose up -d
-```
-
-Then check UI service with `http://localhost:3000/en`.
-
-Important Tips for Running Docker Without Bugs:
-- Be careful for the `http/https`, `PORT`, `url` in `chatbot_ui_biomania/utils/server/index.ts` as it will affect the connection between backend and frontend service.
-- To run docker on GPU, you need to install `nvidia-docker` and [`nvidia container toolkit`](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html). Run `docker info | grep "Default Runtime"` to check if your device can run docker with gpu.
-- Feel free to adjust the [cuda image version](https://hub.docker.com/r/nvidia/cuda/tags?page=1) inside the `src/Dockerfile` to configure it for different CUDA settings which is compatible for your device, or you can remove the `runtime: nvidia` from the `docker-compose.yml` to run it using the CPU.
-- Please double check that the firewall allows communication between containers.
-
-### Building docker locally
-As we contain data and retriever models for 12 tools in the docker image, it is quite large, we suggest download data and models for corresponding library tool and build locally.
-
-```bash
-cd BioMANIA # use the docker-compose.yml to build, return to the BioMANIA path
-# build images
-docker build -t [your_frontend_docker_image_name] -f chatbot_ui_biomania/Dockerfile chatbot_ui_biomania/
-docker build -t [your_backend_docker_image_name] -f src/Dockerfile src/
-# CHANGE THE `your_frontend_docker_image_name` AND `your_backend_docker_image_name` IN `docker-compose.yml`
-# run dockers under the same network
-docker-compose build
-docker-compose up -d
-```
-
-### Setting up services on separate devices
-
-If you're operating the front-end and back-end services on separate devices, initiate the [ngrok service](https://ngrok.com/docs/getting-started/) script in a new terminal on the same device with back-end device and get the print url like `https://[ngrok_id].ngrok-free.app` with:
+Initiate the [ngrok service](https://ngrok.com/docs/getting-started/) script in a new terminal on the same device with back-end device and get the print url like `https://[ngrok_id].ngrok-free.app` with:
 ```bash
 ngrok http 5000
 ```
@@ -241,6 +233,8 @@ We provide a robust training script for additional customization and enhancement
 
 > **We download API_HTML_PATH instead of the whole READTHEDOC for saving time.**
 
+> **Notice that the READTHEDOC version should be compatible with your PyPI version, otherwise it may ignore some APIs.**
+
 (Optional) Download the necessary readthedoc materials to folder `../../resources/readthedoc_files` with:
 ```bash
 # download materials according to your provided url links
@@ -331,7 +325,9 @@ python models/train_retriever.py \
 
 test the inference performance using:
 ```bash 
+export LIB=biotite
 export HUGGINGPATH=./hugging_models
+CUDA_VISIBLE_DEVICES=1
 python inference/retriever_finetune_inference.py  \
     --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
     --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
@@ -475,11 +471,14 @@ report/Py2report.py
 ```
 
 ## Version History
-- v1.1.5 (comming soon!)
-  - Support UI installation APP service!
-  - Release docker for batmen-lab developed tools, and R tools.
-  - Free user from manually adding docstring when converting Github source code to our tool through scripts!!
+- v1.1.6 (comming soon!)
   - Support sharing your APP and install others' APP through one click!!
+  - Provide data and pretrained models for batmen-lab developed tools MIOSTONE and SONATA, expanding our suite of available resources and functionalities.
+  - Support UI installation APP service!
+  - Add R inference code. Provide data and pretrained models for R tools.
+- v1.1.5 (2023-11-25)
+  - Enhanced Docker Integration: Now featuring seamless packaging of both front-end and back-end components using Docker. This update simplifies deployment processes, ensuring a more streamlined development experience.
+  - Automated Docstring Addition: Users can now effortlessly convert GitHub source code to our tool with scripts that automatically add docstrings, freeing them from the manual effort previously required.
 - v1.1.4 (2023-11-22)
   - Add [`manual`](R2APP.md) support for converting R code to API_init.json. Will support for converting R code to APP later!
   - Release docker v1.1.3 with support for 12 PyPI biotools. Notice that some tools are only available under their own conda environment!!

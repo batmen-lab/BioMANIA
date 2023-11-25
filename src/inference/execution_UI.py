@@ -85,7 +85,10 @@ class CodeExecutor:
                 try:
                     value = next(input_iterator)
                     if param_info['type'] == 'str':
-                        value = f"'{value}'"
+                        if '"' in value or "'" in value:
+                            pass
+                        else:
+                            value = f"'{value}'"
                     params[param_name] = {
                         "type": param_info["type"],
                         "value": value,
@@ -186,7 +189,7 @@ class CodeExecutor:
         params_formatted = self.format_arguments(selected_params)
         if class_selected_params:
             class_params_formatted = self.format_arguments(class_selected_params)
-        
+        # Class type API need to be initialized first, then used
         if type_api == "class":
             # double check for API type
             if not class_selected_params:
@@ -204,6 +207,7 @@ class CodeExecutor:
         else:
             final_api_name = api_parts[-1]
             api_call = f"{final_api_name}({params_formatted})"
+        # generate return information
         if (return_type not in ["NoneType", None]) and (not return_type.startswith('Optional')):
             self.counter += 1
             if '=' in api_call:
