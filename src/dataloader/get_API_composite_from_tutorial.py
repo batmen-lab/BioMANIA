@@ -344,18 +344,14 @@ def extract_api_calls(code_block, imports, lib_alias):
 
 def process_docstring_with_LLM(llm, API_description, func_inputs,func_outputs, description_text=""):
     # LLM for modifying docstring
-    prompt = f"""You are an expert in Python programming. Your task is to write the docstring for the given
-information of an invisible function. Interpret the assigned inputs and return variables in the
-docstring.
+    prompt = f"""You are an expert in Python programming. Your task is to write the docstring for the given information of an invisible function. Interpret the assigned inputs and return variables in the docstring.
 The description of used APIs inside this code is: {API_description}
 The input and output parameter information is as below:
 - Parameters: {func_inputs}
 - Returns: {func_outputs}
 - The other description associated with the code is: {description_text}
-- Please extract the core information in 1-2 sentences and polish it. Docstring description should
-only use 1-2 sentences.
-Your Response format is detailed docstring. Please do not include other information except for
-response information, in reStructuredText format. Never include specific API information in description.
+- Please extract the core information in 1-2 sentences and polish it. Docstring description should only use 1-2 sentences.
+Your Response format is detailed docstring. Please do not include other information except for response information, in reStructuredText format. Never include specific API information in description.
 """
     response = llm.predict(prompt)
     print(f'==>GPT docstring response: {response}')

@@ -4,14 +4,6 @@ from langchain.document_loaders import BSHTMLLoader
 from configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet, get_all_basic_func_from_cheatsheet
 from dataloader.extract_function_from_sourcecode import get_returnparam_docstring
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--LIB', type=str, help='PyPI tool')
-args = parser.parse_args()
-info_json = get_all_variable_from_cheatsheet(args.LIB)
-LIB_ALIAS, API_HTML, TUTORIAL_GITHUB, API_HTML_PATH = [info_json[key] for key in ['LIB_ALIAS', 'API_HTML', 'TUTORIAL_GITHUB','API_HTML_PATH']]
-LIB = args.LIB
-CHEATSHEET = get_all_basic_func_from_cheatsheet()
-
 # STEP1: get API from web
 # STEP2: get docstring/parameters from source code, based on API
 # STEP3: produce API calling
@@ -182,7 +174,7 @@ def are_most_strings_modules(api_strings):
             continue
     return valid_modules / total_strings > 0.5
 
-def recursive_member_extraction(module, prefix, visited=None, depth=None):
+def recursive_member_extraction(module, prefix, lib_name, visited=None, depth=None):
     if visited is None:
         visited = set()
     members = []
@@ -193,7 +185,7 @@ def recursive_member_extraction(module, prefix, visited=None, depth=None):
     for name, member in inspect.getmembers(module):
         if name.startswith('_'):
             continue
-        if is_from_external_module(LIB, member):
+        if is_from_external_module(lib_name, member):
             continue
         if inspect.isclass(member):
             if issubclass(member, Exception): #inspect.isclass(member) and 
@@ -206,9 +198,9 @@ def recursive_member_extraction(module, prefix, visited=None, depth=None):
             continue"""
         full_name = f"{prefix}.{name}"
         if inspect.ismodule(member):
-            members.extend(recursive_member_extraction(member, full_name, visited))
+            members.extend(recursive_member_extraction(member, full_name, lib_name, visited))
         if inspect.isclass(member) and (depth is None or depth > 0):
-            members.extend(recursive_member_extraction(member, full_name, visited, depth= None if depth is None else depth-1))
+            members.extend(recursive_member_extraction(member, full_name, lib_name, visited, depth= None if depth is None else depth-1))
         else:
             members.append((full_name, member))
     return members
@@ -243,7 +235,7 @@ def get_api_type(member):
     else:
         return 'unknown'# TypeVar
 
-def import_member(api_string, expand=True):
+def import_member(api_string, lib_name, expand=True):
     """
     Given an API string, it tries to import the module or attribute iteratively.
     1. Iteratively try importing a part of the api_string and accessing the rest.
@@ -268,12 +260,12 @@ def import_member(api_string, expand=True):
                 full_api_name = f"{module_name_attempt}{'.' if member_name_sequence else ''}{'.'.join(member_name_sequence)}"
                 # If it's a full name import and the current member is a module
                 if i == len(api_parts) and get_api_type(current_module) == 'module' and expand:
-                    all_members.extend(recursive_member_extraction(current_module, full_api_name))
+                    all_members.extend(recursive_member_extraction(current_module, full_api_name, lib_name))
                     return all_members  # Return without including the parent module
                 # If it's a function or any other non-module type
                 elif inspect.isclass(current_module):
                     all_members.append((full_api_name, current_module))
-                    all_members.extend(recursive_member_extraction(current_module, full_api_name, depth=1))
+                    all_members.extend(recursive_member_extraction(current_module, full_api_name, lib_name, depth=1))
                 else:
                     all_members.append((full_api_name, current_module))
                     return all_members
@@ -294,14 +286,14 @@ def extract_return_type_and_description(return_block):
         description = ""
     return return_type, description
 
-def get_docparam_from_source(web_APIs):
+def get_docparam_from_source(web_APIs, lib_name):
     success_count = 0
     failure_count = 0
     results = {}
     expand = are_most_strings_modules(web_APIs)
     print('==>Is api page html reliable: ', not expand, '!')
     for api_string in web_APIs:
-        members = import_member(api_string, expand)
+        members = import_member(api_string, lib_name, expand)
         if not members:
             print(f"Error import {api_string}: No members found!")
             failure_count += 1
@@ -471,7 +463,7 @@ def merge_jsons(json_list):
         merged_json.update(json_dict)
     return merged_json
 
-def filter_specific_apis(data):
+def filter_specific_apis(data, lib_name):
     #### TODO
     # can modify the filtering here
     """
@@ -526,12 +518,12 @@ def filter_specific_apis(data):
         # (used for github repo 2 biomania app only)
         remove_extra_API = False
         if remove_extra_API:
-            tmp_all_members = import_member(api, expand=True)
+            tmp_all_members = import_member(api, lib_name, expand=True)
             #print(api, tmp_all_members)
             try:
                 tmp_all_members[0][1].__modules__
-                print(LIB, tmp_all_members[0][1].__modules__)
-                if LIB not in str(tmp_all_members[0][1].__modules__):
+                print(lib_name, tmp_all_members[0][1].__modules__)
+                if lib_name not in str(tmp_all_members[0][1].__modules__):
                     filter_counts["external_lib_function"] += 1
                     filter_API["external_lib_function"].append(api)
                     continue
@@ -569,11 +561,11 @@ def main_get_API_init(lib_name,lib_alias,analysis_path,api_html_path=None):
     
     # STEP2
     print('Start getting docparam from source')
-    results = get_docparam_from_source(ori_content_keys)
+    results = get_docparam_from_source(ori_content_keys, lib_name)
     #results = filter_optional_parameters(results)
     results = generate_api_callings(results)
     print('Get API #numbers are: ', len(results))
-    tmp_results = filter_specific_apis(results)
+    tmp_results = filter_specific_apis(results, lib_name)
     print('After filtering non-calling #numbers are: ', len(tmp_results))
     # output_file = os.path.join(analysis_path,lib_name,"API_init.json")
     os.makedirs(os.path.join('data','standard_process',lib_name), exist_ok=True)
@@ -593,7 +585,7 @@ def main_get_API_basic(analysis_path,cheatsheet):
     for api in cheatsheet:
         print('-'*10)
         print(f'Processing {api}!')
-        results = get_docparam_from_source(cheatsheet[api])
+        results = get_docparam_from_source(cheatsheet[api], api)
         #results = filter_optional_parameters(results)
         results = generate_api_callings(results)
         results = {r: results[r] for r in results if r in cheatsheet[api]}
@@ -603,6 +595,12 @@ def main_get_API_basic(analysis_path,cheatsheet):
         file.write(json.dumps(outputs, indent=4))
 
 if __name__=='__main__':
-    main_get_API_init(LIB,LIB_ALIAS,ANALYSIS_PATH,API_HTML_PATH)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--LIB', type=str, help='PyPI tool')
+    args = parser.parse_args()
+    info_json = get_all_variable_from_cheatsheet(args.LIB)
+    LIB_ALIAS, API_HTML, TUTORIAL_GITHUB, API_HTML_PATH = [info_json[key] for key in ['LIB_ALIAS', 'API_HTML', 'TUTORIAL_GITHUB','API_HTML_PATH']]
+    CHEATSHEET = get_all_basic_func_from_cheatsheet()
+    main_get_API_init(args.LIB,LIB_ALIAS,ANALYSIS_PATH,API_HTML_PATH)
     # currently we do not need the API_base.json
     main_get_API_basic(ANALYSIS_PATH,CHEATSHEET)
