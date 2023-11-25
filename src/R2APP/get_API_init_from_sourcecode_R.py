@@ -208,8 +208,8 @@ def main_get_API_init():
                     api_info[func] = parsed_json_structure
         except:
             pass
-    os.makedirs(f'./data/R/{args.LIB}', exist_ok=True)
-    with open(f'./data/R/{args.LIB}/API_init.json', 'w') as file:
+    os.makedirs(f'./data/standard_process/{args.LIB}', exist_ok=True)
+    with open(f'./data/standard_process/{args.LIB}/API_init.json', 'w') as file:
         file.write(json.dumps(api_info, indent=4))
         
 if __name__=='__main__':
