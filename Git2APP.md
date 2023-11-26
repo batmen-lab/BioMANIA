@@ -1,10 +1,10 @@
-# GitRepo2BioMANIA app
+<h2 align="center">GitRepo2BioMANIA app</h2>
 
-**Step 1: Prepare Your GitHub Repository**
+## Step 1: Prepare Your GitHub Repository
 
 Before you can use a GitHub repository to create a BioMANIA app, you need to make sure your repository is structured correctly and can be installed as a Python package. Follow these steps:
 
-**1.1. Add `setup.py` File:**
+### 1.1. Add `setup.py` File:
 
 Create a `setup.py` file in your GitHub repository. This file is used to package your code so that it can be easily installed via `pip`. Here's a basic example of a `setup.py` file:
 
@@ -72,7 +72,7 @@ git+https://github.com/aertslab/pycisTopic@master#egg=pycisTopic
 
 Or you can use `pip freeze > requirements.txt` to obtain it simply.
 
-**1.2. Add `__init__.py` Files:**
+### 1.2. Add `__init__.py` Files:
 
 Create empty `__init__.py` files in each directory where you want to define a module within your package. These files are necessary to make submodules within your package discoverable by our method through `dir`. For example, if you have a structure like this:
 
@@ -110,13 +110,40 @@ Don't forget to check that code at the same level needs to use relative imports.
 
 Notice that if files and submodules have the same name, it may lead to circular import issues.
 
-**1.3. Add docstring**
+### 1.3. Install the GitHub Repository:
 
-Now, you need to add docstrings in your source code and refine the function definitions. You can either choose running our provided script to get docstring with GPT:
+Install your GitHub repository to your local machine using the `pip install` command:
 
 ```bash
-
+# install remotely
+pip install git+https://github.com/your_github_page/your_repository.git. 
+# Or build locally
+pip install  -e .
 ```
+
+## Step 2: Use BioMANIA
+
+Now that your GitHub repository is properly installed, you can create a BioMANIA app to use it. Here are the steps:
+
+### 2.1. Create BioMANIA app:
+
+#### 2.1.1 Generate Initial API Configuration:
+To obtain `API_init_prepare.json`, use the following script:
+```shell
+export LIB=scanpy
+python Git2APP/get_API_init_from_sourcecode.py --LIB ${LIB}
+```
+
+Note: You have the option to alter the filtering rules by modifying filter_specific_apis.
+
+#### 2.1.2. Refine Function Definitions and Docstrings:
+(Optional) Now, you need to add docstrings in your source code and refine the function definitions. You can either choose running our provided script and get `API_init.json` with GPT:
+
+```shell
+python Git2APP/get_API_docstring_from_sourcecode.py --LIB ${LIB}
+```
+
+This script is designed to execute only on APIs lacking docstrings or well-documented parameters. It automatically skips APIs that meet the established documentation standards. Please note that running this script requires a paid OpenAI account.
 
 It is better that if you can design the docstrings by yourself as it is more accurate. `NumPy` format is preferred than `reStructuredText` and `Google` format. Here's a basic example of an effective docstring :
 
@@ -149,40 +176,12 @@ def compute_gini_gain(dataset: Union[pd.DataFrame, list], node: TreeNode) -> flo
 
 You can refer to the prompts available in [BioMANIA](https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1) to add the function body, or either using the [prompt](./src/Git2APP/get_API_docstring_from_sourcecode.py) that modified based on that.
 
-**Step 2: Use BioMANIA**
-
-Now that your GitHub repository is properly installed, you can create a BioMANIA app to use it. Here are the steps:
-
-**2.1. Install the GitHub Repository:**
-
-Install your GitHub repository to your local machine using the `pip install` command:
-
-```bash
-pip install git+https://github.com/your_github_page/your_repository.git. 
-```
-
-**2.2. Create BioMANIA app:**
-
-To obtain `API_init_prepare.json`, use the following script:
-```shell
-export LIB=scanpy
-python Git2APP/get_API_init_from_sourcecode.py --LIB ${LIB}
-```
-
-Note: You have the option to alter the filtering rules by modifying filter_specific_apis.
-
-(Optional) Add docstring and get `API_init.json` with this script:
-```shell
-python Git2APP/get_API_docstring_from_sourcecode.py --LIB ${LIB}
-```
-
-This script is designed to execute only on APIs lacking docstrings or well-documented parameters. It automatically skips APIs that meet the established documentation standards. Please note that running this script requires a paid OpenAI account.
-
 If you already have a well-documented code, generate API_init.json with:
 ```shell
 cp -r data/standard_process/${LIB}/API_init_prepare.json data/standard_process/${LIB}/API_init.json 
 ```
 
+#### 2.1.3. Run Training Scripts:
 For subsequent steps, refer to the [`Run with script/Training`](README.md#training) section in the README. Following these instructions will result in the generation of data files in data/standard_process/your_project_name and model files in hugging_models.
 
 ```python
@@ -228,7 +227,11 @@ hugging_models
     │       └── name_desc
 ```
 
-**2.3 Use UI service.**
+### 2.2 Add logo
+
+Add a logo image to `BioMANIA/chatbot_ui_biomania/public/apps/` and modify the link in `BioMANIA/chatbot_ui_biomania/components/Chat/LibCardSelect.tsx`.
+
+### 2.3 Use UI service.
 
 Follow the steps in [`Run with script/Inference`](README.md#inference) section in `README` to start UI service. Don’t forget to set an OpenAI key in `.env` file as recommended in `README`.
 

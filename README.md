@@ -1,4 +1,5 @@
-# BioMANIA
+
+<h1 align="center">BioMANIA</h1>
 
 <a target="_blank" href="https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1">
 <img style="height:22pt" src="https://img.shields.io/badge/-Paper-burgundy?style=flat&logo=arxiv">
@@ -13,6 +14,8 @@ Welcome to the BioMANIA! This guide provides detailed instructions on how to set
 
 Importantly, this README primarily supports the conversion of PyPI tools. We also offer tutorial of conversions for [Python source code](Git2APP.md) and [R](R2APP.md) (231123-Still under developing)! Please refer to the separate README for these processes.
 
+🌟 We warmly invite you to share your trained models and datasets in our [issues section](https://github.com/batmen-lab/BioMANIA/issues/2), making it easier for others to utilize and extend your work, thus amplifying its impact. Feel free to explore and provide feedback on tools shared by other contributors as well! 🚀🔍
+
 ## Video demo
 
 Our demonstration showcases how to utilize a chatbot to simultaneously use scanpy and squidpy in a single conversation, including loading data, invoking functions for analysis, and presenting outputs in the form of code, images, and tables
@@ -24,7 +27,7 @@ Our demonstration showcases how to utilize a chatbot to simultaneously use scanp
 We provide an [online demo](https://biomania.ngrok.io/en) hosted on our server! And an [online demo](https://biomania-frontend-production-4095.up.railway.app/en) hosted on railway.
 
 Tips:
-- Some tools need an individual environment (like qiime2, scenicplus). Under this case, currently you need to switch to that conda environment manually and run with script. 
+- Some tools need an individual environment (like qiime2, scenicplus) and we can not include them all in a single `requirements.txt`. Under this case, currently you need to switch to that conda environment manually and run with script. 
 - We have implemented switching different libraries inside one dialog. You can 
 - Notice that the inference speed depends on OpenAI key and back-end device. A paid OpenAI key and running back-end on GPU will speed up the inference quite a lot!
 - All uploaded files are saved under `./tmp` folder. Please enter `./tmp/`+your_file_name when the API requires filename parameters.
@@ -113,7 +116,7 @@ git clone https://github.com/batmen-lab/BioMANIA.git
 cd BioMANIA/src
 conda create -n biomania python=3.10
 conda activate biomania
-pip install -r requirements.txt
+pip install -r requirements.txt --index-url https://pypi.org/simple
 ```
 
 2. Set up your OpenAI API key in the `src/.env` file.
@@ -126,7 +129,7 @@ pip install -r requirements.txt
 - Feel free to switch the `model_name='gpt-3.5-turbo-16k'` to `gpt-4` in `src/models/model.py` if you want.
 
 ### Prepare for Data and Model
-Download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link). For those library data, you can download only the one you need.
+Download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link) or [Baidu Drive link](https://pan.baidu.com/s/1AZgKRfptrUTI3L2YbZwHww?pwd=36fi). For those library data, you can download only the one you need.
 
 Organize the downloaded files at `src/data` or `src/hugging_models` as follows:
 
@@ -229,6 +232,10 @@ We provide a robust training script for additional customization and enhancement
 }
 ```
 
+```bash
+export LIB=scanpy
+```
+
 > **For example, for `scikit-learn`, the LIB is `scikit-learn`, while the LIB_ALIAS is `sklearn`. API_HTML_PATH is the API list page.**
 
 > **We download API_HTML_PATH instead of the whole READTHEDOC for saving time.**
@@ -288,10 +295,10 @@ python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
 7. Fine-tune the retriever.
 You can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
 ```bash
-export LIB=scanpy
+export LIB=MIOSTONE
 CUDA_VISIBLE_DEVICES=0
 mkdir ./hugging_models/retriever_model_finetuned/${LIB}
-python models/train_retriever.py \
+python models/train_retriever_multigpu.py \
     --data_path ./data/standard_process/${LIB}/retriever_train_data/ \
     --model_name bert-base-uncased \
     --output_path ./hugging_models/retriever_model_finetuned/${LIB} \
@@ -303,6 +310,8 @@ python models/train_retriever.py \
     --optimize_top_k 3 \
     --plot_dir ./plot/${LIB}/retriever/
 ```
+
+Note that the num_epochs need to be modified according to different tools. You can check the training performance curve under `./src/plot/${LIB}/` to determine the number of epochs.
 
 Or, you can finetune based on pretrained models from other libs.
 ```bash
@@ -325,7 +334,7 @@ python models/train_retriever.py \
 
 test the inference performance using:
 ```bash 
-export LIB=biotite
+export LIB=scanpy
 export HUGGINGPATH=./hugging_models
 CUDA_VISIBLE_DEVICES=1
 python inference/retriever_finetune_inference.py  \
@@ -353,7 +362,7 @@ python inference/retriever_finetune_inference.py  \
 
 GPT-baseline
 
-Run code inside gpt_baseline.ipynb to check results. You can either choose top_k, gpt3.5/gpt4 model, random shot/similar shot example, narrowed retrieved api list/whole api list parameters here. The performance described in our paper was evaluated using GPT versions GPT-3.5-turbo-16k-0613 and GPT-4-0613.
+**Run code inside gpt_baseline.ipynb to check results.** You can either choose top_k, gpt3.5/gpt4 model, random shot/similar shot example, narrowed retrieved api list/whole api list parameters here. The performance described in our paper was evaluated using GPT versions GPT-3.5-turbo-16k-0613 and GPT-4-0613.
 
 Besides, even though we use gpt prompt to predict api, we also provide an api-name prediction classification model
 
@@ -411,6 +420,7 @@ BioMANIA can generate various reports, including Python files, Jupyter notebooks
 Firstly, press `export chat` button on UI to get the chat json data. Convert the chat JSON into a Python code using the Chat2Py.py script.
 
 ```bash
+# cd src
 python report/Chat2Py.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 ```
 ![](./images/pyfile.jpg)
@@ -421,6 +431,7 @@ python report/Chat2Py.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 Convert the chat JSON into an [ipynb report](https://github.com/batmen-lab/BioMANIA/blob/main/src/report/demo_Preprocessing_and_clustering_3k_PBMCs.ipynb) using the Chat2jupyter.py script.
 
 ```bash
+# cd src
 python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 ```
 ![](./images/jupyter.jpg)
@@ -431,10 +442,11 @@ python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.
 Combine and sort the performance figures into a short report.
 
 ```bash
+# cd src
 python report/PNG2report.py scanpy
 ```
 
-Please note that the generation of this report must be based on the premise that the models have already been trained. You need to first obtain the results of each model before running this script. Here is a reference for a [demo report](https://github.com/batmen-lab/BioMANIA/tree/main/src/report/performance_report.pdf).
+Please note that the generation of this report must be based on the premise that the retriever models have already been trained, and the gpt baseline has already been tested. You need to first obtain the results of each model before running this script. Here is a reference for a [demo report](https://github.com/batmen-lab/BioMANIA/tree/main/src/report/performance_report.pdf).
 
 ![](./images/performance_report.jpg)
 
@@ -444,6 +456,7 @@ Please note that the generation of this report must be based on the premise that
 Displaying common issues in the process of converting Python tools into libraries
 
 ```bash
+# cd src
 python report/Py2report.py scanpy
 ```
 
@@ -472,7 +485,7 @@ report/Py2report.py
 
 ## Version History
 - v1.1.6 (comming soon!)
-  - Support sharing your APP and install others' APP through one click!!
+  - Support sharing your APP and install others' APP through [our issue](https://github.com/batmen-lab/BioMANIA/issues/2)!
   - Provide data and pretrained models for batmen-lab developed tools MIOSTONE and SONATA, expanding our suite of available resources and functionalities.
   - Support UI installation APP service!
   - Add R inference code. Provide data and pretrained models for R tools.
@@ -499,4 +512,4 @@ report/Py2report.py
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=batmen-lab/BioMANIA.git&type=Date)](https://star-history.com/#batmen-lab/BioMANIA.git&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=batmen-lab/BioMANIA&type=Date)](https://star-history.com/#batmen-lab/BioMANIA&Date)
