@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 # Computational
 import numpy as np, matplotlib.pyplot as plt
 from sklearn.metrics.pairwise import cosine_similarity
+from typing import Any
 # device
 import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -57,7 +58,7 @@ def generate_api_calling(api_name, api_details, returned_content_str):
     """
     returned_content_str_new = returned_content_str.replace('null', 'None').replace('None', '"None"')
     returned_content = ast.literal_eval(returned_content_str_new)
-    returned_content_dict = {item['param_name']: item['value'] for item in returned_content if (item['value'] not in ['None']) and item['value']} # remove null parameters
+    returned_content_dict = {item['param_name']: item['value'] for item in returned_content if (item['value'] not in ['None', None, 'NoneType']) and item['value']} # remove null parameters from prompt
     api_description = api_details["description"]
     parameters = api_details['Parameters']
     return_type = api_details['Returns']['type']
@@ -68,13 +69,17 @@ def generate_api_calling(api_name, api_details, returned_content_str):
         if param_name in returned_content_dict or not param_details['optional']:
             print(param_name, param_name in returned_content_dict, not param_details['optional'])
             param_type = param_details['type']
+            if param_type in [None, 'None', 'NoneType']:
+                param_type = "Any"
             param_description = param_details['description']
             param_value = param_details['default']
             param_optional = param_details['optional']
-            if param_name in returned_content_dict:
-                param_value = returned_content_dict[param_name]
-                if 'str' or 'PathLike' in param_type and ('"' not in param_type and "'" not in param_type) and (param_value not in ['None', None]):
-                    param_value = "'"+str(param_value)+"'"
+            if returned_content_dict:
+                if param_name in returned_content_dict:
+                    param_value = returned_content_dict[param_name]
+                    #if param_type is not None and ('str' in param_type or 'PathLike' in param_type):
+                    #    if ('"' not in param_type and "'" not in param_type) and (param_value not in ['None', None]):
+                    #        param_value = "'"+str(param_value)+"'"
             # added condition to differentiate between basic and non-basic types
             if any(item in param_type for item in basic_types):
                 param_value = param_value if ((param_value not in [ 'None']) and param_value) else "@"
@@ -474,7 +479,7 @@ class Model:
                 except Exception as e:
                     [callback.on_tool_start() for callback in self.callbacks]
                     [callback.on_tool_end() for callback in self.callbacks]
-                    [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=f"GPT predicted API error: {response}. Please re-design the query and re-enter.",task_title="GPT predict Error",) for callback in self.callbacks]
+                    [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=f"GPT predicted API error: it response {response}, encounter {e} error. Please re-design the query and re-enter.",task_title="GPT predict Error",) for callback in self.callbacks]
                     self.indexxxx += 1
                     return
             if not success:
@@ -606,7 +611,7 @@ class Model:
                 apis_description+=f"{self.API_composite[api_name_tmp]['description']}."
         parameters_prompt = prepare_parameters_prompt(self.user_query, apis_description, apis_name, 
         json.dumps(api_parameters_information), json.dumps(parameters_name_list))  # prompt
-        print('parameters_prompt: ', parameters_prompt)
+        print('==>parameters_prompt: ', parameters_prompt)
 
         if len(parameters_name_list)==0:
             # if there is no required parameters, skip using gpt
@@ -616,7 +621,7 @@ class Model:
             for attempt in range(3):
                 try:
                     response, _ = LLM_response(self.llm, self.tokenizer, parameters_prompt, history=[], kwargs={})  
-                    print('GPT response:', response)
+                    print('==>GPT response:', response)
                     returned_content_str_new = response.replace('null', 'None').replace('None', '"None"')
                     returned_content = ast.literal_eval(returned_content_str_new)
                     success = True
@@ -629,8 +634,9 @@ class Model:
                 [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task="GPT can not return valid parameters prediction, please redesign prompt in backend.",task_title="GPT predict Error",) for callback in self.callbacks]
                 self.indexxxx += 1
                 return
-            print('The prompt is: ', parameters_prompt)
+            print('==>The prompt is: ', parameters_prompt)
         # generate api_calling
+        print('==>Start generating api_calling')
         self.predicted_api_name, api_calling, self.parameters_info_list = generate_api_calling(self.predicted_api_name, self.API_composite[self.predicted_api_name], response)
         
         print('After GPT predicting parameters, now the produced API calling is :', api_calling)
@@ -772,6 +778,7 @@ class Model:
         self.buf = io.StringIO()
         sys.stdout = self.buf
         sys.stderr = self.buf
+        # execute and obtain figures
         for code in execution_code_list:
             error_list.append(self.executor.execute_api_call(code, "code"))
             if plt.get_fignums()!=self.plt_status:
@@ -780,6 +787,9 @@ class Model:
                 self.plt_status = plt.get_fignums()
             else:
                 pass
+        # split tuple variable into individual variables
+        self.executor.split_tuple_variable() # This function verifies whether the new variable is a tuple.
+        # print the new variable 
         if self.executor.execute_code[-1]['success']=='True':
             sys.stdout = sys.__stdout__
             sys.stderr = sys.__stderr__
@@ -790,7 +800,7 @@ class Model:
             print(f'-----vari: {vari}')
             tips_for_execution_success = True
             if len(vari)>1:
-                if self.executor.variables[vari[0]]['value']:
+                if self.executor.variables[vari[0]]['value'] is not None:
                     print('if vari value is not None, return it')
                     [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We obtain a new " + str(self.executor.variables[vari[0]]['value']),task_title="Executed results [Success]",) for callback in self.callbacks]
                     self.indexxxx+=1

@@ -1,14 +1,24 @@
 
-<h1 align="center">BioMANIA</h1>
+<h1 align="center">BioMANIA</h1> 
 
-<a target="_blank" href="https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1">
-<img style="height:22pt" src="https://img.shields.io/badge/-Paper-burgundy?style=flat&logo=arxiv">
-</a><a target="_blank" href="https://github.com/batmen-lab/BioMANIA">
-<img style="height:22pt" src="https://img.shields.io/badge/-Code-black?style=flat&logo=github"></a><a target="_blank" href="https://railway.app/template/WyEd-d">
-<img style="height:22pt" src="https://img.shields.io/badge/-Railway-purple?style=flat&logo=railway">
-</a><a target="_blank" href="https://hub.docker.com/repositories/chatbotuibiomania">
-<img style="height:22pt" src="https://img.shields.io/badge/-Docker-blue?style=flat&logo=docker">
-</a>
+<p align="center">
+  <img src=./images/BioMANIA.png width="150" height="150">
+</p>
+
+<p align="center">
+  <a target="_blank" href="https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1">
+    <img style="height:22pt" src="https://img.shields.io/badge/-Paper-burgundy?style=flat&logo=arxiv">
+  </a>
+  <a target="_blank" href="https://github.com/batmen-lab/BioMANIA">
+    <img style="height:22pt" src="https://img.shields.io/badge/-Code-black?style=flat&logo=github">
+  </a>
+  <a target="_blank" href="https://railway.app/template/WyEd-d">
+    <img style="height:22pt" src="https://img.shields.io/badge/-Railway-purple?style=flat&logo=railway">
+  </a>
+  <a target="_blank" href="https://hub.docker.com/repositories/chatbotuibiomania">
+    <img style="height:22pt" src="https://img.shields.io/badge/-Docker-blue?style=flat&logo=docker">
+  </a>
+</p>
 
 Welcome to the BioMANIA! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
 
@@ -31,6 +41,7 @@ Tips:
 - We have implemented switching different libraries inside one dialog. You can 
 - Notice that the inference speed depends on OpenAI key and back-end device. A paid OpenAI key and running back-end on GPU will speed up the inference quite a lot!
 - All uploaded files are saved under `./tmp` folder. Please enter `./tmp/`+your_file_name when the API requires filename parameters.
+- It will be quite slow if the file for transmission is too large.
 
 > **This has only one backend, which may lead to request confusion when multiple users request simultaneously. The stability of the operation is affected by the device's network. When it runs on the CPU, switching between different libraries takes about half a minute to load models and data. We recommend prioritizing running it locally with GPU, which takes only about 3 seconds to switch between different libraries!**
 
@@ -275,7 +286,7 @@ cp -r ./data/standard_process/${LIB}/API_init.json ./data/standard_process/${LIB
 
 4. Following this, create instructions, generate various JSON files, and split the data.
 ```bash
-python dataloader/preprocess_retriever_data.py --concurrency 80 --LIB ${LIB}
+python dataloader/preprocess_retriever_data.py --concurrency 200 --LIB ${LIB}
 ```
 
 Tips:
@@ -295,10 +306,9 @@ python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
 7. Fine-tune the retriever.
 You can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
 ```bash
-export LIB=MIOSTONE
 CUDA_VISIBLE_DEVICES=0
 mkdir ./hugging_models/retriever_model_finetuned/${LIB}
-python models/train_retriever_multigpu.py \
+python models/train_retriever.py \
     --data_path ./data/standard_process/${LIB}/retriever_train_data/ \
     --model_name bert-base-uncased \
     --output_path ./hugging_models/retriever_model_finetuned/${LIB} \
@@ -484,17 +494,19 @@ report/Py2report.py
 ```
 
 ## Version History
-- v1.1.6 (comming soon!)
+- v1.1.6 (2023-11-27)
   - Support sharing your APP and install others' APP through [our issue](https://github.com/batmen-lab/BioMANIA/issues/2)!
-  - Provide data and pretrained models for batmen-lab developed tools MIOSTONE and SONATA, expanding our suite of available resources and functionalities.
-  - Support UI installation APP service!
-  - Add R inference code. Provide data and pretrained models for R tools.
+  - Enhance code robustness: 
+    - When it returns a tuple, split it to multiple variables by adding code `result_n+1, result_n+2, ... = result_n`. 
+    - During parameter inference, if a parameter is of 'NoneType', replace it with 'Any' to run smoothly.
+    - Fix bug for adding quotation when user input value for str type parameters.
+  - Release a package.
 - v1.1.5 (2023-11-25)
-  - Enhanced Docker Integration: Now featuring seamless packaging of both front-end and back-end components using Docker. This update simplifies deployment processes, ensuring a more streamlined development experience.
+  - Enhanced Docker Integration: Now featuring seamless packaging of both front-end and back-end components using Docker. This update simplifies deployment processes, ensuring a more streamlined development experience. We update `chatbotuibiomania/biomania-together:v1.1.3`.
   - Automated Docstring Addition: Users can now effortlessly convert GitHub source code to our tool with scripts that automatically add docstrings, freeing them from the manual effort previously required.
 - v1.1.4 (2023-11-22)
   - Add [`manual`](R2APP.md) support for converting R code to API_init.json. Will support for converting R code to APP later!
-  - Release docker v1.1.3 with support for 12 PyPI biotools. Notice that some tools are only available under their own conda environment!!
+  - Release docker v1.1.3 with support for 12 PyPI biotools. Notice that some tools are only available under their own conda environment!! We update `chatbotuibiomania/biomania-frontend:v1.1.3` and `chatbotuibiomania/biomania-backend:v1.1.3`.
   - Resolved issues related to Docker networking and Docker CUDA.
   - Improved the stability of the server demo by ensuring that it runs continuously in the background.
 - v1.1.3 (2023-11-20)

@@ -143,7 +143,12 @@ Note: You have the option to alter the filtering rules by modifying filter_speci
 python Git2APP/get_API_docstring_from_sourcecode.py --LIB ${LIB}
 ```
 
-This script is designed to execute only on APIs lacking docstrings or well-documented parameters. It automatically skips APIs that meet the established documentation standards. Please note that running this script requires a paid OpenAI account.
+Tips 
+- This script is designed to execute only on APIs lacking docstrings or well-documented parameters. It automatically skips APIs that meet the established documentation standards. Please note that running this script requires a paid OpenAI account. 
+
+- This script is based on LLM responses for modification, and the quality of the results may not be entirely satisfactory. Users need to ensure that the necessary parameters type are provided for inference, as `None` type may lead to execution failures in the API due to missing essential parameters.
+
+- To accommodate the fact that `args`, `kwargs`, and similar parameters in general APIs are optional, we currently filter them out during prediction. Therefore, it's advisable to avoid using args as parameters in the code.
 
 It is better that if you can design the docstrings by yourself as it is more accurate. `NumPy` format is preferred than `reStructuredText` and `Google` format. Here's a basic example of an effective docstring :
 
@@ -230,6 +235,8 @@ hugging_models
 ### 2.2 Add logo
 
 Add a logo image to `BioMANIA/chatbot_ui_biomania/public/apps/` and modify the link in `BioMANIA/chatbot_ui_biomania/components/Chat/LibCardSelect.tsx`.
+
+Be mindful of the capitalization in library names, as it affects the recognition of the related model data loading paths.
 
 ### 2.3 Use UI service.
 

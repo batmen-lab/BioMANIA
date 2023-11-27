@@ -1,4 +1,5 @@
 import pydoc, argparse, json, re, os, collections, inspect, importlib, typing, functools
+from typing import Any, Type, List
 from docstring_parser import parse
 from langchain.document_loaders import BSHTMLLoader
 from configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet, get_all_basic_func_from_cheatsheet
@@ -16,7 +17,17 @@ def process_html(html_path: str) -> str:
     content = re.sub(r'\s+', ' ', content) # remove large blanks
     return content
 
-def get_dynamic_types():
+def get_dynamic_types() -> List[Type]:
+    """
+    Retrieves a list of various basic and complex data types from Python's built-in, typing, 
+    collections, and collections.abc modules.
+    
+    Returns
+    -------
+    List[Type]
+        A list containing types such as int, float, str, list, dict, and more specialized types 
+        like typing.Union, collections.deque, collections.abc.Iterable, etc.
+    """
     basic_types = [int, float, str, bool, list, tuple, dict, set, type(None)]
     useful_types_from_typing = [typing.Any, typing.Callable, typing.Union, typing.Optional, 
         typing.List, typing.Dict, typing.Tuple, typing.Set, typing.Type, typing.Collection]
@@ -28,7 +39,22 @@ def get_dynamic_types():
     all_types = basic_types + useful_types_from_typing + useful_types_from_collections + useful_types_from_collections_abc
     return all_types
 
-def type_to_string(t):
+def type_to_string(t: Type[Any]) -> str:
+    """
+    Convert a type to its string representation.
+
+    Parameters
+    ----------
+    t : Type[Any]
+        The type to be converted to string.
+
+    Returns
+    -------
+    str
+        The string representation of the type. If the type is a Cython function or method,
+        it returns "method". If it's a class, it returns the class name. Otherwise, it returns
+        the type name or its string representation.
+    """
     type_str = str(t)
     if 'cython_function_or_method' in type_str:
         return "method" # label cython func/method as "method"
@@ -42,7 +68,23 @@ def type_to_string(t):
 type_strings = get_dynamic_types()
 typing_list = [type_to_string(t) for t in type_strings]
 
-def expand_types(param_type):
+def expand_types(param_type: str) -> List[str]:
+    """
+    Expands a string representing a type or multiple types separated by '|' or 'or' into a list 
+    of individual type strings.
+
+    Parameters
+    ----------
+    param_type : str
+        A string representing a single type or multiple types separated by '|' or 'or'.
+
+    Returns
+    -------
+    List[str]
+        A list of strings, where each string is a type extracted from the input string. 
+        The types are stripped of leading and trailing whitespace.
+
+    """
     if is_outer_level_separator(param_type, "|"):
         types = param_type.split('|')
     elif is_outer_level_separator(param_type, " or "):
@@ -51,7 +93,7 @@ def expand_types(param_type):
         types = [param_type]
     return [t.strip() for t in types]
 
-def is_outer_level_separator(s, sep="|"):
+def is_outer_level_separator(s: str, sep: str = "|") -> bool:
     """
     Check if the separator (like '|' or 'or') is at the top level (not inside brackets).
     """
@@ -65,9 +107,21 @@ def is_outer_level_separator(s, sep="|"):
             return True
     return False
 
-def resolve_forwardref(forward_ref_str):
+def resolve_forwardref(forward_ref_str: str):
     """
-    Resolve a string representation of a ForwardRef type into the actual type.
+    Resolves a string representing a ForwardRef type (like 'List[int]') into the actual Python type,
+    using a predefined namespace of common types and typing constructs.
+
+    Parameters
+    ----------
+    forward_ref_str : str
+        The string representation of a ForwardRef type.
+
+    Returns
+    -------
+    Any
+        The resolved type if the string can be evaluated successfully within the provided namespace;
+        otherwise, returns the input string itself indicating an unresolved ForwardRef.
     """
     namespace = {
         "int": int,
@@ -87,6 +141,10 @@ def resolve_forwardref(forward_ref_str):
         return forward_ref_str
 
 def format_type_ori(annotation):
+    """
+    Formats a type annotation into a string representation, resolving forward references and
+    handling various special cases like None, Optional, and Union types.
+    """
     if not annotation:
         return None
     if annotation == inspect.Parameter.empty:
@@ -122,12 +180,22 @@ def format_type_ori(annotation):
     return str(annotation).replace("typing.", "")
 
 def format_type(annotation):
+    """
+    Formats a type annotation into a string representation with specific handling for NumPy's
+    'NDArrayA' type, converting it into 'ndarray[Any, dtype[Any]]'.
+    """
     ans = format_type_ori(annotation)
     if ans:
         ans = ans.replace("NDArrayA", "ndarray[Any, dtype[Any]]")
     return ans
 
-def is_valid_member(obj):
+def is_valid_member(obj) -> bool:
+    """
+    Determines whether the given object is a valid member based on its type.
+    Valid members include callable objects, specific collections (dict, list, tuple, set),
+    classes, functions, methods, modules, and objects with a '__call__' method that are
+    identified as methods.
+    """
     return (
         callable(obj) or 
         isinstance(obj, (dict, list, tuple, set)) or  # , property
@@ -138,7 +206,12 @@ def is_valid_member(obj):
         (hasattr(obj, '__call__') and 'method' in str(obj))
     )
 
-def is_unwanted_api(member):
+def is_unwanted_api(member) -> bool:
+    """
+    Determines whether a member (typically a class) is considered an unwanted API.
+    Unwanted APIs are identified as either subclasses of BaseException or classes whose 
+    base classes are defined in a different module than the class itself.
+    """
     if inspect.isclass(member):
         if issubclass(member, BaseException):
             return True
@@ -163,7 +236,22 @@ def is_from_external_module(lib_name, member):
         return LIB not in module_name"""
         return False
 
-def are_most_strings_modules(api_strings):
+def are_most_strings_modules(api_strings: list) -> bool:
+    """
+    Determines whether the majority of strings in a given list represent valid Python modules.
+    It tries to import each string as a module and counts the successful imports.
+
+    Parameters
+    ----------
+    api_strings : list
+        A list of strings, each potentially representing a module name.
+
+    Returns
+    -------
+    bool
+        True if more than 50% of the strings in the list are valid module names, False otherwise.
+
+    """
     valid_modules = 0
     total_strings = len(api_strings)
     for api in api_strings:
@@ -174,7 +262,11 @@ def are_most_strings_modules(api_strings):
             continue
     return valid_modules / total_strings > 0.5
 
-def recursive_member_extraction(module, prefix, lib_name, visited=None, depth=None):
+def recursive_member_extraction(module, prefix: str, lib_name: str, visited=None, depth=None) -> list:
+    """
+    Recursively extracts members from a module, including classes and submodules, 
+    while avoiding duplicates and unwanted members.
+    """
     if visited is None:
         visited = set()
     members = []
@@ -190,7 +282,7 @@ def recursive_member_extraction(module, prefix, lib_name, visited=None, depth=No
         if inspect.isclass(member):
             if issubclass(member, Exception): #inspect.isclass(member) and 
                 continue
-        if inspect.isabstract(member):  # 排除抽象属性
+        if inspect.isabstract(member):  # remove abstract attribute
             continue
         """if member.__module__ == 'builtins':
             continue"""
@@ -429,7 +521,7 @@ def filter_optional_parameters(api_data):
 def generate_api_callings(results, basic_types=['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict']):
     updated_results = {}
     for api_name, api_info in results.items():
-        if api_info["api_type"] in ['function', 'method', 'class', 'functools.partial']:
+        if api_info["api_type"] in ['function', 'method', 'class', 'Class', 'functools.partial']:
             # Update the optional_value key for each parameter
             for param_name, param_details in api_info["Parameters"].items():
                 param_type = param_details.get('type')
@@ -493,7 +585,7 @@ def filter_specific_apis(data, lib_name):
         parameters = details['Parameters']
         Returns_type = details['Returns']['type']
         Returns_description = details['Returns']['description']
-        if api_type in ["module", "constant", "property", "getset_descriptor", "Class", "class"]:
+        if api_type in ["module", "constant", "property", "getset_descriptor"]:
             filter_counts["api_type_module_constant_property_getsetdescriptor"] += 1
             filter_API["api_type_module_constant_property_getsetdescriptor"].append(api)
             continue

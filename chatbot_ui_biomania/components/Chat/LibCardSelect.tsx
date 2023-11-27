@@ -14,7 +14,7 @@ export const libImages: { [key: string]: string } = {
   'pyopenms': '/apps/pyopenms.png',
   'scenicplus': '/apps/SCENIC.png',
   'scvi-tools': '/apps/scvitools.svg',
-  'SONATA': '/apps/SONATA.png',
+  'sonata': '/apps/SONATA.png',
   'MIOSTONE': '/apps/MIOSTONE.jpg',
   //'custom': '/apps/customize.jpg',
 };
@@ -48,7 +48,7 @@ export const LibCardSelect = () => {
       { id: 'pyopenms', name: 'pyopenms' },
       { id: 'scenicplus', name: 'scenicplus' },
       { id: 'scvi-tools', name: 'scvi-tools' },
-      { id: 'SONATA', name: 'SONATA' },
+      { id: 'sonata', name: 'sonata' },
       { id: 'MIOSTONE', name: 'MIOSTONE' },
       //{ id: 'custom', name: 'custom' },
     ];

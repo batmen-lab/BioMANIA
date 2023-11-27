@@ -84,11 +84,7 @@ class CodeExecutor:
             if param_info["value"] in ['@']:
                 try:
                     value = next(input_iterator)
-                    if param_info['type'] == 'str':
-                        if '"' in value or "'" in value:
-                            pass
-                        else:
-                            value = f"'{value}'"
+                    #value = self.format_value(param_info['value'], param_info['type'])
                     params[param_name] = {
                         "type": param_info["type"],
                         "value": value,
@@ -143,7 +139,15 @@ class CodeExecutor:
     def format_value(self, value, value_type):
         if "str" in value_type:
             value = str(value).strip()
-            if value.startswith(("'", '"')) and value.endswith(("'", '"')):
+            if value.startswith("("): # if user input tuple parameters, return directly
+                return value # (('tuple' in value) or ('Tuple' in value)) and 
+            elif value.startswith("["): # if user input tuple parameters, return directly
+                return value # (('list' in value) or ('List' in value)) and 
+            elif value.startswith("{"): # if user input tuple parameters, return directly
+                return value # (('dict' in value) or ('Dict' in value)) and 
+            elif (value.startswith("'")) and (value.endswith("'")):
+                return value
+            elif value.startswith('"') and value.endswith('"'):
                 return value
             else:
                 return f"'{value}'"
@@ -219,6 +223,29 @@ class CodeExecutor:
         else:
             self.generate_code.append(f"{api_call}")
             return import_code+'\n'+f"{api_call}"
+    def split_tuple_variable(self, ):
+        # generate splitting code if the results is a tuple
+        # split result_n into result_n+1, reuslt_n+2, result_n+3 = result_n
+        if self.execute_code[-1]['success']:
+            last_code = self.execute_code[-1]
+            # Check if the last code snippet ends with 'result'
+            if last_code['code'].strip().startswith('result'):
+                # Extract the variable name that starts with 'result'
+                result_name_tuple = last_code['code'].strip().split('=')[0].strip()
+                result_variable = self.variables[result_name_tuple]
+                # Check if the variable is a tuple
+                if 'tuple' in str(type(result_variable['value'])):
+                    print('==>indeed split tuple variables!')
+                    length = len(result_variable['value'])
+                    new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
+                    new_code = ', '.join(new_variables) + f" = {result_name_tuple}"
+                    # execute new api call
+                    self.execute_api_call(last_code['code']+'\n'+new_code, last_code['code_type'])
+                    # Update the count
+                    self.counter += length
+                    print(f'==>generate new code: {new_code}')
+        else:
+            pass
 
     def execute_api_call(self, api_call_code, code_type):
         try:
@@ -264,12 +291,13 @@ class CodeExecutor:
         none_value_params = [param_name for param_name, param_info in selected_params.items() if param_info["value"] in ['@']]
         if none_value_params:
             print("Parameters @ with value unassigned are:", none_value_params)
-            selected_params = self.makeup_for_missing_parameters(selected_params)
+            selected_params = self.makeup_for_missing_parameters(selected_params, 'user_input_placeholder')
             print('After Entering parameters: ', selected_params)
         return_type = api_info['return_type']
         api_params_list = [{"api_name":api_name, 
-                            "selected_params":selected_params, 
-                            "return_type":return_type}]
+                            "class_selected_params":selected_params, 
+                            "return_type":return_type,
+                            "parameters":api_info['parameters']}]
         execution_code = self.generate_execution_code(api_params_list)
         print(execution_code)
         execution_code_list = execution_code.split('\n')
@@ -279,6 +307,30 @@ class CodeExecutor:
 if __name__=='__main__':
     # Step 1: Provide the complete test_apis list
     test_apis = [
+        {
+            "api_name": "",
+            "parameters": {
+                "X": {
+                    "type": "float",
+                    "description": "Data to scale",
+                    "value": 1.0,
+                    "optional":False,
+                },
+                "X2": {
+                    "type": "float",
+                    "description": "Data to scale",
+                    "value": 1.0,
+                    "optional":False,
+                },
+                "X3": {
+                    "type": "float",
+                    "description": "Data to scale",
+                    "value": 1.0,
+                    "optional":False,
+                },
+                },
+            "return_type": "tuple"
+        },
         {
             "api_name": "sklearn.datasets.load_iris",
             "parameters": {},
@@ -415,6 +467,7 @@ if __name__=='__main__':
     executor.execute_api_call("labels = np.array([0, 1, 0])", "code")
     for api_info in test_apis:
         executor.execute_one_pass(api_info)
+        executor.split_tuple_variable()
     print('-'*10)
     print('Current variables in namespace:')
     print(json.dumps(str(executor.variables)))
