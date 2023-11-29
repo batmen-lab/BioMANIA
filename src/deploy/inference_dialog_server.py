@@ -182,6 +182,7 @@ class Model:
         reset_result = self.reset_lib(self.LIB)
         if reset_result=='Fail':
             return
+        self.last_user_states = ""
         self.user_states = "initial"
         self.parameters_info_list = None
         self.image_folder = "./tmp/images/"
@@ -231,6 +232,10 @@ class Model:
             self.executor.execute_api_call(f"import os, gzip, numpy as np, matplotlib.pyplot as plt", "import")
             self.executor.execute_api_call(f"from urllib.request import urlretrieve", "import")
             self.executor.execute_api_call(f"from pyteomics import fasta, parser, mass, achrom, electrochem, auxiliary", "import")
+            self.executor.execute_api_call(f"import numpy as np", "import")
+            self.executor.execute_api_call(f"np.seterr(under='ignore')", "import")
+            self.executor.execute_api_call(f"import warnings", "import")
+            self.executor.execute_api_call(f"warnings.filterwarnings('ignore')", "import")
             end_of_docstring_summary = re.compile(r'[{}\n]+'.format(re.escape(punctuation)))
             all_apis = {x: end_of_docstring_summary.split(self.API_composite[x]['Docstring'])[0].strip() for x in self.API_composite}
             all_apis = list(all_apis.items())
@@ -502,11 +507,13 @@ class Model:
                     next_str+=f"Candidate [{idx_api}]: {api}"
                     description_1 = self.API_composite[api]['Docstring'].split("\n")[0]
                     next_str+='\n'+description_1
+                    self.last_user_states = self.user_states
                     self.user_states = "ambiguous_mode"
                     idx_api+=1
                 [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=next_str,task_title=f"Can you confirm which of the following {len(self.filtered_api)} candidates") for callback in self.callbacks]
                 self.indexxxx += 1
             else:
+                self.last_user_states = self.user_states
                 self.user_states = "after_API_selection"
                 self.run_pipeline_after_fixing_API_selection(user_input)
         elif self.user_states == "ambiguous_mode":
@@ -514,11 +521,16 @@ class Model:
             if ans in ['break']:
                 return
             self.run_pipeline_after_fixing_API_selection(user_input)
-        elif self.user_states == "select_params":
-            self.run_select_params(user_input)
-        elif self.user_states == "enter_params":
+        elif self.user_states == "run_select_basic_params":
+            self.run_select_basic_params(user_input)
+        elif self.user_states == "run_select_special_params":
+            self.run_select_special_params(user_input)
+        elif self.user_states == "run_pipeline_after_entering_params":
             self.run_pipeline_after_entering_params(user_input)
+        elif self.user_states == "run_pipeline_after_select_special_params":
+            self.run_pipeline_after_select_special_params(user_input)
     def run_pipeline_after_ambiguous(self,user_input):
+        print('==>run_pipeline_after_ambiguous')
         user_input = user_input.strip()
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
@@ -527,6 +539,7 @@ class Model:
         except:
             [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="Error: the input is not a number.\nPlease re-enter the index", task_title="Index Error") for callback in self.callbacks]
             self.indexxxx += 1
+            self.last_user_states = self.user_states
             self.user_states = "ambiguous_mode"
             return 'break'
         try:
@@ -534,8 +547,10 @@ class Model:
         except:
             [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="Error: the input index exceed the maximum length of ambiguous API list\nPlease re-enter the index",task_title="Index Error") for callback in self.callbacks]
             self.indexxxx += 1
+            self.last_user_states = self.user_states
             self.user_states = "ambiguous_mode"
             return 'break'
+        self.last_user_states = self.user_states
         self.user_states = "after_API_selection"
         self.predicted_api_name = self.filtered_api[int(user_input)-1]
     def process_api_info(self, api_info, single_api_name):
@@ -574,9 +589,11 @@ class Model:
         return {api_name: content for item in updated_result for api_name, content in item.items()}
 
     def run_pipeline_after_fixing_API_selection(self,user_input):
+        print('==>run_pipeline_after_fixing_API_selection')
         # check if composite API/class method API, return the relevant APIs
         relevant_api_list = self.process_api_info(self.API_composite, self.predicted_api_name)
         self.api_name_json = self.check_and_insert_class_apis(self.API_composite, relevant_api_list)
+        self.last_user_states = self.user_states
         self.user_states = "initial"
         api_description = self.API_composite[self.predicted_api_name]['description']
         # summary task, TODO: check
@@ -588,13 +605,14 @@ class Model:
         [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=response,task_title=f"Predicted API: {self.predicted_api_name}",) for callback in self.callbacks]
         self.indexxxx+=1
 
+        print("==>Need to collect all parameters for a composite API")
         combined_params = {}
         for api in relevant_api_list:
             for api_name, api_details in api.items():
                 combined_params.update(self.API_composite[api_name]['Parameters'])
         parameters_name_list = [key for key, value in combined_params.items() if (not value['optional']) and (key not in ['path', "Path"])]
         api_parameters_information = change_format(combined_params, parameters_name_list)
-        # filter out special type parameters, do not infer them using gpt
+        print("==>filter out special type parameters, do not infer them using gpt")
         api_parameters_information = [param for param in api_parameters_information if param['type'] in basic_types]
         parameters_name_list = [param_info['name'] for param_info in api_parameters_information]
         print('api_parameters_information:', api_parameters_information)
@@ -652,6 +670,73 @@ class Model:
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="However, there are still some parameters with special type undefined. Please start from uploading data, or input your query from preprocessing dataset.",task_title="Missing Parameters: special type") for callback in self.callbacks]
             self.indexxxx+=1
             return
+        # $ param if multiple choice
+        multiple_dollar_value_params = [param_name for param_name, param_info in self.selected_params.items() if ('list' in str(type(param_info["value"]))) and (len(param_info["value"])>1)]
+        self.filtered_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (key in multiple_dollar_value_params)}
+        print(f'multiple_dollar_value_params: {multiple_dollar_value_params}\nself.filtered_params: {self.filtered_params}')
+        if multiple_dollar_value_params:
+            print('==>There exist multiple choice for a special type parameters, start selecting parameters')
+            print(multiple_dollar_value_params)
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task=f"There are many variables match the expected type. Please determine which one to choose",task_title="Choosing Parameters: special type") for callback in self.callbacks]
+            self.indexxxx+=1
+            tmp_input_para = ""
+            for idx, api in enumerate(self.filtered_params):
+                if idx!=0:
+                    tmp_input_para+=" and "
+                tmp_input_para+=self.filtered_params[api]['description']
+                tmp_input_para+=f"('{api}': {self.filtered_params[api]['type']}), "
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task=f"The predicted API takes {tmp_input_para} as input. However, there are still some parameters undefined in the query.", task_title="Enter Parameters: special type",color="red") for callback in self.callbacks]
+            self.indexxxx+=1
+            self.last_user_states = self.user_states
+            self.user_states = "run_select_special_params"
+            self.run_select_special_params(user_input)
+            return
+        self.run_pipeline_after_select_special_params(user_input)
+
+    def get_success_code_with_val(self, val):
+        for i in self.executor.execute_code:
+            if i['success'] and val in i['code']:
+                return i['code']
+        print('Something wrong with matching special type parameters')
+        raise ValueError
+    def run_select_special_params(self, user_input):
+        print('==>run_select_special_params')
+        if self.last_user_states == "run_select_special_params":
+            self.selected_params = self.executor.makeup_for_missing_single_parameter_type_special(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
+        [callback.on_tool_start() for callback in self.callbacks]
+        [callback.on_tool_end() for callback in self.callbacks]
+        if len(self.filtered_params)>1:
+            print('=>len(self.filtered_params)>1')
+            self.last_param_name = list(self.filtered_params.keys())[0]
+            candidate_text = ""
+            for val in self.selected_params[self.last_param_name]["value"]:
+                get_val_code = self.get_success_code_with_val(val)
+                candidate_text+=f'{val}: {get_val_code}\n'
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task=f"Which value do you think is appropriate for the parameters '{self.last_param_name}'? We find some candidates:\n {candidate_text}. ", task_title="Enter Parameters: special type",color="red") for callback in self.callbacks]
+            self.indexxxx+=1
+            self.last_user_states = self.user_states
+            self.user_states = "run_select_special_params"
+            del self.filtered_params[self.last_param_name]
+            return
+        elif len(self.filtered_params)==1:
+            print('=>len(self.filtered_params)==1')
+            self.last_param_name = list(self.filtered_params.keys())[0]
+            candidate_text = ""
+            for val in self.selected_params[self.last_param_name]["value"]:
+                get_val_code = self.get_success_code_with_val(val)
+                candidate_text+=f'{val}: {get_val_code}\n'
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task=f"Which value do you think is appropriate for the parameters '{self.last_param_name}'? We find some candidates \n {candidate_text}. ", task_title="Enter Parameters: special type",color="red") for callback in self.callbacks]
+            self.indexxxx+=1
+            self.last_user_states = self.user_states
+            self.user_states = "run_pipeline_after_select_special_params"
+            del self.filtered_params[self.last_param_name]
+        else:
+            raise ValueError
+
+    def run_pipeline_after_select_special_params(self,user_input):
+        print('==>run_pipeline_after_select_special_params')
+        if self.last_user_states == "run_select_special_params":
+            self.selected_params = self.executor.makeup_for_missing_single_parameter_type_special(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         # @ param
         self.none_at_value_params = [param_name for param_name, param_info in self.selected_params.items() if (param_info["value"] in ['@']) and (param_name not in ['path','Path'])]
         self.filtered_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (value["value"] in ['@']) and (key not in ['path','Path'])}
@@ -670,12 +755,14 @@ class Model:
                 tmp_input_para+=f"('{api}': {self.filtered_params[api]['type']}), "
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task=f"The predicted API takes {tmp_input_para} as input. However, there are still some parameters undefined in the query.", task_title="Enter Parameters: basic type",color="red") for callback in self.callbacks]
             self.indexxxx+=1
-            self.run_select_params(user_input)
+            self.user_states = "run_select_basic_params"
+            self.run_select_basic_params(user_input)
             return
         self.run_pipeline_after_entering_params(user_input)
-        
-    def run_select_params(self, user_input):
-        if self.user_states == "select_params":
+    
+    def run_select_basic_params(self, user_input):
+        print('==>run_select_basic_params')
+        if self.last_user_states == "run_select_basic_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
@@ -683,14 +770,16 @@ class Model:
             self.last_param_name = list(self.filtered_params.keys())[0]
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="Which value do you think is appropriate for the parameters '"+self.last_param_name+"'?", task_title="Enter Parameters: basic type",color="red") for callback in self.callbacks]
             self.indexxxx+=1
-            self.user_states = "select_params"
+            self.last_user_states = self.user_states
+            self.user_states = "run_select_basic_params"
             del self.filtered_params[self.last_param_name]
             return
         elif len(self.filtered_params)==1:
             self.last_param_name = list(self.filtered_params.keys())[0]
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="Which value do you think is appropriate for the parameters '"+self.last_param_name+"'?", task_title="Enter Parameters: basic type",color="red") for callback in self.callbacks]
             self.indexxxx+=1
-            self.user_states = "enter_params"
+            self.last_user_states = self.user_states
+            self.user_states = "run_pipeline_after_entering_params"
             del self.filtered_params[self.last_param_name]
         else:
             raise ValueError
@@ -726,11 +815,13 @@ class Model:
         return parameters_combined
 
     def run_pipeline_after_entering_params(self, user_input):
+        # if self.none_at_value_params:
+        if self.last_user_states == "run_select_basic_params":
+            self.selected_params = self.executor.makeup_for_missing_single_parameter(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         print('Now run pipeline after entering parameters')
+        self.last_user_states = self.user_states
         self.user_states = "initial"
         self.image_file_list = self.update_image_file_list()
-        if self.none_at_value_params:
-            self.selected_params = self.executor.makeup_for_missing_single_parameter(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         if self.filtered_pathlike_params:
             # add 'tmp' 
             for key in self.filtered_pathlike_params:
@@ -795,18 +886,16 @@ class Model:
             sys.stderr = sys.__stderr__
             content = self.buf.getvalue()
             # if execute, visualize value
+            code = self.executor.execute_code[-1]['code']
             vari = [i.strip() for i in code.split('(')[0].split('=')]
             print(f'-----code: {code}')
             print(f'-----vari: {vari}')
             tips_for_execution_success = True
             if len(vari)>1:
-                if self.executor.variables[vari[0]]['value'] is not None:
-                    print('if vari value is not None, return it')
-                    [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We obtain a new " + str(self.executor.variables[vari[0]]['value']),task_title="Executed results [Success]",) for callback in self.callbacks]
-                    self.indexxxx+=1
-                else:
-                    print('if vari value is not None, just return the success message')
-                    [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Execute success. We didn't obtain new variable",task_title="Executed results [Success]",) for callback in self.callbacks]
+                #if self.executor.variables[vari[0]]['value'] is not None:
+                if True:
+                    #print('if vari value is not None, return it')
+                    [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Execute success. We obtain a new " + str(self.executor.variables[vari[0]]['value']),task_title="Executed results [Success]",) for callback in self.callbacks]
                     self.indexxxx+=1
                 if self.executor.variables[vari[0]]['type']=='AnnData':
                     print('if the new variable is of type AnnData, ')
@@ -965,6 +1054,11 @@ def set_api_key():
 def handle_keyboard_interrupt(signal, frame):
     global model
     exit(0)
+
+import os
+"""GITHUB_CLIENT_ID = os.environ.get('GITHUB_CLIENT_ID')
+GITHUB_CLIENT_SECRET = os.environ.get('GITHUB_CLIENT_SECRET')
+"""
 
 signal.signal(signal.SIGINT, handle_keyboard_interrupt)
 

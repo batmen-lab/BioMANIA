@@ -199,7 +199,7 @@ def is_valid_member(obj) -> bool:
     return (
         callable(obj) or 
         isinstance(obj, (dict, list, tuple, set)) or  # , property
-        inspect.isclass(obj) or 
+        get_api_type(obj)=='class' or 
         inspect.isfunction(obj) or 
         inspect.ismethod(obj) or 
         inspect.ismodule(obj) or
@@ -212,7 +212,7 @@ def is_unwanted_api(member) -> bool:
     Unwanted APIs are identified as either subclasses of BaseException or classes whose 
     base classes are defined in a different module than the class itself.
     """
-    if inspect.isclass(member):
+    if get_api_type(member)=='class':
         if issubclass(member, BaseException):
             return True
         module_name = member.__module__
@@ -279,7 +279,7 @@ def recursive_member_extraction(module, prefix: str, lib_name: str, visited=None
             continue
         if is_from_external_module(lib_name, member):
             continue
-        if inspect.isclass(member):
+        if get_api_type(member)=='class':
             if issubclass(member, Exception): #inspect.isclass(member) and 
                 continue
         if inspect.isabstract(member):  # remove abstract attribute
@@ -291,25 +291,28 @@ def recursive_member_extraction(module, prefix: str, lib_name: str, visited=None
         full_name = f"{prefix}.{name}"
         if inspect.ismodule(member):
             members.extend(recursive_member_extraction(member, full_name, lib_name, visited))
-        if inspect.isclass(member) and (depth is None or depth > 0):
+        if get_api_type(member)=='class' and (depth is None or depth > 0):
+            # 231120 modified, add class API
+            members.append((full_name, member))
             members.extend(recursive_member_extraction(member, full_name, lib_name, visited, depth= None if depth is None else depth-1))
         else:
             members.append((full_name, member))
     return members
 
+from abc import ABCMeta
 def get_api_type(member):
     try:
         member_str = str(member)
     except:
         member_str = ""
-    if inspect.isfunction(member):
-        return 'function'
-    elif inspect.ismodule(member):
-        return 'module'
-    elif inspect.isclass(member):
+    if inspect.isclass(member): #  or (hasattr(member, '__class__') and )
         return 'class'
+    elif inspect.isfunction(member):
+        return 'function'
     elif inspect.ismethod(member) or 'method' in member_str:
         return 'method'
+    elif inspect.ismodule(member):
+        return 'module'
     elif isinstance(member, property):
         return 'property'
     elif isinstance(member, functools.partial):
@@ -318,6 +321,10 @@ def get_api_type(member):
         return 'constant'
     elif type(member)==re.Pattern:
         return 'rePattern'
+    elif 'abc.ABCMeta' in str(type(member)):
+        return 'class'
+    elif member.__class__ is type:
+        return 'class'
     elif 'cython_function_or_method' in str(type(member)):
         return 'cython'
     elif 'builtin_function_or_method' in str(type(member)):
@@ -352,16 +359,20 @@ def import_member(api_string, lib_name, expand=True):
                 full_api_name = f"{module_name_attempt}{'.' if member_name_sequence else ''}{'.'.join(member_name_sequence)}"
                 # If it's a full name import and the current member is a module
                 if i == len(api_parts) and get_api_type(current_module) == 'module' and expand:
+                    all_members.append((full_api_name, current_module))
                     all_members.extend(recursive_member_extraction(current_module, full_api_name, lib_name))
                     return all_members  # Return without including the parent module
                 # If it's a function or any other non-module type
-                elif inspect.isclass(current_module):
+                # TODO: modified here 231129, notify the changes
+                #elif inspect.isclass(current_module):
+                elif get_api_type(current_module)=='class':
                     all_members.append((full_api_name, current_module))
                     all_members.extend(recursive_member_extraction(current_module, full_api_name, lib_name, depth=1))
                 else:
                     all_members.append((full_api_name, current_module))
                     return all_members
-            except AttributeError:
+            except Exception as e:
+                print('import member Error:', e)
                 continue
     return all_members
 
@@ -390,6 +401,7 @@ def get_docparam_from_source(web_APIs, lib_name):
             print(f"Error import {api_string}: No members found!")
             failure_count += 1
             continue
+        print('!get '+str(len(members))+" members")
         for member_name, member in members:
             api_type = get_api_type(member)
             """if api_type in ['unknown']:
@@ -521,7 +533,7 @@ def filter_optional_parameters(api_data):
 def generate_api_callings(results, basic_types=['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict']):
     updated_results = {}
     for api_name, api_info in results.items():
-        if api_info["api_type"] in ['function', 'method', 'class', 'Class', 'functools.partial']:
+        if api_info["api_type"] in ['function', 'method', 'class', 'functools.partial']:
             # Update the optional_value key for each parameter
             for param_name, param_details in api_info["Parameters"].items():
                 param_type = param_details.get('type')
@@ -627,7 +639,7 @@ def filter_specific_apis(data, lib_name):
         filtered_data[api] = details
     print('==>Filtering APIs!')
     print(json.dumps(filter_counts,indent=4))
-    #print(json.dumps(filter_API,indent=4))
+    print(json.dumps(filter_API,indent=4))
     assert sum(filter_counts.values())+len(filtered_data)==len(data)
     return filtered_data
 

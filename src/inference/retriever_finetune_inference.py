@@ -55,7 +55,7 @@ class ToolRetriever:
         similar_queries = ["\nInstruction: " + self.shuffled_data[hit['corpus_id']]['query'] + "\nFunction: " + self.shuffled_data[hit['corpus_id']]['gold'] for hit in hits[0]]
         return ''.join(similar_queries)
 
-def compute_accuracy(retriever, data, args, name='train'):
+def compute_accuracy(retriever, data, args,name='train'):
     correct_predictions = 0
     data_to_save = []
     scores_rank_1 = []
@@ -87,7 +87,7 @@ def compute_accuracy(retriever, data, args, name='train'):
         if len(hits[0]) > 4:
             scores_rank_5.append(hits[0][4]['score'])
     accuracy = correct_predictions / len(data) * 100
-    with open(f'./plot/error_{name}.json', 'w') as json_file:
+    with open(f'./plot/{args.LIB}/error_{name}.json', 'w') as json_file:
         json.dump(data_to_save, json_file, indent=4)
     # Compute average scores for each rank
     scores = {
@@ -131,6 +131,7 @@ if __name__ == "__main__":
     print(len(train_data), len(val_data), len(test_data))
 
     os.makedirs("./plot",exist_ok=True)
+    os.makedirs(f"./plot/{args.LIB}",exist_ok=True)
     train_accuracy, train_avg_scores = compute_accuracy(retriever, train_data, args, 'train')
     val_accuracy, val_avg_scores = compute_accuracy(retriever, val_data, args, 'val')
     test_accuracy, test_avg_scores = compute_accuracy(retriever, test_data, args, 'test')
@@ -144,7 +145,7 @@ if __name__ == "__main__":
         plt.title(title)
         plt.xticks(ticks=range(5), labels=[f'Rank {i+1}' for i in range(5)])
         plt.ylabel('Score')
-        plt.savefig(f'./plot/avg_retriever_{title}.pdf')
+        plt.savefig(f'./plot/{args.LIB}/avg_retriever_{title}.pdf')
 
     train_scores = [train_avg_scores['rank_1'], train_avg_scores['rank_2'], train_avg_scores['rank_3'], train_avg_scores['rank_4'], train_avg_scores['rank_5']]
     val_scores = [val_avg_scores['rank_1'], val_avg_scores['rank_2'], val_avg_scores['rank_3'], val_avg_scores['rank_4'], val_avg_scores['rank_5']]

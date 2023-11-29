@@ -169,5 +169,14 @@
         "READTHEDOC_LINK": null,
         "TUTORIAL_HTML_PATH": null,
         "TUTORIAL_GITHUB": null
+    },
+    "scikit-learn":{
+        "LIB": "scikit-learn",
+        "LIB_ALIAS": "sklearn",
+        "API_HTML_PATH": null,
+        "GITHUB_LINK": null,
+        "READTHEDOC_LINK": null,
+        "TUTORIAL_HTML_PATH": null,
+        "TUTORIAL_GITHUB": null
     }
 }

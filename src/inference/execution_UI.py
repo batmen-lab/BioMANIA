@@ -54,14 +54,12 @@ class CodeExecutor:
                             "optional": param_info["optional"],
                         }
                     elif len(possible_matches) > 1:
-                        #print(f"For parameter '{param_name}', possible matches are:")
-                        #for idx, match in enumerate(possible_matches, 1):
-                        #    print(f"{idx}. {match}")
-                        result_choices = [(int(choice.split('_')[1]), choice) for choice in possible_matches if choice.startswith('result_')]
+                        """result_choices = [(int(choice.split('_')[1]), choice) for choice in possible_matches if choice.startswith('result_')]
                         if result_choices:
                             choice = max(result_choices, key=lambda x: x[0])[1]
                         else:
-                            choice = possible_matches[0]
+                            choice = possible_matches[0]"""
+                        choice = possible_matches
                         matching_params[param_name] = {
                             "type": param_info["type"],
                             "value": choice,
@@ -95,16 +93,32 @@ class CodeExecutor:
                     print(f"Insufficient values provided in user_input for parameter '{param_name}'")
                     # You might want to handle this error more gracefully, depending on your requirements
         return params
-    def makeup_for_missing_single_parameter(self, params, param_name_to_update, user_input):
+    def makeup_for_missing_single_parameter(self, params, param_name_to_update, user_input, param_spec_type='@'):
         # Check if the given parameter name is valid and its value is '@'
-        if param_name_to_update not in params or params[param_name_to_update]["value"] != '@':
+        if param_name_to_update not in params or params[param_name_to_update]["value"] != param_spec_type:
             print(f"Invalid parameter name '{param_name_to_update}' or the parameter doesn't need a value.")
             return params
         param_info = params[param_name_to_update]
         value = user_input  # Since user_input is for a single parameter, we directly use it
         # Type conversion if needed
-        if param_info['type'] == 'str':
-            value = f"'{value}'"
+        value = self.format_value(value, param_info['type'])
+        # Update the parameter information
+        params[param_name_to_update] = {
+            "type": param_info["type"],
+            "value": value,
+            "valuefrom": 'userinput',
+            "optional": param_info["optional"],
+        }
+        return params
+    def makeup_for_missing_single_parameter_type_special(self, params, param_name_to_update, user_input):
+        # Check if the given parameter name is valid and its value is list type
+        if param_name_to_update not in params or ('list' not in str(type(params[param_name_to_update]["value"]))):
+            print(f"Invalid parameter name '{param_name_to_update}' or the parameter doesn't have multiple choice.")
+            return params
+        param_info = params[param_name_to_update]
+        value = user_input  # Since user_input is for a single parameter, we directly use it
+        # we didn't need to add '' for the value, its from namespace variable
+        #value = self.format_value(value, param_info['type'])
         # Update the parameter information
         params[param_name_to_update] = {
             "type": param_info["type"],
@@ -287,6 +301,7 @@ class CodeExecutor:
         params = api_info['parameters']
         print('Automatically/Manually Selected params for $:')
         selected_params = self.select_parameters(params)
+        # TODO: modify the selected_params, there exist multiple possible_Choices, need to fix one.
         print('After selecting parameters: ', selected_params)
         none_value_params = [param_name for param_name, param_info in selected_params.items() if param_info["value"] in ['@']]
         if none_value_params:
