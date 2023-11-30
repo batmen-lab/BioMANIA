@@ -21,6 +21,7 @@ chatbot_ui_biomania/.next/*
 chatbot_ui_biomania/node_modules/*
 src/tmp/*
 src/plot/*
+src/plot_tmp/*
 src/plot_server/*
 
 # Distribution / packaging

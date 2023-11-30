@@ -292,14 +292,12 @@ def recursive_member_extraction(module, prefix: str, lib_name: str, visited=None
         if inspect.ismodule(member):
             members.extend(recursive_member_extraction(member, full_name, lib_name, visited))
         if get_api_type(member)=='class' and (depth is None or depth > 0):
-            # 231120 modified, add class API
             members.append((full_name, member))
             members.extend(recursive_member_extraction(member, full_name, lib_name, visited, depth= None if depth is None else depth-1))
         else:
             members.append((full_name, member))
     return members
 
-from abc import ABCMeta
 def get_api_type(member):
     try:
         member_str = str(member)

@@ -476,6 +476,7 @@ class Model:
                     print('==>GPT response:', response)
                     # hack for if GPT answers this or that
                     response = response.split(',')[0].split("(")[0].split(' or ')[0]
+                    response = response.replace('{','').replace('}','').replace('"','').replace("'",'')
                     response = response.split(':')[0]# for robustness, sometimes gpt will return api:description
                     self.description_json[response]
                     self.predicted_api_name = response 
@@ -591,12 +592,13 @@ class Model:
     def run_pipeline_after_fixing_API_selection(self,user_input):
         print('==>run_pipeline_after_fixing_API_selection')
         # check if composite API/class method API, return the relevant APIs
-        relevant_api_list = self.process_api_info(self.API_composite, self.predicted_api_name)
-        self.api_name_json = self.check_and_insert_class_apis(self.API_composite, relevant_api_list)
+        relevant_api_list = self.process_api_info(self.API_composite, self.predicted_api_name) # only contains predicted API
+        self.api_name_json = self.check_and_insert_class_apis(self.API_composite, relevant_api_list)# also contains class API
+        #print('==>self.api_name_json:', self.api_name_json)
         self.last_user_states = self.user_states
         self.user_states = "initial"
         api_description = self.API_composite[self.predicted_api_name]['description']
-        # summary task, TODO: check
+        # summary task
         summary_prompt = prepare_summary_prompt(user_input, self.predicted_api_name, api_description, self.API_composite[self.predicted_api_name]['Parameters'],self.API_composite[self.predicted_api_name]['Returns'])
         response, _ = LLM_response(self.llm, self.tokenizer, summary_prompt, history=[], kwargs={})  
         
@@ -607,9 +609,8 @@ class Model:
 
         print("==>Need to collect all parameters for a composite API")
         combined_params = {}
-        for api in relevant_api_list:
-            for api_name, api_details in api.items():
-                combined_params.update(self.API_composite[api_name]['Parameters'])
+        for api in self.api_name_json:
+            combined_params.update(self.API_composite[api]['Parameters'])
         parameters_name_list = [key for key, value in combined_params.items() if (not value['optional']) and (key not in ['path', "Path"])]
         api_parameters_information = change_format(combined_params, parameters_name_list)
         print("==>filter out special type parameters, do not infer them using gpt")
@@ -645,9 +646,9 @@ class Model:
                     success = True
                     break
                 except Exception as e:
-                    [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="API key error: " + str(e),task_title="GPT predict Error",) for callback in self.callbacks]
+                    [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="GPT predict error: " + str(e),task_title="GPT predict Error",) for callback in self.callbacks]
                     self.indexxxx += 1
-                    return
+                    #return # 231130 fix 
             if not success:
                 [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task="GPT can not return valid parameters prediction, please redesign prompt in backend.",task_title="GPT predict Error",) for callback in self.callbacks]
                 self.indexxxx += 1
@@ -656,6 +657,11 @@ class Model:
         # generate api_calling
         print('==>Start generating api_calling')
         self.predicted_api_name, api_calling, self.parameters_info_list = generate_api_calling(self.predicted_api_name, self.API_composite[self.predicted_api_name], response)
+        if len(self.api_name_json)> len(relevant_api_list):
+            #assume_class_API = list(set(list(self.api_name_json.keys()))-set(relevant_api_list))[0]
+            assume_class_API = '.'.join(self.predicted_api_name.split('.')[:-1])
+            tmp_class_predicted_api_name, tmp_class_api_calling, tmp_class_parameters_info_list = generate_api_calling(assume_class_API, self.API_composite[assume_class_API], response)
+            self.parameters_info_list['parameters'].update(tmp_class_parameters_info_list['parameters'])
         
         print('After GPT predicting parameters, now the produced API calling is :', api_calling)
         ####### infer parameters
@@ -666,17 +672,14 @@ class Model:
         # $ param if not fulfilled
         none_dollar_value_params = [param_name for param_name, param_info in self.selected_params.items() if param_info["value"] in ['$']]
         if none_dollar_value_params:
-            print('none_dollar_value_params:', none_dollar_value_params)
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="However, there are still some parameters with special type undefined. Please start from uploading data, or input your query from preprocessing dataset.",task_title="Missing Parameters: special type") for callback in self.callbacks]
             self.indexxxx+=1
             return
         # $ param if multiple choice
         multiple_dollar_value_params = [param_name for param_name, param_info in self.selected_params.items() if ('list' in str(type(param_info["value"]))) and (len(param_info["value"])>1)]
         self.filtered_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (key in multiple_dollar_value_params)}
-        print(f'multiple_dollar_value_params: {multiple_dollar_value_params}\nself.filtered_params: {self.filtered_params}')
         if multiple_dollar_value_params:
             print('==>There exist multiple choice for a special type parameters, start selecting parameters')
-            print(multiple_dollar_value_params)
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task=f"There are many variables match the expected type. Please determine which one to choose",task_title="Choosing Parameters: special type") for callback in self.callbacks]
             self.indexxxx+=1
             tmp_input_para = ""
@@ -695,10 +698,11 @@ class Model:
 
     def get_success_code_with_val(self, val):
         for i in self.executor.execute_code:
-            if i['success'] and val in i['code']:
+            if i['success']=='True' and val in i['code']:
                 return i['code']
-        print('Something wrong with matching special type parameters')
-        raise ValueError
+        [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="Can not find the executed code corresponding to the expected parameters", task_title="Error Enter Parameters: special type",color="red") for callback in self.callbacks]
+        print('Can not find the executed code corresponding to the expected parameters')
+        #raise ValueError
     def run_select_special_params(self, user_input):
         print('==>run_select_special_params')
         if self.last_user_states == "run_select_special_params":
@@ -706,7 +710,6 @@ class Model:
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
         if len(self.filtered_params)>1:
-            print('=>len(self.filtered_params)>1')
             self.last_param_name = list(self.filtered_params.keys())[0]
             candidate_text = ""
             for val in self.selected_params[self.last_param_name]["value"]:
@@ -719,7 +722,6 @@ class Model:
             del self.filtered_params[self.last_param_name]
             return
         elif len(self.filtered_params)==1:
-            print('=>len(self.filtered_params)==1')
             self.last_param_name = list(self.filtered_params.keys())[0]
             candidate_text = ""
             for val in self.selected_params[self.last_param_name]["value"]:
@@ -731,13 +733,14 @@ class Model:
             self.user_states = "run_pipeline_after_select_special_params"
             del self.filtered_params[self.last_param_name]
         else:
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="The parameters candidate list is empty", task_title="Error Enter Parameters: basic type",color="red") for callback in self.callbacks]
             raise ValueError
 
     def run_pipeline_after_select_special_params(self,user_input):
-        print('==>run_pipeline_after_select_special_params')
         if self.last_user_states == "run_select_special_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter_type_special(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         # @ param
+        print('starting entering basic params')
         self.none_at_value_params = [param_name for param_name, param_info in self.selected_params.items() if (param_info["value"] in ['@']) and (param_name not in ['path','Path'])]
         self.filtered_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (value["value"] in ['@']) and (key not in ['path','Path'])}
         self.filtered_pathlike_params = {}
@@ -782,6 +785,8 @@ class Model:
             self.user_states = "run_pipeline_after_entering_params"
             del self.filtered_params[self.last_param_name]
         else:
+            # break out the pipeline
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="The parameters candidate list is empty", task_title="Error Enter Parameters: basic type",color="red") for callback in self.callbacks]
             raise ValueError
     def split_params(self, selected_params, parameters_list):
         extracted_params = []
@@ -818,7 +823,7 @@ class Model:
         # if self.none_at_value_params:
         if self.last_user_states == "run_select_basic_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
-        print('Now run pipeline after entering parameters')
+        print('==>run pipeline after entering parameters')
         self.last_user_states = self.user_states
         self.user_states = "initial"
         self.image_file_list = self.update_image_file_list()
@@ -832,19 +837,19 @@ class Model:
                     "valuefrom": 'userinput',
                     "optional": param_info["optional"],
                 }
-        print('==>selected_params:',self.selected_params)
         # split parameters according to multiple API, or class/method API
         parameters_list = self.extract_parameters(self.api_name_json, self.API_composite)
         extracted_params = self.split_params(self.selected_params, parameters_list)
         extracted_params_dict = {api_name: extracted_param for api_name, extracted_param in zip(self.api_name_json, extracted_params)}
-        print('==>extracted_params_dict:',extracted_params_dict)
         api_params_list = []
         for idx, api_name in enumerate(self.api_name_json):
             if self.api_name_json[api_name]['type']!='class':
+                print('==>assume not start with class API:', api_name)
                 class_selected_params = {}
                 fake_class_api = '.'.join(api_name.split('.')[:-1])
-                if fake_class_api in self.api_name_json and self.api_name_json[fake_class_api]['type']=='class':
-                    class_selected_params = extracted_params_dict[fake_class_api]
+                if fake_class_api in self.api_name_json:
+                    if self.api_name_json[fake_class_api]['type']=='class':
+                        class_selected_params = extracted_params_dict[fake_class_api]
                 if 'inplace' in self.API_composite[api_name]['Parameters']:
                     extracted_params[idx]['inplace'] = {
                         "type": self.API_composite[api_name]['Parameters']['inplace']['type'],
@@ -856,7 +861,6 @@ class Model:
                                         "parameters":extracted_params[idx], 
                                         "return_type":self.API_composite[api_name]['Returns']['type'],
                                         "class_selected_params":class_selected_params})
-        print('==>api_params_list:',api_params_list)
         execution_code = self.executor.generate_execution_code(api_params_list)
         print('==>execution_code:',execution_code)
         [callback.on_tool_start() for callback in self.callbacks]

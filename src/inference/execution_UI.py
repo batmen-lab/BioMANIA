@@ -5,6 +5,8 @@ import importlib
 import json
 import inspect
 import os
+import io
+import sys
 
 class CodeExecutor:
     def __init__(self):
@@ -32,7 +34,7 @@ class CodeExecutor:
             self.variables.update(loaded_vars)
             globals().update(loaded_vars)
     def select_parameters(self, params):
-        print('Start selecting parameters for $!')
+        #print('Start selecting parameters for $!')
         matching_params = {}
         if params:
             for param_name, param_info in params.items():
@@ -45,7 +47,11 @@ class CodeExecutor:
                     }
                 else:
                     param_type_str = param_info["type"]
-                    possible_matches = [var_name for var_name, var_info in self.variables.items() if var_info["type"] in param_type_str] # change from == to in, since there might be Union[a,b]
+                    # 231130 updated, if the parameters type is None, present all variables to choose
+                    if ('Any' in param_type_str) or ('any' in param_type_str) or (param_type_str is None) or (param_type_str in ["None"]):
+                        possible_matches = [var_name for var_name, var_info in self.variables.items() if not var_name.startswith('result_')]
+                    else:
+                        possible_matches = [var_name for var_name, var_info in self.variables.items() if var_info["type"] in param_type_str] # change from == to in, since there might be Union[a,b]
                     if len(possible_matches) == 1:
                         matching_params[param_name] = {
                             "type": param_info["type"],
@@ -73,7 +79,7 @@ class CodeExecutor:
                             "valuefrom": 'userinput',
                             "optional": param_info["optional"],
                         }
-        print('End selecting parameters for $!')
+        #print('End selecting parameters for $!')
         return matching_params
     def makeup_for_missing_parameters(self, params, user_input):
         input_values = user_input.split(' ')
@@ -90,13 +96,13 @@ class CodeExecutor:
                         "optional": param_info["optional"],
                     }
                 except StopIteration:
-                    print(f"Insufficient values provided in user_input for parameter '{param_name}'")
+                    print(f"==?Insufficient values provided in user_input for parameter '{param_name}'")
                     # You might want to handle this error more gracefully, depending on your requirements
         return params
     def makeup_for_missing_single_parameter(self, params, param_name_to_update, user_input, param_spec_type='@'):
         # Check if the given parameter name is valid and its value is '@'
         if param_name_to_update not in params or params[param_name_to_update]["value"] != param_spec_type:
-            print(f"Invalid parameter name '{param_name_to_update}' or the parameter doesn't need a value.")
+            print(f"==?Invalid parameter name '{param_name_to_update}' or the parameter doesn't need a value.")
             return params
         param_info = params[param_name_to_update]
         value = user_input  # Since user_input is for a single parameter, we directly use it
@@ -113,7 +119,7 @@ class CodeExecutor:
     def makeup_for_missing_single_parameter_type_special(self, params, param_name_to_update, user_input):
         # Check if the given parameter name is valid and its value is list type
         if param_name_to_update not in params or ('list' not in str(type(params[param_name_to_update]["value"]))):
-            print(f"Invalid parameter name '{param_name_to_update}' or the parameter doesn't have multiple choice.")
+            print(f"==?Invalid parameter name '{param_name_to_update}' or the parameter doesn't have multiple choice.")
             return params
         param_info = params[param_name_to_update]
         value = user_input  # Since user_input is for a single parameter, we directly use it
@@ -128,7 +134,7 @@ class CodeExecutor:
         }
         return params
     def get_import_code(self, api_name):
-        print(f'==>start importing code for {api_name}')
+        #print(f'==>start importing code for {api_name}')
         if '.' not in api_name:
             return "", 'function'
         try:
@@ -148,7 +154,7 @@ class CodeExecutor:
                     return f"from {module_name} import {attr_name}", type_name
             except ModuleNotFoundError:
                 continue
-        print(f"# Error: Could not generate import code for {api_name}")
+        print(f"==?# Error: Could not generate import code for {api_name}")
         return "", ""
     def format_value(self, value, value_type):
         if "str" in value_type:
@@ -194,24 +200,30 @@ class CodeExecutor:
         import_code, type_api = self.get_import_code(api_name)
         if import_code in [i['code'] for i in self.execute_code if i['code_type']=='import' and i['success']=='True']:
             # if already imported
-            print('api already imported!')
+            print('==>api already imported!')
             pass
         else:
-            print('api not imported, import now!')
-            print(import_code)
+            print('==>api not imported, import now!')
+            print("==>import_code", import_code)
             tmp_result = self.execute_api_call(import_code, "import")
             if tmp_result:
-                print(f'Error during importing of api calling! {tmp_result}')
+                print(f'==?Error during importing of api calling! {tmp_result}')
         api_parts = api_name.split('.')
         # Convert the parameters to the format 'param_name=param_value' or 'param_value' based on optionality
         params_formatted = self.format_arguments(selected_params)
-        if class_selected_params:
-            class_params_formatted = self.format_arguments(class_selected_params)
-        # Class type API need to be initialized first, then used
+        class_params_formatted = self.format_arguments(class_selected_params)
+        print('class_params_formatted:', class_params_formatted)
+        """if class_selected_params:
+            print('class_selected_params:',class_selected_params)
+            #class_params_formatted = self.format_arguments(class_selected_params)
+        else:
+            print('no class_selected_params:')"""
         if type_api == "class":
+            print('==>Class type API need to be initialized first, then used')
             # double check for API type
             if not class_selected_params:
-                raise ValueError
+                print('==>?No class_selected_params')
+                #raise ValueError
             final_api_name = api_parts[-1]
             maybe_class_name = api_parts[-2]
             maybe_instance_name = maybe_class_name.lower() + "_instance"
@@ -223,6 +235,7 @@ class CodeExecutor:
                 api_call += f"{maybe_instance_name}.{final_api_name}({params_formatted})"
             class_API = maybe_instance_name
         else:
+            print('==>no Class type API')
             final_api_name = api_parts[-1]
             api_call = f"{final_api_name}({params_formatted})"
         # generate return information
@@ -249,7 +262,7 @@ class CodeExecutor:
                 result_variable = self.variables[result_name_tuple]
                 # Check if the variable is a tuple
                 if 'tuple' in str(type(result_variable['value'])):
-                    print('==>indeed split tuple variables!')
+                    print('==>start split tuple variables!')
                     length = len(result_variable['value'])
                     new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
                     new_code = ', '.join(new_variables) + f" = {result_name_tuple}"
@@ -257,14 +270,19 @@ class CodeExecutor:
                     self.execute_api_call(last_code['code']+'\n'+new_code, last_code['code_type'])
                     # Update the count
                     self.counter += length
-                    print(f'==>generate new code: {new_code}')
+                    #print(f'==>generate new code: {new_code}')
         else:
             pass
 
     def execute_api_call(self, api_call_code, code_type):
         try:
             globals_before = set(globals().keys())
+            original_stdout = sys.stdout 
+            captured_output = io.StringIO()  
+            sys.stdout = captured_output
             exec(api_call_code, globals())
+            sys.stdout = original_stdout
+            captured_output_value = captured_output.getvalue()
             globals_after = set(globals().keys())
             new_vars = globals_after - globals_before
             for var_name in new_vars:
@@ -274,11 +292,14 @@ class CodeExecutor:
                     "type": var_type,
                     "value": var_value
                 }
+            # if the code can be executed but lead to error, it will not show in the exception
+            if "Error" in captured_output_value:
+                return captured_output_value
             self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'True', 'error':''})
-            return ''
+            return ""
         except Exception as e:
             error = f"{e}"
-            print('error in execute api call:', error)
+            print('==?error in execute api call:', error)
             self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'False', 'error': error})
             return error
     def save_variables_to_json(self):
@@ -299,18 +320,18 @@ class CodeExecutor:
     def execute_one_pass(self, api_info):
         api_name = api_info['api_name']
         params = api_info['parameters']
-        print('Automatically/Manually Selected params for $:')
+        class_selected_params = api_info['class_selected_params']
+        #print('==>Automatically/Manually Selected params for $:')
         selected_params = self.select_parameters(params)
-        # TODO: modify the selected_params, there exist multiple possible_Choices, need to fix one.
-        print('After selecting parameters: ', selected_params)
+        print('==>After selecting parameters: ', selected_params)
         none_value_params = [param_name for param_name, param_info in selected_params.items() if param_info["value"] in ['@']]
         if none_value_params:
-            print("Parameters @ with value unassigned are:", none_value_params)
+            print("==>Parameters @ with value unassigned are:", none_value_params)
             selected_params = self.makeup_for_missing_parameters(selected_params, 'user_input_placeholder')
-            print('After Entering parameters: ', selected_params)
+            print('==>After Entering parameters: ', selected_params)
         return_type = api_info['return_type']
         api_params_list = [{"api_name":api_name, 
-                            "class_selected_params":selected_params, 
+                            "class_selected_params":class_selected_params, 
                             "return_type":return_type,
                             "parameters":api_info['parameters']}]
         execution_code = self.generate_execution_code(api_params_list)
@@ -318,6 +339,7 @@ class CodeExecutor:
         execution_code_list = execution_code.split('\n')
         for code in execution_code_list:
             self.execute_api_call(code, "code")
+            #self.split_tuple_variable()
     
 if __name__=='__main__':
     # Step 1: Provide the complete test_apis list
@@ -344,12 +366,14 @@ if __name__=='__main__':
                     "optional":False,
                 },
                 },
-            "return_type": "tuple"
+            "return_type": "tuple",
+            "class_selected_params":{}
         },
         {
             "api_name": "sklearn.datasets.load_iris",
             "parameters": {},
-            "return_type": "tuple"
+            "return_type": "tuple",
+            "class_selected_params":{}
         },
         {
             "api_name": "sklearn.preprocessing.StandardScaler.fit_transform",
@@ -357,11 +381,25 @@ if __name__=='__main__':
                 "X": {
                     "type": "ndarray",
                     "description": "Data to scale",
-                    "value": "$",
+                    "value": "data",
                     "optional":False,
                 }
             },
-            "return_type": "ndarray"
+            "return_type": "ndarray",
+            "class_selected_params":{
+                "copy":{
+                    "type": "bool",
+                    "description": "copy",
+                    "value": "True",
+                    "optional":True,
+                },
+                "with_std":{
+                    "type": "bool",
+                    "description": "with_std",
+                    "value": "True",
+                    "optional":True,
+                }
+            }
         },
         {
             "api_name": "sklearn.decomposition.PCA.fit_transform",
@@ -369,13 +407,22 @@ if __name__=='__main__':
                 "X": {
                     "type": "ndarray",
                     "description": "Data to transform",
-                    "value": "$",
+                    "value": "data",
                     "optional":False,
                 }
             },
-            "return_type": "ndarray"
-        },
-        {
+            "return_type": "ndarray",
+            "class_selected_params":{
+                "n_components":{
+                    "type":"int",
+                    "description":"n_components",
+                    "value":"2",
+                    "optional":False,
+                }
+            }
+        }
+    ]
+    '''{
             "api_name": "sklearn.model_selection.train_test_split",
             "parameters": {
                 "X": {
@@ -470,8 +517,7 @@ if __name__=='__main__':
                 }
             },
             "return_type": "None"
-        }
-    ]
+    }'''
     ##########
     # Initializing executor
     executor = CodeExecutor()
@@ -482,12 +528,14 @@ if __name__=='__main__':
     executor.execute_api_call("labels = np.array([0, 1, 0])", "code")
     for api_info in test_apis:
         executor.execute_one_pass(api_info)
-        executor.split_tuple_variable()
     print('-'*10)
     print('Current variables in namespace:')
     print(json.dumps(str(executor.variables)))
     print('All successfully executed code:')
-    #print('code:    success or not:')
+    print('='*10)
+    print('='*10)
+    print('='*10)
+    print('code:    success or not:')
     for i in executor.execute_code:
         if i['success']=='True':
             print(i['code'])
