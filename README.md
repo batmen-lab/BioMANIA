@@ -1,11 +1,8 @@
-<div align="center" style="display: flex; justify-content: center; align-items: center;">
+<div align="center" style="display: flex; align-items: center; justify-content: center;">
   <a href="https://github.com/batmen-lab/BioMANIA" target="_blank">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="./images/BioMANIA.png" style="width: 80px; margin-right: 10px;">
-      <img alt="BioMANIA Logo" src="./images/BioMANIA.png" style="width: 80px; margin-right: 10px;">
-    </picture>
+    <img src="./images/BioMANIA.png" alt="BioMANIA Logo" style="width: 80px; height: auto; margin-right: 10px;">
   </a>
-  <h1 style="margin: 0;">BioMANIA</h1>
+  <h1 style="margin: 0; white-space: nowrap;">BioMANIA</h1>
 </div>
 
 <p align="center">
