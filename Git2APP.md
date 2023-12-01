@@ -157,26 +157,23 @@ from typing import Union
 import pandas as pd
 from your_module import TreeNode
 
-def compute_gini_gain(dataset: Union[pd.DataFrame, list], node: TreeNode) -> float:
-		"""
-    Calculate the Gini gain of a given dataset and node using a decision tree classifier.
-
-    :param dataset: The dataset for which Gini gain needs to be calculated.
-    :param node: The specific node in the decision tree being evaluated.
-    :return: Returns the calculated Gini gain for the given node in the dataset.
+def add(a:int, b:int) -> int:
     """
-    dt = DecisionTreeClassifier(criterion='gini', max_depth=1)
-    node_values = node_value(dataset, node)
-    dt.fit(node_values.values.reshape(-1, 1), dataset.y)
-    impurity_before_split = dt.tree_.impurity[0]
-    impurity_left_child = dt.tree_.impurity[1]
-    impurity_right_child = dt.tree_.impurity[2]
-    n_node_samples = dt.tree_.n_node_samples
-    
-    gini_before = impurity_before_split
-    gini_after = (n_node_samples[1]/n_node_samples[0])*impurity_left_child + (n_node_samples[2]/n_node_samples[0])*impurity_right_child
-    gini_gain = gini_before - gini_after
-    return gini_gain
+    Compute the sum of two integers.
+
+    Parameters:
+    -----------
+    a : int
+        The first integer.
+    b : int
+        The second integer.
+
+    Returns:
+    --------
+    int
+        The sum of `a` and `b`.
+    """
+    return a + b
 ```
 
 You can refer to the prompts available in [BioMANIA](https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1) to add the function body, or either using the [prompt](./src/Git2APP/get_API_docstring_from_sourcecode.py) that modified based on that.
@@ -243,5 +240,12 @@ Be mindful of the capitalization in library names, as it affects the recognition
 Follow the steps in [`Run with script/Inference`](README.md#inference) section in `README` to start UI service. Don’t forget to set an OpenAI key in `.env` file as recommended in `README`.
 
 Remember to update the app's accordingly to your repository improvements.
+
+**Tips: Currently, we do not support real-time communication. Therefore, if there is content that requires a long time to run, such as training a model, it is best to train only one epoch per inquiry. We might plan to support real-time display of results in the near future.**
+
+### 2.4 Share your APP!
+
+Follow the steps in [`Share your APP`](README.md#share-your-app) section in `README` to introduce your tool to others!
+
 
 I hope this tutorial helps you create your BioMANIA app with your GitHub-hosted package. If you have any further questions or need assistance with specific steps, feel free to ask!

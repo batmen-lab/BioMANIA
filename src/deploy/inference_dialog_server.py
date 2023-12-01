@@ -221,7 +221,8 @@ class Model:
             if len(parts)>=3: # only work for path containing LIB, otherwise, please reenter the path in script
                 if not parts[-1]:
                     parts = parts[:-1]
-                new_path = '/'.join(parts)
+            parts[-2]= lib_name
+            new_path = '/'.join(parts)
             retrieval_model_path = new_path
             print('load retrieval_model_path in: ', retrieval_model_path)
             self.retriever = ToolRetriever(LIB=lib_name,corpus_tsv_path=f"./data/standard_process/{lib_name}/retriever_train_data/corpus.tsv", model_path=retrieval_model_path)
@@ -230,8 +231,8 @@ class Model:
             self.executor.execute_api_call(f"import {lib_name}", "import")
             # pyteomics tutorial needs these import libs
             self.executor.execute_api_call(f"import os, gzip, numpy as np, matplotlib.pyplot as plt", "import")
-            self.executor.execute_api_call(f"from urllib.request import urlretrieve", "import")
-            self.executor.execute_api_call(f"from pyteomics import fasta, parser, mass, achrom, electrochem, auxiliary", "import")
+            #self.executor.execute_api_call(f"from urllib.request import urlretrieve", "import")
+            #self.executor.execute_api_call(f"from pyteomics import fasta, parser, mass, achrom, electrochem, auxiliary", "import")
             self.executor.execute_api_call(f"import numpy as np", "import")
             self.executor.execute_api_call(f"np.seterr(under='ignore')", "import")
             self.executor.execute_api_call(f"import warnings", "import")
@@ -875,20 +876,21 @@ class Model:
         sys.stderr = self.buf
         # execute and obtain figures
         for code in execution_code_list:
-            error_list.append(self.executor.execute_api_call(code, "code"))
+            #print(f'start executing code: {code}')
+            ans = self.executor.execute_api_call(code, "code")
+            if ans:
+                error_list.append(ans)
             if plt.get_fignums()!=self.plt_status:
                 error_list.append(self.executor.execute_api_call("from inference.utils import save_plot_with_timestamp", "import"))
                 error_list.append(self.executor.execute_api_call("save_plot_with_timestamp()", "code"))
                 self.plt_status = plt.get_fignums()
             else:
                 pass
-        # split tuple variable into individual variables
-        self.executor.split_tuple_variable() # This function verifies whether the new variable is a tuple.
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
+        content = self.buf.getvalue()
         # print the new variable 
         if self.executor.execute_code[-1]['success']=='True':
-            sys.stdout = sys.__stdout__
-            sys.stderr = sys.__stderr__
-            content = self.buf.getvalue()
             # if execute, visualize value
             code = self.executor.execute_code[-1]['code']
             vari = [i.strip() for i in code.split('(')[0].split('=')]
@@ -899,7 +901,7 @@ class Model:
                 #if self.executor.variables[vari[0]]['value'] is not None:
                 if True:
                     #print('if vari value is not None, return it')
-                    [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Execute success. We obtain a new " + str(self.executor.variables[vari[0]]['value']),task_title="Executed results [Success]",) for callback in self.callbacks]
+                    [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We obtain a new variable: " + str(self.executor.variables[vari[0]]['value']),task_title="Executed results [Success]",) for callback in self.callbacks]
                     self.indexxxx+=1
                 if self.executor.variables[vari[0]]['type']=='AnnData':
                     print('if the new variable is of type AnnData, ')
@@ -944,11 +946,19 @@ class Model:
                         self.indexxxx += 1
                         tips_for_execution_success = False
             self.image_file_list = new_img_list
-            if tips_for_execution_success:
+            if tips_for_execution_success: # if no output, no new variable, present the log
                 [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=str(content),task_title="Executed results [Success]",) for callback in self.callbacks]
                 self.indexxxx+=1
         else:
-            [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Execution failed! "+"".join(error_list),task_title="Executed results [Fail]",) for callback in self.callbacks]
+            print(f'Execution Error: {content}')
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=""+"".join(error_list),task_title="Executed results [Fail]",) for callback in self.callbacks] # Execution failed! 
+            self.indexxxx+=1
+        # split tuple variable into individual variables
+        ans, new_code = self.executor.split_tuple_variable() # This function verifies whether the new variable is a tuple.
+        if ans:
+            [callback.on_agent_action(block_id="code-"+str(self.indexxxx),task=new_code,task_title="Executed code",) for callback in self.callbacks]
+            self.indexxxx+=1
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="",task_title="Executed results [Success]",) for callback in self.callbacks]
             self.indexxxx+=1
         print("Show current variables in namespace:" + str(self.executor.variables))
         new_str = []

@@ -41,7 +41,7 @@ Tips:
 - We have implemented switching different libraries inside one dialog. You can 
 - Notice that the inference speed depends on OpenAI key and back-end device. A paid OpenAI key and running back-end on GPU will speed up the inference quite a lot!
 - All uploaded files are saved under `./tmp` folder. Please enter `./tmp/`+your_file_name when the API requires filename parameters.
-- It will be quite slow if the file for transmission is too large.
+- It will be quite slow if the file for transmission is large. If the file transfer is too large, you may encounter the following issue: "JavaScript heap memory exhaustion caused by excessive memory usage or memory leaks in the program.". **You can copy the file under `src/tmp/` folder directly.**
 
 > **This has only one backend, which may lead to request confusion when multiple users request simultaneously. The stability of the operation is affected by the device's network. When it runs on the CPU, switching between different libraries takes about half a minute to load models and data. We recommend prioritizing running it locally with GPU, which takes only about 3 seconds to switch between different libraries!**
 
@@ -306,6 +306,7 @@ python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
 7. Fine-tune the retriever.
 You can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
 ```bash
+export LIB=scanpy
 CUDA_VISIBLE_DEVICES=0
 mkdir ./hugging_models/retriever_model_finetuned/${LIB}
 python models/train_retriever.py \
@@ -346,7 +347,7 @@ test the inference performance using:
 ```bash 
 export LIB=scanpy
 export HUGGINGPATH=./hugging_models
-CUDA_VISIBLE_DEVICES=1
+CUDA_VISIBLE_DEVICES=0
 python inference/retriever_finetune_inference.py  \
     --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
     --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
@@ -472,6 +473,32 @@ python report/Py2report.py scanpy
 
 The output files are located in the ./report folder.
 
+
+## Share your APP!
+
+If you want to share your APP to others, there are two ways.
+
+### Share docker
+
+You can build docker and push to dockerhub, and share your docker image url in [our issue](https://github.com/batmen-lab/BioMANIA/issues/2).
+```bash
+# cd BioMANIA
+docker build -t [docker_image_name] -f Dockerfile ./
+# run on cpu
+docker run -e OPENAI_API_KEY=[your_OPENAI_API_KEY] -d -p 3000:3000 [docker_image_name]
+# (optional)run on cuda
+docker run -e OPENAI_API_KEY=[your_OPENAI_API_KEY] --gpus all -d -p 3000:3000 [docker_image_name]
+# (optional)push to docker
+docker push [your_docker_repo]/[docker_image_name]:[tag]
+```
+
+Notice if you want to include some data inside the docker, please modify the `Dockerfile` carefully to copy the folders to `/app`. Also add your PyPI or Git pip install url to the `requirements.txt` before your packaging for docker.
+
+### Share data/models
+
+You can just share your `data` and `hugging_models` folder and `logo` image by drive link to [our issue](https://github.com/batmen-lab/BioMANIA/issues/2).
+
+
 ## Reference and Acknowledgments
 
 We extend our gratitude to the following references:
@@ -494,6 +521,13 @@ report/Py2report.py
 ```
 
 ## Version History
+- v1.1.8 (comming soon)
+- v1.1.7 (2023-11-30)
+  - Added [SONATA tutorial](./demo/sonata_SNARE_seq.html) and [MIOSTONE tutorial](./demo/MIOSTONE_IBD200.html) to showcase tool usage. Upload data and pretrained models onto [drive](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).
+  - Fixed bug in class-type APIs that caused errors when using methods. Methods can now be called and used correctly.
+  - Resolved program exit issue without error throw. Errors are now handled properly with relevant error messages displayed.
+  - Addressed retriever loading issue for specific tools. Indivdual retrievers can now be loaded and utilized correctly for each tool.
+  - Enhance Robustness for basic type parameters. When entering `result_*` for basic type parameters, it will show `result_*` instead of `"result_*"` even it is of `str` type.
 - v1.1.6 (2023-11-27)
   - Support sharing your APP and install others' APP through [our issue](https://github.com/batmen-lab/BioMANIA/issues/2)!
   - Enhance code robustness: 

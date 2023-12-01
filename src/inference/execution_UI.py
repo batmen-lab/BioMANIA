@@ -157,6 +157,11 @@ class CodeExecutor:
         print(f"==?# Error: Could not generate import code for {api_name}")
         return "", ""
     def format_value(self, value, value_type):
+        try:
+            if str(value).strip().startswith('result_'):
+                return str(value)
+        except:
+            pass
         if "str" in value_type:
             value = str(value).strip()
             if value.startswith("("): # if user input tuple parameters, return directly
@@ -251,6 +256,7 @@ class CodeExecutor:
             self.generate_code.append(f"{api_call}")
             return import_code+'\n'+f"{api_call}"
     def split_tuple_variable(self, ):
+        print('==>start split_tuple_variable')
         # generate splitting code if the results is a tuple
         # split result_n into result_n+1, reuslt_n+2, result_n+3 = result_n
         if self.execute_code[-1]['success']:
@@ -267,10 +273,45 @@ class CodeExecutor:
                     new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
                     new_code = ', '.join(new_variables) + f" = {result_name_tuple}"
                     # execute new api call
-                    self.execute_api_call(last_code['code']+'\n'+new_code, last_code['code_type'])
+                    print('==>for split_tuple_variable, execute code: ', last_code['code']+'\n'+new_code)
+                    self.execute_api_call(new_code, last_code['code_type'])
                     # Update the count
                     self.counter += length
-                    #print(f'==>generate new code: {new_code}')
+                    return True, new_code
+        else:
+            pass
+            return False, ""
+    def get_max_result_from_variable_list(self, result_name_list):
+        max_value = float('-inf')
+        max_variable = None
+        for variable in result_name_list:
+            if variable.startswith('result_'):
+                variable_number = int(variable.split('_')[1])
+                if variable_number > max_value:
+                    max_value = variable_number
+                    max_variable = variable
+            else:
+                pass
+        return max_variable
+    
+    def split_tuple_variable_from_variables(self, ):
+        # generate splitting code if the results is a tuple
+        # split result_n into result_n+1, reuslt_n+2, result_n+3 = result_n
+        current_max_result_variable_name = self.get_max_result_from_variable_list(list(self.variables.keys()))
+        if current_max_result_variable_name: # if exist result_* variable in namespace
+            # Extract the variable name that starts with 'result'
+            current_max_result_variable = self.variables[current_max_result_variable_name]
+            # Check if the variable is a tuple
+            if 'tuple' in str(type(current_max_result_variable['value'])):
+                print('==>start split tuple variables!')
+                length = len(current_max_result_variable['value'])
+                new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
+                new_code = ', '.join(new_variables) + f" = {current_max_result_variable_name}"
+                # execute new api call
+                print('==>for split_tuple_variable, execute code: ', new_code)
+                self.execute_api_call(new_code, 'code')
+                # Update the count
+                self.counter += length
         else:
             pass
 
@@ -296,7 +337,7 @@ class CodeExecutor:
             if "Error" in captured_output_value:
                 return captured_output_value
             self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'True', 'error':''})
-            return ""
+            return captured_output_value
         except Exception as e:
             error = f"{e}"
             print('==?error in execute api call:', error)
