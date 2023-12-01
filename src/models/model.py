@@ -1,15 +1,11 @@
 from configs.model_config import *
 from langchain.llms import OpenAI
-from langchain import HuggingFaceHub
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.chat_models import ChatOpenAI
 import openai
-from transformers import LlamaForCausalLM, LlamaTokenizer, AutoTokenizer, AutoModel, AutoModelForCausalLM, BitsAndBytesConfig, LlamaTokenizer, StoppingCriteria, StoppingCriteriaList, TextIteratorStreamer
+from transformers import AutoTokenizer, AutoModel
 import torch
-from peft import PeftModel,get_peft_model, LoraConfig, TaskType, prepare_model_for_int8_training
-
 
 def create_peft_config(model):
+    from peft import get_peft_model, LoraConfig, TaskType, prepare_model_for_int8_training
     peft_config = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
         inference_mode=False,
@@ -31,9 +27,15 @@ def LLM_model(local=True):
     https://huggingface.co/models?pipeline_tag=text-generation&sort=downloads
     """
     if llm_model_dict[LLM_MODEL]['platform']=='OPENAI':
+        from gpt import gpt_interface
+        gpt_interface.setup_openai('', mode='openai')
+        llm = None
+        tokenizer = None
+    elif llm_model_dict[LLM_MODEL]['platform']=='OPENAI':# 231201 deprecate
         llm = OpenAI(temperature=TEMPERATURE,model_name='gpt-3.5-turbo-16k')
         tokenizer = None
     elif llm_model_dict[LLM_MODEL]['platform']=='GORILLA':
+        from langchain.chat_models import ChatOpenAI
         openai.api_key = "EMPTY" # Key is ignored and does not matter
         openai.api_base = "http://34.132.127.197:8000/v1"
         llm = ChatOpenAI(model_name=LLM_MODEL, temperature=TEMPERATURE)
@@ -46,10 +48,13 @@ def LLM_model(local=True):
             llm = AutoModel.from_pretrained(LLM_MODEL, trust_remote_code=True, cache_dir=HUGGINGPATH).half().to(LLM_DEVICE)
         llm = llm.eval()
     elif llm_model_dict[LLM_MODEL]['platform']=='HUGGINGFACEHUB':
+        from langchain import HuggingFaceHub
         # TODO: not supported by langchain yet
         llm = HuggingFaceHub(repo_id=LLM_MODEL, model_kwargs={"temperature": TEMPERATURE, "max_length": 2000})
         tokenizer = None
     elif llm_model_dict[LLM_MODEL]['platform']=='PEFT' and LLM_MODEL=='QLoRA':
+        from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+        from peft import PeftModel
         # QLora: https://colab.research.google.com/drive/17XEqL1JcmVWjHkT-WczdYkJlNINacwG7?usp=sharing#scrollTo=2QK51MtdsMLu
         model_name = "huggyllama/llama-7b"
         adapters_name = 'timdettmers/guanaco-7b'
@@ -69,6 +74,7 @@ def LLM_model(local=True):
         llm = PeftModel.from_pretrained(model, adapters_name)
         tokenizer = AutoTokenizer.from_pretrained(model_name)
     elif llm_model_dict[LLM_MODEL]['platform']=='PEFT' and LLM_MODEL=='llama-2-7b-chat-hf':
+        from transformers import LlamaForCausalLM, LlamaTokenizer
         tokenizer = LlamaTokenizer.from_pretrained(llm_model_dict[LLM_MODEL]['LOCALPATH'])
         model = LlamaForCausalLM.from_pretrained(
             llm_model_dict[LLM_MODEL]['LOCALPATH'],
@@ -87,6 +93,11 @@ def LLM_response(llm,tokenizer,chat_prompt,history=[],kwargs={}):
     get response from LLM
     """
     if llm_model_dict[LLM_MODEL]['platform'] in ['OPENAI']:
+        from gpt import gpt_interface
+        gpt_interface.setup_openai('', mode='openai')
+        response = gpt_interface.query_openai(chat_prompt, mode="openai", model="gpt-3.5-turbo-16k", max_tokens=MAX_NEW_TOKENS)
+        history.append([chat_prompt, response])
+    elif llm_model_dict[LLM_MODEL]['platform'] in ['OPENAI']: # 231201_deprecate
         response = llm.predict(chat_prompt)
         history.append([chat_prompt, response])
     elif llm_model_dict[LLM_MODEL]['platform'] in ['HUGGINGFACE']:
@@ -103,12 +114,13 @@ def LLM_response(llm,tokenizer,chat_prompt,history=[],kwargs={}):
     return response, history
 
 def embedding_model():
+    from langchain.embeddings import OpenAIEmbeddings
     embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
     return embeddings
 
 if __name__=='__main__':
    llm, tokenizer =LLM_model()
    prompt = "hello"
-   response = LLM_response(llm,tokenizer,prompt)
+   response, history = LLM_response(llm,tokenizer,prompt)
    print(f'User: {prompt}')
    print(f'LLM: {response}')

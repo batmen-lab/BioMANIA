@@ -14,6 +14,7 @@ def setup_openai(fname, mode='azure'):
         openai.api_type = "open_ai"
         openai.api_base = "https://api.openai.com/v1"
         openai.api_key = OPENAI_API_KEY
+        secrets = None
     else:
         #openai.api_version = "2023-03-15-preview"
         with open(fname) as f:

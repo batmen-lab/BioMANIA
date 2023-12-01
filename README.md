@@ -1,9 +1,12 @@
-
-<h1 align="center">BioMANIA</h1> 
-
-<p align="center">
-  <img src=./images/BioMANIA.png width="150" height="150">
-</p>
+<div align="center" style="display: flex; justify-content: center; align-items: center;">
+  <a href="https://github.com/batmen-lab/BioMANIA" target="_blank">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="./images/BioMANIA.png" style="width: 80px; margin-right: 10px;">
+      <img alt="BioMANIA Logo" src="./images/BioMANIA.png" style="width: 80px; margin-right: 10px;">
+    </picture>
+  </a>
+  <h1 style="margin: 0;">BioMANIA</h1>
+</div>
 
 <p align="center">
   <a target="_blank" href="https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1">
@@ -137,7 +140,7 @@ pip install -r requirements.txt --index-url https://pypi.org/simple
 
 - For inference purposes, a standard OpenAI API key is sufficient.
 - If you intend to use functionalities such as instruction generation or GPT API predictions, a paid OpenAI account is required as it may reach rate limit. 
-- Feel free to switch the `model_name='gpt-3.5-turbo-16k'` to `gpt-4` in `src/models/model.py` if you want.
+- **Feel free to switch to `model_name='gpt-3.5-turbo-16k'` or `gpt-4` in `src/models/model.py` if you want.**
 
 ### Prepare for Data and Model
 Download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link) or [Baidu Drive link](https://pan.baidu.com/s/1AZgKRfptrUTI3L2YbZwHww?pwd=36fi). For those library data, you can download only the one you need.
@@ -286,7 +289,7 @@ cp -r ./data/standard_process/${LIB}/API_init.json ./data/standard_process/${LIB
 
 4. Following this, create instructions, generate various JSON files, and split the data.
 ```bash
-python dataloader/preprocess_retriever_data.py --concurrency 200 --LIB ${LIB}
+python dataloader/preprocess_retriever_data.py --LIB ${LIB}
 ```
 
 Tips:
@@ -368,6 +371,8 @@ python inference/retriever_finetune_inference.py  \
     --retrieved_api_nums 3 \
     --LIB ${LIB}
 ```
+
+You can refer to `src/plot/${LIB}/error_train.json` for detailed error case.
 
 8. Test api name prediction using either the gpt baseline or the classification model.
 
@@ -522,12 +527,13 @@ report/Py2report.py
 
 ## Version History
 - v1.1.8 (comming soon)
-- v1.1.7 (2023-11-30)
+- v1.1.7 (2023-12-01)
   - Added [SONATA tutorial](./demo/sonata_SNARE_seq.html) and [MIOSTONE tutorial](./demo/MIOSTONE_IBD200.html) to showcase tool usage. Upload data and pretrained models onto [drive](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).
   - Fixed bug in class-type APIs that caused errors when using methods. Methods can now be called and used correctly.
   - Resolved program exit issue without error throw. Errors are now handled properly with relevant error messages displayed.
   - Addressed retriever loading issue for specific tools. Indivdual retrievers can now be loaded and utilized correctly for each tool.
   - Enhance Robustness for basic type parameters. When entering `result_*` for basic type parameters, it will show `result_*` instead of `"result_*"` even it is of `str` type.
+  - Fix bug of `secrets` variable in `src/gpt/gpt_interface.py`. Change the way to call OpenAI from langchain to OpenAI lib in `models/model.py`
 - v1.1.6 (2023-11-27)
   - Support sharing your APP and install others' APP through [our issue](https://github.com/batmen-lab/BioMANIA/issues/2)!
   - Enhance code robustness: 
