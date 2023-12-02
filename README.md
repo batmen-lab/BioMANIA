@@ -30,7 +30,7 @@ Importantly, this README primarily supports the conversion of PyPI tools. We als
 
 Our demonstration showcases how to utilize a chatbot to simultaneously use scanpy and squidpy in a single conversation, including loading data, invoking functions for analysis, and presenting outputs in the form of code, images, and tables
 
-<img src="demo/video_demo.gif" style="width:800px;height:460px;animation: play 0.25s steps(10) infinite;">
+<img src="examples/video_demo.gif" style="width:800px;height:460px;animation: play 0.25s steps(10) infinite;">
 
 ## Web access online demo
 
@@ -189,7 +189,7 @@ By meticulously following the steps above, you'll have all the essential data an
 
 We provide data and pre-trained models for available tools mentioned in our paper. For experimenting with more libraries, use our library installation service.
 
-We also offer some demo chat, you can find them in [`./demo`](https://github.com/batmen-lab/BioMANIA/blob/main/demo) and use `import data` button to visualize it in chatbot UI. Notice that these demo chat are converted from the PyPI readthedoc tutorials. You can check the original tutorial link through the `tutorial_links.txt`.
+We also offer some demo chat, you can find them in [`./examples`](https://github.com/batmen-lab/BioMANIA/blob/main/examples) and use `import data` button to visualize it in chatbot UI. Notice that these demo chat are converted from the PyPI readthedoc tutorials. You can check the original tutorial link through the `tutorial_links.txt`.
 
 ![](./images/demo_full.jpg)
 
@@ -291,7 +291,7 @@ python dataloader/preprocess_retriever_data.py --LIB ${LIB}
 
 Tips:
 - The automatically generated API_inquiry_annotate.json do not have human annotated data here, you need to annotate the API_inquiry_annotate.json by yourself if you want to test performance on human annotate data.
-- Adjust the maximum concurrency according to the rate limit of OpenAI account. The time cost is related with the total number of APIs in the lib and the OpenAI account.
+- The time cost is related with the total number of APIs in the lib and the OpenAI account.
 
 5. Train the api/non-api classification model.
 ```bash
@@ -523,9 +523,11 @@ report/Py2report.py
 ```
 
 ## Version History
-- v1.1.8 (comming soon)
+- v1.1.8 (2023-12-02)
+  - Build a Docker image for each library. Detailed tools list supported are available [here](https://hub.docker.com/repositories/chatbotuibiomania).
+
 - v1.1.7 (2023-12-01)
-  - Added [SONATA tutorial](./demo/sonata_SNARE_seq.html) and [MIOSTONE tutorial](./demo/MIOSTONE_IBD200.html) to showcase tool usage. Upload data and pretrained models onto [drive](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).
+  - Added [SONATA tutorial](./examples/sonata_SNARE_seq.html) and [MIOSTONE tutorial](./examples/MIOSTONE_IBD200.html) to showcase tool usage. Upload data and pretrained models onto [drive](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).
   - Fixed bug in class-type APIs that caused errors when using methods. Methods can now be called and used correctly.
   - Resolved program exit issue without error throw. Errors are now handled properly with relevant error messages displayed.
   - Addressed retriever loading issue for specific tools. Indivdual retrievers can now be loaded and utilized correctly for each tool.
@@ -549,7 +551,7 @@ report/Py2report.py
 - v1.1.3 (2023-11-20)
   - Support web access on our server. Provide data/models for 12 tools mentioned in our paper through drive link.
   - Upload Composite API generation related codes.
-  - Add demo chat for these tools under `BioMANIA/demo`.
+  - Add demo chat for these tools under `BioMANIA/examples`.
   - Support manually set maximum concurrency for bulk instruction generation, added a visualization bar.
 - v1.1.2 (2023-11-17)
   - Release docker v1.1.2 with support for 8 PyPI bio tools. We will release more libs in a later version.
