@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+FROM nvidia/cuda:12.1.0-base-ubuntu22.04
 
 # Install Python and Node.js dependencies
 RUN apt-get update && apt-get install -y \
@@ -8,7 +8,8 @@ RUN apt-get update && apt-get install -y \
     net-tools \
     iputils-ping \
     curl \
-    git
+    git \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Conda
 RUN curl -sLo /miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \

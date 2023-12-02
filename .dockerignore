@@ -1,2 +1,3 @@
 ./src/configs/secrets.json
 ./src/.env
+./chatbot_ui_biomania/node_modules/*

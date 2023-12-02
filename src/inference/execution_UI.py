@@ -17,6 +17,7 @@ class CodeExecutor:
         self.api_execution_count = 0  # Counter for executed APIs
         self.counter = 0
         self.callbacks = []
+        self.session_id = ""
     def is_picklable(self, obj):
         """Check if an object is picklable."""
         try:
@@ -24,15 +25,24 @@ class CodeExecutor:
             return True
         except Exception:
             return False
-    def save_environment(self, env_name="environment.pkl") -> None:
-        serializable_vars = {k: v for k, v in self.variables.items() if isinstance(v, (pd.DataFrame, pd.Series, int, float, str, bool))}
+    def filter_picklable_variables(self, ):
+        return {k: v for k, v in self.variables.items() if self.is_picklable(v)} #  if isinstance(v, (pd.DataFrame, pd.Series, int, float, str, bool))
+    def save_environment(self,session_id) -> None:
+        env_name=f"{str(session_id)}_environment.pkl"
+        serializable_vars = self.filter_picklable_variables()
+        data_to_save = {
+            "variables": serializable_vars,
+            "execute_code": self.execute_code
+        }
         with open(os.path.join(self.save_directory,env_name), "wb") as file:
-            pickle.dump(serializable_vars, file)
-    def load_environment(self, env_name="environment.pkl") -> None:
+            pickle.dump(data_to_save, file)
+    def load_environment(self, session_id) -> None:
+        env_name=f"{str(session_id)}_environment.pkl"
         with open(os.path.join(self.save_directory,env_name), "rb") as file:
-            loaded_vars = pickle.load(file)
-            self.variables.update(loaded_vars)
-            globals().update(loaded_vars)
+            loaded_data = pickle.load(file)
+            self.variables.update(loaded_data.get("variables", {}))
+            self.execute_code = loaded_data.get("execute_code", [])
+            globals().update(loaded_data.get("variables", {}))
     def select_parameters(self, params):
         #print('Start selecting parameters for $!')
         matching_params = {}
@@ -316,6 +326,10 @@ class CodeExecutor:
             pass
 
     def execute_api_call(self, api_call_code, code_type):
+        if code_type=='import':
+            successful_imports = [item['code'] for item in self.execute_code if item['code_type'] == 'import' and item['success'] == 'True']
+            if api_call_code in successful_imports: # if the new codeline is of import type and have been executed before
+                return "" # skip the execution
         try:
             globals_before = set(globals().keys())
             original_stdout = sys.stdout 
@@ -343,12 +357,12 @@ class CodeExecutor:
             print('==?error in execute api call:', error)
             self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'False', 'error': error})
             return error
-    def save_variables_to_json(self):
+    def save_variables_to_json(self, ):
         save_data = {name: details["type"] for name, details in self.variables.items()}
-        with open(os.path.join(self.save_directory,"variables.json"), "w") as file:
+        with open(os.path.join(self.save_directory,f"{self.session_id}_variables.json"), "w") as file:
             json.dump(save_data, file)
     def load_variables_to_json(self):
-        with open(os.path.join(self.save_directory,"variables.json"), "r") as file:
+        with open(os.path.join(self.save_directory,f"{self.session_id}_variables.json"), "r") as file:
             saved_vars = json.load(file)
         variables = {}
         for var_name, var_type in saved_vars.items():
@@ -381,6 +395,14 @@ class CodeExecutor:
         for code in execution_code_list:
             self.execute_api_call(code, "code")
             #self.split_tuple_variable()
+    def execute_code_past_success(self, code_type='import'):
+        successful_imports = [item['code'] for item in self.execute_code if item['code_type'] == code_type and item['success'] == 'True']
+        for code in successful_imports:
+            try:
+                exec(code)
+            except Exception as e:
+                print(f"An error occurred while executing '{code}': {e}")
+        
     
 if __name__=='__main__':
     # Step 1: Provide the complete test_apis list
@@ -574,11 +596,23 @@ if __name__=='__main__':
     print(json.dumps(str(executor.variables)))
     print('All successfully executed code:')
     print('='*10)
-    print('='*10)
-    print('='*10)
     print('code:    success or not:')
     for i in executor.execute_code:
         if i['success']=='True':
             print(i['code'])
     print('Save variable json:')
-    executor.save_variables_to_json()
+    executor.save_environment(session_id="")
+    #executor.save_variables_to_json()
+    import copy
+    tmp_variables = copy.deepcopy(executor.filter_picklable_variables())
+    tmp_execute_code = copy.deepcopy(executor.execute_code)
+    executor.variables={}
+    executor.execute_code = []
+    print('Load variable json:')
+    #executor.load_variables_to_json()
+    executor.load_environment(session_id="")
+    print(executor.variables)
+    print(executor.execute_code)
+    assert list(tmp_variables.keys()) == list(executor.variables.keys()), "Variables do not match after loading."
+    assert tmp_execute_code == executor.execute_code, "Execute code records do not match after loading."
+    executor.execute_code_past_success(code_type='import')

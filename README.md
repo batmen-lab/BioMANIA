@@ -68,19 +68,19 @@ Refer to section `Quick start` for deployment instructions.
 
 ## Run with Docker
 
-For ease of use, we provide Docker images for both the frontend and backend services.
+For ease of use, we provide Docker images for several tools. You can refer the detailed tools list from [dockerhub](https://hub.docker.com/repositories/chatbotuibiomania).
 
 ```bash
 # Pull back-end service and front-end UI service with:
-docker pull chatbotuibiomania/biomania-together:v1.1.3
+docker pull chatbotuibiomania/biomania-together:v1.1.7-scanpy-cuda12.1-ubuntu22.04
 ```
 
 Start service with
 ```bash
 # run on gpu
-docker run -e OPENAI_API_KEY="" --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.3
+docker run -e OPENAI_API_KEY="" --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.7-scanpy-cuda12.1-ubuntu22.04
 # or on cpu
-docker run -e OPENAI_API_KEY="" -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.3
+docker run -e OPENAI_API_KEY="" -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.7-scanpy-cuda12.1-ubuntu22.04
 ```
 
 Then check UI service with `http://localhost:3000/en`.
@@ -93,28 +93,12 @@ Important Tips for Running Docker Without Bugs:
 
 ### Setting up services on separate devices
 
-If you're operating the front-end and back-end services on separate devices, pull the frontend and backend service separately on different devices.
+If you're operating the docker on server, visualize the UI by initiating the [ngrok service](https://ngrok.com/docs/getting-started/)
 ```bash
-# Pull front-end UI service with:
-docker pull chatbotuibiomania/biomania-frontend:v1.1.3
-# Pull back-end UI service with:
-docker pull chatbotuibiomania/biomania-backend:v1.1.3
+ngrok http 3000
 ```
 
-Initiate the [ngrok service](https://ngrok.com/docs/getting-started/) script in a new terminal on the same device with back-end device and get the print url like `https://[ngrok_id].ngrok-free.app` with:
-```bash
-ngrok http 5000
-```
-
-Then you can start front-end UI service with
-```bash
-docker run -e BACKEND_URL="https://[ngrok_id].ngrok-free.app" -d -p 3000:3000 chatbotuibiomania/biomania-frontend:v1.1.3
-```
-
-And run back-end service on another device with
-```bash
-docker run -e OPENAI_API_KEY="" -d -p 5000:5000 chatbotuibiomania/biomania-backend:v1.1.3
-```
+get the url like `https://[ngrok_id].ngrok-free.app` and copy it to chrome!
 
 ## Run with script
 
@@ -478,18 +462,14 @@ The output files are located in the ./report folder.
 
 ## Share your APP!
 
-If you want to share your APP to others, there are two ways.
+If you want to share your pretrained APP to others, there are two ways.
 
 ### Share docker
 
 You can build docker and push to dockerhub, and share your docker image url in [our issue](https://github.com/batmen-lab/BioMANIA/issues/2).
 ```bash
 # cd BioMANIA
-docker build -t [docker_image_name] -f Dockerfile ./
-# run on cpu
-docker run -e OPENAI_API_KEY=[your_OPENAI_API_KEY] -d -p 3000:3000 [docker_image_name]
-# (optional)run on cuda
-docker run -e OPENAI_API_KEY=[your_OPENAI_API_KEY] --gpus all -d -p 3000:3000 [docker_image_name]
+docker build --build-arg LIB=[your_tool_name] -t [docker_image_name] -f Dockerfile ./
 # (optional)push to docker
 docker push [your_docker_repo]/[docker_image_name]:[tag]
 ```
@@ -525,6 +505,7 @@ report/Py2report.py
 ## Version History
 - v1.1.8 (2023-12-02)
   - Build a Docker image for each library. Detailed tools list supported are available [here](https://hub.docker.com/repositories/chatbotuibiomania).
+  - Implement session management to facilitate simultaneous use by multiple users.
 
 - v1.1.7 (2023-12-01)
   - Added [SONATA tutorial](./examples/sonata_SNARE_seq.html) and [MIOSTONE tutorial](./examples/MIOSTONE_IBD200.html) to showcase tool usage. Upload data and pretrained models onto [drive](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).

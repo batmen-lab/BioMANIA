@@ -206,6 +206,8 @@ class Model:
         # reset and reload all the LIB-related data/models
         # suppose that all data&model are prepared already in their path
         try:
+            # load the previous variables, execute_code, globals()
+            self.executor.load_environment(session_id="")
             self.ambiguous_pair = find_similar_two_pairs(lib_name)
             self.ambiguous_api = list(set(api for api_pair in self.ambiguous_pair for api in api_pair))
             self.load_data(f"./data/standard_process/{lib_name}/API_composite.json")
@@ -965,7 +967,7 @@ class Model:
         for i in self.executor.execute_code:
             new_str.append({"code":i['code'],"execution_results":i['success']})
         print("Currently all executed code:", new_str)
-        self.executor.save_variables_to_json()
+        self.executor.save_environment(session_id="")
     def get_queue(self):
         while not self.queue.empty():
             yield self.queue.get()
