@@ -27,19 +27,17 @@ class CodeExecutor:
             return False
     def filter_picklable_variables(self, ):
         return {k: v for k, v in self.variables.items() if self.is_picklable(v)} #  if isinstance(v, (pd.DataFrame, pd.Series, int, float, str, bool))
-    def save_environment(self,session_id) -> None:
-        env_name=f"{str(session_id)}_environment.pkl"
+    def save_environment(self,file_name) -> None:
         serializable_vars = self.filter_picklable_variables()
         data_to_save = {
             "variables": serializable_vars,
             "execute_code": self.execute_code,
             "counter": self.counter,
         }
-        with open(os.path.join(self.save_directory,env_name), "wb") as file:
+        with open(os.path.join(self.save_directory,file_name), "wb") as file:
             pickle.dump(data_to_save, file)
-    def load_environment(self, session_id) -> None:
-        env_name=f"{str(session_id)}_environment.pkl"
-        with open(os.path.join(self.save_directory,env_name), "rb") as file:
+    def load_environment(self, file_name) -> None:
+        with open(os.path.join(self.save_directory,file_name), "rb") as file:
             loaded_data = pickle.load(file)
             self.variables.update(loaded_data.get("variables", {}))
             self.execute_code = loaded_data.get("execute_code", [])
@@ -606,7 +604,7 @@ if __name__=='__main__':
         if i['success']=='True':
             print(i['code'])
     print('Save variable json:')
-    executor.save_environment(session_id="")
+    executor.save_environment(file_name=f"_environment.pkl")
     #executor.save_variables_to_json()
     import copy
     tmp_variables = copy.deepcopy(executor.filter_picklable_variables())
@@ -615,7 +613,7 @@ if __name__=='__main__':
     executor.execute_code = []
     print('Load variable json:')
     #executor.load_variables_to_json()
-    executor.load_environment(session_id="")
+    executor.load_environment(file_name=f"_environment.pkl")
     print(executor.variables)
     print(executor.execute_code)
     assert list(tmp_variables.keys()) == list(executor.variables.keys()), "Variables do not match after loading."

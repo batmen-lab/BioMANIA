@@ -189,6 +189,10 @@ class Model:
         self.image_folder = "./tmp/images/"
         if not os.path.exists(self.image_folder):
             os.makedirs(self.image_folder, exist_ok=True)
+        if not os.path.exists("./tmp/states/"):
+            os.makedirs("./tmp/states/", exist_ok=True)
+        if not os.path.exists("./tmp/sessions/"):
+            os.makedirs("./tmp/sessions/", exist_ok=True)
         self.image_file_list = []
         self.image_file_list = self.update_image_file_list()
         self.buf = io.StringIO()
@@ -406,12 +410,26 @@ class Model:
             self.indexxxx+=1
             [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="uploading files finished!",task_title=str(int(100))) for callback in self.callbacks]
             self.indexxxx+=1
+    def save_state(self, ):
+        file_name = f"./tmp/states/{self.session_id}_state.pkl"
+        state = self.__dict__.copy()
+        state.pop('executor', None)# remove executor
+        with open(file_name, 'wb') as file:
+            pickle.dump(state, file)
+        print("State saved to", file_name)
+    def load_state(self, ):
+        file_name = f"./tmp/states/{self.session_id}_state.pkl"
+        with open(file_name, 'rb') as file:
+            state = pickle.load(file)
+        self.__dict__.update(state)
+        print("State loaded from", file_name)
     def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True,session_id=""):
         self.indexxxx = 1
         if session_id != self.session_id:
             self.session_id = session_id
             try:
-                self.executor.load_environment(session_id=self.session_id)
+                file_name=f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
+                self.executor.load_environment(file_name)
             except:
                 print('no local session_id environment exist! start from scratch')
                 self.initialize_executor()
@@ -752,15 +770,15 @@ class Model:
             self.selected_params = self.executor.makeup_for_missing_single_parameter_type_special(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         # @ param
         print('starting entering basic params')
-        self.none_at_value_params = [param_name for param_name, param_info in self.selected_params.items() if (param_info["value"] in ['@']) and (param_name not in ['path','Path'])]
+        none_at_value_params = [param_name for param_name, param_info in self.selected_params.items() if (param_info["value"] in ['@']) and (param_name not in ['path','Path'])]
         self.filtered_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (value["value"] in ['@']) and (key not in ['path','Path'])}
         self.filtered_pathlike_params = {}
         self.filtered_pathlike_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (value["value"] in ['@']) and (key in ['path','Path'])}
         # TODO: add condition later: if uploading data files, 
         # avoid asking Path params, assign it as './tmp'
-        if self.none_at_value_params: # TODO: add type PathLike
+        if none_at_value_params: # TODO: add type PathLike
             print('if exist non path, basic type parameters, start selecting parameters')
-            print(self.none_at_value_params)
+            print(none_at_value_params)
             tmp_input_para = ""
             for idx, api in enumerate(self.filtered_params):
                 if idx!=0:
@@ -831,7 +849,6 @@ class Model:
         return parameters_combined
 
     def run_pipeline_after_entering_params(self, user_input):
-        # if self.none_at_value_params:
         if self.last_user_states == "run_select_basic_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         print('==>run pipeline after entering parameters')
@@ -909,16 +926,28 @@ class Model:
             tips_for_execution_success = True
             if len(vari)>1:
                 #if self.executor.variables[vari[0]]['value'] is not None:
-                if True:
+                if vari[0] in self.executor.variables:
                     #print('if vari value is not None, return it')
                     [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We obtain a new variable: " + str(self.executor.variables[vari[0]]['value']),task_title="Executed results [Success]",) for callback in self.callbacks]
                     self.indexxxx+=1
-                if self.executor.variables[vari[0]]['type']=='AnnData':
-                    print('if the new variable is of type AnnData, ')
-                    if 'obs' in dir(self.executor.variables[vari[0]]['value']):
-                        print('if obs in adata, visualize anndata.obs')
-                        output_table = self.executor.variables[vari[0]]['value'].obs.head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
-                        # if exist \n in the last index, remove it
+                    if self.executor.variables[vari[0]]['type']=='AnnData':
+                        print('if the new variable is of type AnnData, ')
+                        if 'obs' in dir(self.executor.variables[vari[0]]['value']):
+                            print('if obs in adata, visualize anndata.obs')
+                            output_table = self.executor.variables[vari[0]]['value'].obs.head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
+                            # if exist \n in the last index, remove it
+                            last_newline_index = output_table.rfind('\n')
+                            if last_newline_index != -1:
+                                output_table = output_table[:last_newline_index] + '' + output_table[last_newline_index + 1:]
+                            else:
+                                output_table = output_table
+                            [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="We visualize the first 5 rows of the table data",task_title="Executed results [Success]",tableData=output_table) for callback in self.callbacks]
+                            self.indexxxx+=1
+                        else:
+                            pass
+                    try:
+                        print('if exist table, visualize it')
+                        output_table = self.executor.variables[vari[0]]['value'].head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
                         last_newline_index = output_table.rfind('\n')
                         if last_newline_index != -1:
                             output_table = output_table[:last_newline_index] + '' + output_table[last_newline_index + 1:]
@@ -926,20 +955,10 @@ class Model:
                             output_table = output_table
                         [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="We visualize the first 5 rows of the table data",task_title="Executed results [Success]",tableData=output_table) for callback in self.callbacks]
                         self.indexxxx+=1
-                    else:
+                    except:
                         pass
-                try:
-                    print('if exist table, visualize it')
-                    output_table = self.executor.variables[vari[0]]['value'].head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
-                    last_newline_index = output_table.rfind('\n')
-                    if last_newline_index != -1:
-                        output_table = output_table[:last_newline_index] + '' + output_table[last_newline_index + 1:]
-                    else:
-                        output_table = output_table
-                    [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="We visualize the first 5 rows of the table data",task_title="Executed results [Success]",tableData=output_table) for callback in self.callbacks]
-                    self.indexxxx+=1
-                except:
-                    pass
+                else:
+                    print('Something wrong with variables! success executed variables didnt contain targeted variable')
                 tips_for_execution_success = False
             else:
                 # 
@@ -963,7 +982,8 @@ class Model:
             print(f'Execution Error: {content}')
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=""+"".join(error_list),task_title="Executed results [Fail]",) for callback in self.callbacks] # Execution failed! 
             self.indexxxx+=1
-        self.executor.save_environment(session_id=self.session_id)
+        file_name=f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
+        self.executor.save_environment(file_name)
         if self.executor.execute_code[-1]['success']=='True':
             # split tuple variable into individual variables
             ans, new_code = self.executor.split_tuple_variable() # This function verifies whether the new variable is a tuple.
