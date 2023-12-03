@@ -204,11 +204,6 @@ class Model:
         #lib_name = lib_name.strip()
         print('================')
         print(f'==>Start reset the Lib {lib_name}!')
-        try:
-            self.executor.load_environment(session_id=self.session_id)
-        except:
-            print('no local session_id environment exist! start from scratch')
-            pass
         # reset and reload all the LIB-related data/models
         # suppose that all data&model are prepared already in their path
         try:
@@ -414,6 +409,11 @@ class Model:
     def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True,session_id=""):
         self.indexxxx = 1
         self.session_id = session_id
+        try:
+            self.executor.load_environment(session_id=self.session_id)
+        except:
+            print('no local session_id environment exist! start from scratch')
+            pass
         # only reset lib when changing lib
         if lib!=self.LIB:
             reset_result = self.reset_lib(lib)
