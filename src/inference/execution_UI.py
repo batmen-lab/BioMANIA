@@ -42,7 +42,8 @@ class CodeExecutor:
             self.variables.update(loaded_data.get("variables", {}))
             self.execute_code = loaded_data.get("execute_code", [])
             self.counter = loaded_data.get("counter", 1)
-            globals().update(loaded_data.get("variables", {}))
+            tmp_variables = {k:self.variables[k]['value'] for k in self.variables}
+            globals().update(tmp_variables)
     def select_parameters(self, params):
         #print('Start selecting parameters for $!')
         matching_params = {}
@@ -227,7 +228,7 @@ class CodeExecutor:
         # Convert the parameters to the format 'param_name=param_value' or 'param_value' based on optionality
         params_formatted = self.format_arguments(selected_params)
         class_params_formatted = self.format_arguments(class_selected_params)
-        print('class_params_formatted:', class_params_formatted)
+        #print('class_params_formatted:', class_params_formatted)
         """if class_selected_params:
             print('class_selected_params:',class_selected_params)
             #class_params_formatted = self.format_arguments(class_selected_params)
@@ -276,16 +277,16 @@ class CodeExecutor:
                 if last_code['code'].strip().startswith('result'):
                     # Extract the variable name that starts with 'result'
                     result_name_tuple = last_code['code'].strip().split('=')[0].strip()
-                    print(f'self.variables: {self.variables},')
+                    #print(f'self.variables: {self.variables},')
                     result_variable = self.variables[result_name_tuple]
                     # Check if the variable is a tuple
                     if 'tuple' in str(type(result_variable['value'])):
-                        print('==>start split tuple variables!')
+                        #print('==>start split tuple variables!')
                         length = len(result_variable['value'])
                         new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
                         new_code = ', '.join(new_variables) + f" = {result_name_tuple}"
                         # execute new api call
-                        print('==>for split_tuple_variable, execute code: ', last_code['code']+'\n'+new_code)
+                        #print('==>for split_tuple_variable, execute code: ', last_code['code']+'\n'+new_code)
                         self.execute_api_call(new_code, last_code['code_type'])
                         # Update the count
                         self.counter += length
@@ -345,8 +346,8 @@ class CodeExecutor:
             captured_output_value = captured_output.getvalue()
             globals_after = set(globals().keys())
             new_vars = globals_after - globals_before
-            print('globals_before:',globals_before)
-            print('globals_after:',globals_after)
+            #print('globals_before:',globals_before)
+            #print('globals_after:',globals_after)
             if len(new_vars)<=0:
                 print('oops, there is no new vars even executed successfully')
                 if len(api_call_code.split('(')[0].split('='))>1:

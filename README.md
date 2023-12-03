@@ -503,14 +503,14 @@ report/Py2report.py
 ```
 
 ## Version History
-- v1.1.8 (2023-12-02)
-  - Build a Docker image for each library. Detailed tools list supported are available [here](https://hub.docker.com/repositories/chatbotuibiomania).
-  - Implement session management to facilitate simultaneous use by multiple users.
-- Introduce session state rollback management, enabling users to revert to previous states and re-initiate inquiries.
+- v1.1.9 (coming soon)
   - Add Drive URL installation feature for convenient uploading of large files by users.
   - Support retriever bm25 for `inference_dialog_server.py`.
-  - Support retriever finetune on multi-gpu, fasten the training.
-  - Provide packaging and uploading, as well as one-click installation.
+  - Provide one-click packaging and uploading, as well as one-click installation.
+- v1.1.8 (2023-12-03)
+  - Build a Docker image for each library. Detailed tools list supported are available [here](https://hub.docker.com/repositories/chatbotuibiomania).
+  - Implement session management to facilitate simultaneous use by multiple dialogs. 
+  - Introduce session state rollback management, enabling users to revert to previous states and re-initiate inquiries.
 - v1.1.7 (2023-12-01)
   - Added [SONATA tutorial](./examples/sonata_SNARE_seq.html) and [MIOSTONE tutorial](./examples/MIOSTONE_IBD200.html) to showcase tool usage. Upload data and pretrained models onto [drive](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).
   - Fixed bug in class-type APIs that caused errors when using methods. Methods can now be called and used correctly.

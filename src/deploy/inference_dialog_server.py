@@ -650,12 +650,15 @@ class Model:
         combined_params = {}
         for api in self.api_name_json:
             combined_params.update(self.API_composite[api]['Parameters'])
-        parameters_name_list = [key for key, value in combined_params.items() if (not value['optional']) and (key not in ['path', "Path"])]
+        parameters_name_list = [key for key, value in combined_params.items() if (key not in ['path', "Path"])] 
+        #parameters_name_list = [key for key, value in combined_params.items() if (not value['optional']) and (key not in ['path', "Path"])] # 
+        print('parameters_name_list', parameters_name_list)
         api_parameters_information = change_format(combined_params, parameters_name_list)
-        #print("==>filter out special type parameters, do not infer them using gpt")
-        api_parameters_information = [param for param in api_parameters_information if param['type'] in basic_types]
+        #filter out special type parameters, do not infer them using gpt
+        api_parameters_information = [param for param in api_parameters_information if any(basic_type in param['type'] for basic_type in basic_types)]
         parameters_name_list = [param_info['name'] for param_info in api_parameters_information]
-        #print('api_parameters_information:', api_parameters_information)
+        print('api_parameters_information:', api_parameters_information)
+        print('parameters_name_list:', parameters_name_list)
         apis_description = ""
         apis_name = ""
         for idx,api_name_tmp_list in enumerate(relevant_api_list):
@@ -947,15 +950,21 @@ class Model:
             tips_for_execution_success = True
             if len(vari)>1:
                 #if self.executor.variables[vari[0]]['value'] is not None:
-                if vari[0] in self.executor.variables:
+                if (vari[0] in self.executor.variables) and (vari[0].startswith('result_')):
+                    print_val = vari[0]
+                    print_value = self.executor.variables[print_val]['value']
+                    print_type = self.executor.variables[print_val]['type']
                     #print('if vari value is not None, return it')
-                    [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We obtain a new variable: " + str(self.executor.variables[vari[0]]['value']),task_title="Executed results [Success]",) for callback in self.callbacks]
+                    [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We obtain a new variable: " + str(print_value),task_title="Executed results [Success]",) for callback in self.callbacks]
                     self.indexxxx+=1
-                    if self.executor.variables[vari[0]]['type']=='AnnData':
+                    if print_type=='AnnData':
                         print('if the new variable is of type AnnData, ')
-                        if 'obs' in dir(self.executor.variables[vari[0]]['value']):
-                            print('if obs in adata, visualize anndata.obs')
-                            output_table = self.executor.variables[vari[0]]['value'].obs.head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
+                        visual_attr_list = [i_tmp for i_tmp in list(dir(print_value)) if not i_tmp.startswith('_')]
+                        #if len(visual_attr_list)>0:
+                        if 'obs' in visual_attr_list:
+                            visual_attr = 'obs'#visual_attr_list[0]
+                            print(f'visualize {visual_attr} attribute')
+                            output_table = getattr(self.executor.variables[vari[0]]['value'], "obs", None).head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
                             # if exist \n in the last index, remove it
                             last_newline_index = output_table.rfind('\n')
                             if last_newline_index != -1:
@@ -1014,18 +1023,22 @@ class Model:
                 self.indexxxx+=1
                 [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="",task_title="Executed results [Success]",) for callback in self.callbacks]
                 self.indexxxx+=1
-        print("Show current variables in namespace:" + str(self.executor.variables))
+        print("Show current variables in namespace:")
+        print(list(self.executor.variables.keys()))
         new_str = []
         for i in self.executor.execute_code:
             new_str.append({"code":i['code'],"execution_results":i['success']})
-        print("Currently all executed code:", new_str)
-        self.executor.save_environment(session_id=self.session_id)
+        print("Currently all executed code:", json.dumps(new_str))
+        filename = f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
+        self.executor.save_environment(filename)
         self.save_state()
     def get_queue(self):
         while not self.queue.empty():
             yield self.queue.get()
 
+from queue import Queue
 model = Model()
+
 @app.route('/stream', methods=['GET', 'POST'])
 @cross_origin()
 def stream():
@@ -1036,12 +1049,12 @@ def stream():
         if key not in ['files']:
             print(f'{key}: {value}')
     print('='*30)
-    user_input = data["text"]
-    top_k = data["top_k"]
-    Lib = data["Lib"]
-    conversation_started = data["conversation_started"]
+    #user_input = data["text"]
+    #top_k = data["top_k"]
+    #Lib = data["Lib"]
+    #conversation_started = data["conversation_started"]
     raw_files = data["files"]
-    session_id = data['session_id']
+    #session_id = data['session_id']
     try:
         new_lib_doc_url = data["new_lib_doc_url"]
         new_lib_github_url = data["new_lib_github_url"]
@@ -1080,10 +1093,10 @@ def stream():
         model.inuse = True
         if new_lib_doc_url:
             print('new_lib_doc_url is not none, start installing lib!')
-            model.install_lib(new_lib_github_url, new_lib_doc_url, api_html, Lib, lib_alias)
+            model.install_lib(new_lib_github_url, new_lib_doc_url, api_html, data["Lib"], lib_alias)
         with concurrent.futures.ThreadPoolExecutor() as executor:
             print('start running pipeline!')
-            future = executor.submit(model.run_pipeline, user_input, Lib, top_k, files, conversation_started, session_id)
+            future = executor.submit(model.run_pipeline, data["text"], data["Lib"], data["top_k"], files, data["conversation_started"], data['session_id'])
             # keep waiting for the queue to be empty
             while True:
                 if model.queue.empty():
@@ -1133,4 +1146,7 @@ GITHUB_CLIENT_SECRET = os.environ.get('GITHUB_CLIENT_SECRET')
 signal.signal(signal.SIGINT, handle_keyboard_interrupt)
 
 if __name__ == '__main__':
+    #thread = Thread(target=handle_requests)
+    #thread.daemon = True
+    #thread.start()
     app.run(use_reloader=False, host="0.0.0.0", debug=True, port=5000)
