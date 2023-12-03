@@ -408,12 +408,14 @@ class Model:
             self.indexxxx+=1
     def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True,session_id=""):
         self.indexxxx = 1
-        self.session_id = session_id
-        try:
-            self.executor.load_environment(session_id=self.session_id)
-        except:
-            print('no local session_id environment exist! start from scratch')
-            pass
+        if session_id != self.session_id:
+            self.session_id = session_id
+            try:
+                self.executor.load_environment(session_id=self.session_id)
+            except:
+                print('no local session_id environment exist! start from scratch')
+                self.initialize_executor()
+                pass
         # only reset lib when changing lib
         if lib!=self.LIB:
             reset_result = self.reset_lib(lib)
