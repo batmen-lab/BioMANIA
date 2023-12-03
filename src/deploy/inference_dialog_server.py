@@ -175,6 +175,7 @@ class Model:
         self.callbacks = [self.callback]
         self.occupied = False
         self.LIB = "scanpy"
+        self.session_id = ""
         #load_dotenv()
         OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
         os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
@@ -960,13 +961,14 @@ class Model:
             print(f'Execution Error: {content}')
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=""+"".join(error_list),task_title="Executed results [Fail]",) for callback in self.callbacks] # Execution failed! 
             self.indexxxx+=1
-        # split tuple variable into individual variables
-        ans, new_code = self.executor.split_tuple_variable() # This function verifies whether the new variable is a tuple.
-        if ans:
-            [callback.on_agent_action(block_id="code-"+str(self.indexxxx),task=new_code,task_title="Executed code",) for callback in self.callbacks]
-            self.indexxxx+=1
-            [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="",task_title="Executed results [Success]",) for callback in self.callbacks]
-            self.indexxxx+=1
+        if self.executor.execute_code[-1]['success']=='True':
+            # split tuple variable into individual variables
+            ans, new_code = self.executor.split_tuple_variable() # This function verifies whether the new variable is a tuple.
+            if ans:
+                [callback.on_agent_action(block_id="code-"+str(self.indexxxx),task=new_code,task_title="Executed code",) for callback in self.callbacks]
+                self.indexxxx+=1
+                [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="",task_title="Executed results [Success]",) for callback in self.callbacks]
+                self.indexxxx+=1
         print("Show current variables in namespace:" + str(self.executor.variables))
         new_str = []
         for i in self.executor.execute_code:

@@ -43,7 +43,7 @@ class CodeExecutor:
             loaded_data = pickle.load(file)
             self.variables.update(loaded_data.get("variables", {}))
             self.execute_code = loaded_data.get("execute_code", [])
-            self.counter = loaded_data.get("counter", [])
+            self.counter = loaded_data.get("counter", 1)
             globals().update(loaded_data.get("variables", {}))
     def select_parameters(self, params):
         #print('Start selecting parameters for $!')
