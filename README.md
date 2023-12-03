@@ -78,9 +78,9 @@ docker pull chatbotuibiomania/biomania-together:v1.1.7-scanpy-cuda12.1-ubuntu22.
 Start service with
 ```bash
 # run on gpu
-docker run -e OPENAI_API_KEY="" --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.7-scanpy-cuda12.1-ubuntu22.04
+docker run -e LIB=scanpy -e OPENAI_API_KEY="" --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.7-scanpy-cuda12.1-ubuntu22.04
 # or on cpu
-docker run -e OPENAI_API_KEY="" -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.7-scanpy-cuda12.1-ubuntu22.04
+docker run -e LIB=scanpy -e OPENAI_API_KEY="" -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.7-scanpy-cuda12.1-ubuntu22.04
 ```
 
 Then check UI service with `http://localhost:3000/en`.

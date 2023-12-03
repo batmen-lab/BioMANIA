@@ -63,6 +63,7 @@ export interface Message {
   recommendations: ToolRecommendation[];
   files: FileObject[] | null;
   conversation_started?: boolean;
+  session_id:string;
 }
 export type Role = 'assistant' | 'user';
 export interface ChatBody {
@@ -76,6 +77,7 @@ export interface ChatBody {
   api_html: string;
   lib_alias: string;
   conversation_started: boolean;
+  session_id:string;
 }
 export interface Conversation {
   id: string;
@@ -91,4 +93,5 @@ export interface Conversation {
   api_html: string;
   lib_alias: string;
   conversation_started: boolean;
+  session_id:string;
 }

@@ -185,13 +185,14 @@ const Home = ({
       messages: [],
       top_k: lastConversation?.top_k ?? DEFAULT_TOP_K,
       folderId: null,
-      Lib: 'squidpy',
+      Lib: 'scanpy',
       files: [],
       new_lib_github_url: "",
       new_lib_doc_url: "",
       api_html: "",
       lib_alias: "",
       conversation_started: true,
+      session_id: "",
     };
     const updatedConversations = [...conversations, newConversation];
     dispatch({ field: 'selectedConversation', value: newConversation });

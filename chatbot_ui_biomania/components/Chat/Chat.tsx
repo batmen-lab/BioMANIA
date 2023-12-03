@@ -61,7 +61,8 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
     content: 'Welcome to BioMANIA! How can I help?',
     tools: [],
     recommendations: [],
-    files: []
+    files: [],
+    session_id: selectedConversation?.id || 'default-session-id'
   });
   const handleSend = useCallback(
     async (message: Message, deleteCount = 0, plugin: Plugin | null = null) => {
@@ -98,6 +99,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                     tools: [],
                     recommendations: [],
                     files: [],
+                    session_id: selectedConversation.id 
                   },
                   message
                 ]
@@ -122,6 +124,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           api_html: updatedConversation.api_html,
           lib_alias: updatedConversation.lib_alias,
           conversation_started: isFirstMessageInConversation,
+          session_id: updatedConversation.id,
         };
         console.log("updatedConversation", updatedConversation)
         const endpoint = "api/chat";
@@ -224,7 +227,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
               isFirst = false;
               const updatedMessages: Message[] = [
                 ...updatedConversation.messages,
-                { role: 'assistant', content: text, tools: resultObjs, recommendations: [], files:[]},
+                { role: 'assistant', content: text, tools: resultObjs, recommendations: [], files:[],session_id: selectedConversation.id },
               ];
               updatedConversation = {...updatedConversation, messages: updatedMessages};
               homeDispatch({field: 'selectedConversation', value: updatedConversation});
@@ -258,7 +261,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           const { answer } = await response.json();
           const updatedMessages: Message[] = [
             ...updatedConversation.messages,
-            { role: 'assistant', content: answer, tools: [], recommendations: [], files:[]},
+            { role: 'assistant', content: answer, tools: [], recommendations: [], files:[],session_id: selectedConversation.id },
           ];
           updatedConversation = {...updatedConversation, messages: updatedMessages};
           homeDispatch({ field: 'selectedConversation', value: updateConversation});

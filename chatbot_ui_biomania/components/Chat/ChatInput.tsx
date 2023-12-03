@@ -121,7 +121,7 @@ export const ChatInput = ({
       return;
     }
     const isFirstMessage = selectedConversation?.messages.length === 0;
-    onSend({ role: 'user', content, tools: [], recommendations: [], files: attachedFiles, conversation_started: isFirstMessage}, plugin);
+    onSend({ role: 'user', content, tools: [], recommendations: [], files: attachedFiles, conversation_started: isFirstMessage, session_id: selectedConversation?.id|| ""}, plugin);
     setContent('');
     setAttachedFiles([]);
     setPlugin(null);
