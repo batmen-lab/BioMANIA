@@ -215,11 +215,11 @@ class CodeExecutor:
         import_code, type_api = self.get_import_code(api_name)
         if import_code in [i['code'] for i in self.execute_code if i['code_type']=='import' and i['success']=='True']:
             # if already imported
-            print('==>api already imported!')
+            #print('==>api already imported!')
             pass
         else:
-            print('==>api not imported, import now!')
-            print("==>import_code", import_code)
+            #print('==>api not imported, import now!')
+            #print("==>import_code", import_code)
             tmp_result = self.execute_api_call(import_code, "import")
             if tmp_result:
                 print(f'==?Error during importing of api calling! {tmp_result}')
@@ -250,7 +250,7 @@ class CodeExecutor:
                 api_call += f"{maybe_instance_name}.{final_api_name}({params_formatted})"
             class_API = maybe_instance_name
         else:
-            print('==>no Class type API')
+            #print('==>no Class type API')
             final_api_name = api_parts[-1]
             api_call = f"{final_api_name}({params_formatted})"
         # generate return information
@@ -276,6 +276,7 @@ class CodeExecutor:
                 if last_code['code'].strip().startswith('result'):
                     # Extract the variable name that starts with 'result'
                     result_name_tuple = last_code['code'].strip().split('=')[0].strip()
+                    print(f'self.variables: {self.variables},')
                     result_variable = self.variables[result_name_tuple]
                     # Check if the variable is a tuple
                     if 'tuple' in str(type(result_variable['value'])):
@@ -288,11 +289,12 @@ class CodeExecutor:
                         self.execute_api_call(new_code, last_code['code_type'])
                         # Update the count
                         self.counter += length
+                        print('Finished split_tuple_variable')
                         return True, new_code
-            except:
+            except Exception as e:
+                print(f'Something wrong in split_tuple_variable: {e}')
                 False, ""
         else:
-            pass
             return False, ""
     def get_max_result_from_variable_list(self, result_name_list):
         max_value = float('-inf')
@@ -332,7 +334,7 @@ class CodeExecutor:
         if code_type=='import':
             successful_imports = [item['code'] for item in self.execute_code if item['code_type'] == 'import' and item['success'] == 'True']
             if api_call_code in successful_imports: # if the new codeline is of import type and have been executed before
-                return "" # skip the execution
+                return
         try:
             globals_before = set(globals().keys())
             original_stdout = sys.stdout 
@@ -343,7 +345,13 @@ class CodeExecutor:
             captured_output_value = captured_output.getvalue()
             globals_after = set(globals().keys())
             new_vars = globals_after - globals_before
-            for var_name in new_vars:
+            print('globals_before:',globals_before)
+            print('globals_after:',globals_after)
+            if len(new_vars)<=0:
+                print('oops, there is no new vars even executed successfully')
+                if len(api_call_code.split('(')[0].split('='))>1:
+                    new_vars = [api_call_code.split('(')[0].split('=')[0].strip()] # need to substitute result_*
+            for var_name in new_vars: # this depends on the difference between two globals status
                 var_value = globals()[var_name]
                 var_type = type(var_value).__name__
                 self.variables[var_name] = {

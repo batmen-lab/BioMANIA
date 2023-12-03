@@ -376,6 +376,14 @@ class Model:
     def initialize_executor(self):
         self.executor = CodeExecutor()
         self.executor.callbacks = self.callbacks
+        self.executor.variables={}
+        self.executor.execute_code=[]
+        self.clear_globals_with_prefix('result_')
+    def clear_globals_with_prefix(self, prefix):
+        global_vars = list(globals().keys())
+        for var in global_vars:
+            if var.startswith(prefix):
+                del globals()[var]
     def load_llm_model(self):
         self.llm, self.tokenizer = LLM_model()
     def load_data(self, API_file):
@@ -410,24 +418,25 @@ class Model:
             self.indexxxx+=1
             [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="uploading files finished!",task_title=str(int(100))) for callback in self.callbacks]
             self.indexxxx+=1
-    def save_state(self, ):
+    def save_state(self):
         file_name = f"./tmp/states/{self.session_id}_state.pkl"
-        state = self.__dict__.copy()
-        state.pop('executor', None)# remove executor
+        state = {k: v for k, v in self.__dict__.copy().items() if self.executor.is_picklable(v) and k != 'executor'}
         with open(file_name, 'wb') as file:
             pickle.dump(state, file)
         print("State saved to", file_name)
-    def load_state(self, ):
-        file_name = f"./tmp/states/{self.session_id}_state.pkl"
+    def load_state(self, session_id):
+        file_name = f"./tmp/states/{session_id}_state.pkl"
         with open(file_name, 'rb') as file:
             state = pickle.load(file)
         self.__dict__.update(state)
         print("State loaded from", file_name)
     def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True,session_id=""):
         self.indexxxx = 1
-        if session_id != self.session_id:
+        #if session_id != self.session_id:
+        if True:
             self.session_id = session_id
             try:
+                self.load_state(session_id)
                 file_name=f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
                 self.executor.load_environment(file_name)
             except:
@@ -463,7 +472,7 @@ class Model:
             while not self.queue.empty():
                 self.queue.get()
             self.loading_data(files)
-            print('loading data finished!')
+            #print('loading data finished!')
             self.query_id += 1
             temp_args = copy.deepcopy(self.args)
             temp_args.top_k = top_k
@@ -500,7 +509,7 @@ class Model:
             success = False
             for attempt in range(3):
                 try:
-                    print(f'==>Ask GPT: {api_predict_prompt}')
+                    #print(f'==>Ask GPT: {api_predict_prompt}')
                     response, _ = LLM_response(self.llm, self.tokenizer, api_predict_prompt, history=[], kwargs={})  # llm
                     print('==>GPT response:', response)
                     # hack for if GPT answers this or that
@@ -514,7 +523,7 @@ class Model:
                 except Exception as e:
                     [callback.on_tool_start() for callback in self.callbacks]
                     [callback.on_tool_end() for callback in self.callbacks]
-                    [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=f"GPT predicted API error: it response {response}, encounter {e} error. Please re-design the query and re-enter.",task_title="GPT predict Error",) for callback in self.callbacks]
+                    [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=f"GPT predict error: encounter {e} error. Please re-design the query and re-enter.",task_title="GPT predict Error",) for callback in self.callbacks]
                     self.indexxxx += 1
                     return
             if not success:
@@ -542,6 +551,7 @@ class Model:
                     idx_api+=1
                 [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=next_str,task_title=f"Can you confirm which of the following {len(self.filtered_api)} candidates") for callback in self.callbacks]
                 self.indexxxx += 1
+                self.save_state()
             else:
                 self.last_user_states = self.user_states
                 self.user_states = "after_API_selection"
@@ -583,6 +593,7 @@ class Model:
         self.last_user_states = self.user_states
         self.user_states = "after_API_selection"
         self.predicted_api_name = self.filtered_api[int(user_input)-1]
+        self.save_state()
     def process_api_info(self, api_info, single_api_name):
         relevant_apis = api_info.get(single_api_name, {}).get("relevant APIs")
         if not relevant_apis:
@@ -623,7 +634,6 @@ class Model:
         # check if composite API/class method API, return the relevant APIs
         relevant_api_list = self.process_api_info(self.API_composite, self.predicted_api_name) # only contains predicted API
         self.api_name_json = self.check_and_insert_class_apis(self.API_composite, relevant_api_list)# also contains class API
-        #print('==>self.api_name_json:', self.api_name_json)
         self.last_user_states = self.user_states
         self.user_states = "initial"
         api_description = self.API_composite[self.predicted_api_name]['description']
@@ -636,16 +646,16 @@ class Model:
         [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=response,task_title=f"Predicted API: {self.predicted_api_name}",) for callback in self.callbacks]
         self.indexxxx+=1
 
-        print("==>Need to collect all parameters for a composite API")
+        #print("==>Need to collect all parameters for a composite API")
         combined_params = {}
         for api in self.api_name_json:
             combined_params.update(self.API_composite[api]['Parameters'])
         parameters_name_list = [key for key, value in combined_params.items() if (not value['optional']) and (key not in ['path', "Path"])]
         api_parameters_information = change_format(combined_params, parameters_name_list)
-        print("==>filter out special type parameters, do not infer them using gpt")
+        #print("==>filter out special type parameters, do not infer them using gpt")
         api_parameters_information = [param for param in api_parameters_information if param['type'] in basic_types]
         parameters_name_list = [param_info['name'] for param_info in api_parameters_information]
-        print('api_parameters_information:', api_parameters_information)
+        #print('api_parameters_information:', api_parameters_information)
         apis_description = ""
         apis_name = ""
         for idx,api_name_tmp_list in enumerate(relevant_api_list):
@@ -659,7 +669,7 @@ class Model:
                 apis_description+=f"{self.API_composite[api_name_tmp]['description']}."
         parameters_prompt = prepare_parameters_prompt(self.user_query, apis_description, apis_name, 
         json.dumps(api_parameters_information), json.dumps(parameters_name_list))  # prompt
-        print('==>parameters_prompt: ', parameters_prompt)
+        #print('==>parameters_prompt: ', parameters_prompt)
 
         if len(parameters_name_list)==0:
             # if there is no required parameters, skip using gpt
@@ -682,9 +692,9 @@ class Model:
                 [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task="GPT can not return valid parameters prediction, please redesign prompt in backend.",task_title="GPT predict Error",) for callback in self.callbacks]
                 self.indexxxx += 1
                 return
-            print('==>The prompt is: ', parameters_prompt)
+            #print('==>parameters_prompt: ', parameters_prompt)
         # generate api_calling
-        print('==>Start generating api_calling')
+        #print('==>Start generating api_calling')
         self.predicted_api_name, api_calling, self.parameters_info_list = generate_api_calling(self.predicted_api_name, self.API_composite[self.predicted_api_name], response)
         if len(self.api_name_json)> len(relevant_api_list):
             #assume_class_API = list(set(list(self.api_name_json.keys()))-set(relevant_api_list))[0]
@@ -692,10 +702,10 @@ class Model:
             tmp_class_predicted_api_name, tmp_class_api_calling, tmp_class_parameters_info_list = generate_api_calling(assume_class_API, self.API_composite[assume_class_API], response)
             self.parameters_info_list['parameters'].update(tmp_class_parameters_info_list['parameters'])
         
-        print('After GPT predicting parameters, now the produced API calling is :', api_calling)
+        #print('After GPT predicting parameters, now the produced API calling is :', api_calling)
         ####### infer parameters
         # $ param
-        print("Automatically selected params for $, original parameters are: ", self.parameters_info_list['parameters'])
+        #print("Automatically selected params for $, original parameters are: ", self.parameters_info_list['parameters'])
         self.selected_params = self.executor.select_parameters(self.parameters_info_list['parameters'])
         print("Automatically selected params for $, after selection the parameters are: ", self.selected_params)
         # $ param if not fulfilled
@@ -722,6 +732,7 @@ class Model:
             self.last_user_states = self.user_states
             self.user_states = "run_select_special_params"
             self.run_select_special_params(user_input)
+            self.save_state()
             return
         self.run_pipeline_after_select_special_params(user_input)
 
@@ -749,6 +760,7 @@ class Model:
             self.last_user_states = self.user_states
             self.user_states = "run_select_special_params"
             del self.filtered_params[self.last_param_name]
+            self.save_state()
             return
         elif len(self.filtered_params)==1:
             self.last_param_name = list(self.filtered_params.keys())[0]
@@ -763,6 +775,7 @@ class Model:
             del self.filtered_params[self.last_param_name]
         else:
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="The parameters candidate list is empty", task_title="Error Enter Parameters: basic type",color="red") for callback in self.callbacks]
+            self.save_state()
             raise ValueError
 
     def run_pipeline_after_select_special_params(self,user_input):
@@ -789,6 +802,7 @@ class Model:
             self.indexxxx+=1
             self.user_states = "run_select_basic_params"
             self.run_select_basic_params(user_input)
+            self.save_state()
             return
         self.run_pipeline_after_entering_params(user_input)
     
@@ -805,6 +819,7 @@ class Model:
             self.last_user_states = self.user_states
             self.user_states = "run_select_basic_params"
             del self.filtered_params[self.last_param_name]
+            self.save_state()
             return
         elif len(self.filtered_params)==1:
             self.last_param_name = list(self.filtered_params.keys())[0]
@@ -816,6 +831,7 @@ class Model:
         else:
             # break out the pipeline
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="The parameters candidate list is empty", task_title="Error Enter Parameters: basic type",color="red") for callback in self.callbacks]
+            self.save_state()
             raise ValueError
     def split_params(self, selected_params, parameters_list):
         extracted_params = []
@@ -872,7 +888,7 @@ class Model:
         api_params_list = []
         for idx, api_name in enumerate(self.api_name_json):
             if self.api_name_json[api_name]['type']!='class':
-                print('==>assume not start with class API:', api_name)
+                #print('==>assume not start with class API:', api_name)
                 class_selected_params = {}
                 fake_class_api = '.'.join(api_name.split('.')[:-1])
                 if fake_class_api in self.api_name_json:
@@ -897,6 +913,7 @@ class Model:
         self.indexxxx+=1
         execution_code_list = execution_code.split('\n')
         error_list = []
+        print('execute and obtain figures')
         self.plt_status = plt.get_fignums()
         self.buf = io.StringIO()
         sys.stdout = self.buf
@@ -915,6 +932,10 @@ class Model:
                 pass
         sys.stdout = sys.__stdout__
         sys.stderr = sys.__stderr__
+        print('self.executor.variables:')
+        print(list(self.executor.variables.keys()))
+        print('self.executor.execute_code:')
+        print(self.executor.execute_code)
         content = self.buf.getvalue()
         # print the new variable 
         if self.executor.execute_code[-1]['success']=='True':
@@ -984,6 +1005,7 @@ class Model:
             self.indexxxx+=1
         file_name=f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
         self.executor.save_environment(file_name)
+        self.save_state()
         if self.executor.execute_code[-1]['success']=='True':
             # split tuple variable into individual variables
             ans, new_code = self.executor.split_tuple_variable() # This function verifies whether the new variable is a tuple.
@@ -998,6 +1020,7 @@ class Model:
             new_str.append({"code":i['code'],"execution_results":i['success']})
         print("Currently all executed code:", new_str)
         self.executor.save_environment(session_id=self.session_id)
+        self.save_state()
     def get_queue(self):
         while not self.queue.empty():
             yield self.queue.get()
@@ -1007,12 +1030,12 @@ model = Model()
 @cross_origin()
 def stream():
     data = json.loads(request.data)
-    print('='*10)
+    print('='*30)
     print('get data:')
     for key, value in data.items():
         if key not in ['files']:
             print(f'{key}: {value}')
-    print('='*10)
+    print('='*30)
     user_input = data["text"]
     top_k = data["top_k"]
     Lib = data["Lib"]
