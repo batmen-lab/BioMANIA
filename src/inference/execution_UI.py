@@ -271,25 +271,28 @@ class CodeExecutor:
         print('==>start split_tuple_variable')
         # generate splitting code if the results is a tuple
         # split result_n into result_n+1, reuslt_n+2, result_n+3 = result_n
-        if self.execute_code[-1]['success']:
+        if self.execute_code[-1]['success']=='True':
             last_code = self.execute_code[-1]
             # Check if the last code snippet ends with 'result'
             if last_code['code'].strip().startswith('result'):
                 # Extract the variable name that starts with 'result'
                 result_name_tuple = last_code['code'].strip().split('=')[0].strip()
-                result_variable = self.variables[result_name_tuple]
-                # Check if the variable is a tuple
-                if 'tuple' in str(type(result_variable['value'])):
-                    print('==>start split tuple variables!')
-                    length = len(result_variable['value'])
-                    new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
-                    new_code = ', '.join(new_variables) + f" = {result_name_tuple}"
-                    # execute new api call
-                    print('==>for split_tuple_variable, execute code: ', last_code['code']+'\n'+new_code)
-                    self.execute_api_call(new_code, last_code['code_type'])
-                    # Update the count
-                    self.counter += length
-                    return True, new_code
+                try:
+                    result_variable = self.variables[result_name_tuple]
+                    # Check if the variable is a tuple
+                    if 'tuple' in str(type(result_variable['value'])):
+                        print('==>start split tuple variables!')
+                        length = len(result_variable['value'])
+                        new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
+                        new_code = ', '.join(new_variables) + f" = {result_name_tuple}"
+                        # execute new api call
+                        print('==>for split_tuple_variable, execute code: ', last_code['code']+'\n'+new_code)
+                        self.execute_api_call(new_code, last_code['code_type'])
+                        # Update the count
+                        self.counter += length
+                        return True, new_code
+                except:
+                    False, ""
         else:
             pass
             return False, ""

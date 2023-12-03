@@ -961,6 +961,7 @@ class Model:
             print(f'Execution Error: {content}')
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=""+"".join(error_list),task_title="Executed results [Fail]",) for callback in self.callbacks] # Execution failed! 
             self.indexxxx+=1
+        self.executor.save_environment(session_id=self.session_id)
         if self.executor.execute_code[-1]['success']=='True':
             # split tuple variable into individual variables
             ans, new_code = self.executor.split_tuple_variable() # This function verifies whether the new variable is a tuple.
