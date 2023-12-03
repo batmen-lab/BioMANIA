@@ -183,12 +183,6 @@ export const Chatbar = () => {
     }
   };
 
-  const handleGitHubLogin = () => {
-    const client_id = 'd3ba4240bf0f731ac102';
-    const redirect_uri = 'https://biomania.ngrok.io/en';
-    window.location.href = `https://github.com/login/oauth/authorize?client_id=${client_id}&redirect_uri=${encodeURIComponent(redirect_uri)}`;
-  };
-
   useEffect(() => {
     if (searchTerm) {
       chatDispatch({
@@ -240,8 +234,6 @@ export const Chatbar = () => {
         footerComponent={
           <>
             <ChatbarSettings />
-            {/* 添加 GitHub 登录按钮 */}
-            <button onClick={handleGitHubLogin}>Login with GitHub</button>
           </>
         }
       />

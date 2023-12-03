@@ -203,11 +203,15 @@ class Model:
         #lib_name = lib_name.strip()
         print('================')
         print(f'==>Start reset the Lib {lib_name}!')
+        try:
+            self.executor.load_environment(session_id=self.session_id)
+        except:
+            print('no local session_id environment exist! start from scratch')
+            pass
         # reset and reload all the LIB-related data/models
         # suppose that all data&model are prepared already in their path
         try:
             # load the previous variables, execute_code, globals()
-            self.executor.load_environment(session_id="")
             self.ambiguous_pair = find_similar_two_pairs(lib_name)
             self.ambiguous_api = list(set(api for api_pair in self.ambiguous_pair for api in api_pair))
             self.load_data(f"./data/standard_process/{lib_name}/API_composite.json")
@@ -406,8 +410,9 @@ class Model:
             self.indexxxx+=1
             [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="uploading files finished!",task_title=str(int(100))) for callback in self.callbacks]
             self.indexxxx+=1
-    def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True):
+    def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True,session_id=""):
         self.indexxxx = 1
+        self.session_id = session_id
         # only reset lib when changing lib
         if lib!=self.LIB:
             reset_result = self.reset_lib(lib)
@@ -967,7 +972,7 @@ class Model:
         for i in self.executor.execute_code:
             new_str.append({"code":i['code'],"execution_results":i['success']})
         print("Currently all executed code:", new_str)
-        self.executor.save_environment(session_id="")
+        self.executor.save_environment(session_id=self.session_id)
     def get_queue(self):
         while not self.queue.empty():
             yield self.queue.get()
@@ -988,6 +993,7 @@ def stream():
     Lib = data["Lib"]
     conversation_started = data["conversation_started"]
     raw_files = data["files"]
+    session_id = data['session_id']
     try:
         new_lib_doc_url = data["new_lib_doc_url"]
         new_lib_github_url = data["new_lib_github_url"]
@@ -1029,7 +1035,7 @@ def stream():
             model.install_lib(new_lib_github_url, new_lib_doc_url, api_html, Lib, lib_alias)
         with concurrent.futures.ThreadPoolExecutor() as executor:
             print('start running pipeline!')
-            future = executor.submit(model.run_pipeline, user_input, Lib, top_k, files, conversation_started)
+            future = executor.submit(model.run_pipeline, user_input, Lib, top_k, files, conversation_started, session_id)
             # keep waiting for the queue to be empty
             while True:
                 if model.queue.empty():

@@ -32,7 +32,8 @@ class CodeExecutor:
         serializable_vars = self.filter_picklable_variables()
         data_to_save = {
             "variables": serializable_vars,
-            "execute_code": self.execute_code
+            "execute_code": self.execute_code,
+            "counter": self.counter,
         }
         with open(os.path.join(self.save_directory,env_name), "wb") as file:
             pickle.dump(data_to_save, file)
@@ -42,6 +43,7 @@ class CodeExecutor:
             loaded_data = pickle.load(file)
             self.variables.update(loaded_data.get("variables", {}))
             self.execute_code = loaded_data.get("execute_code", [])
+            self.counter = loaded_data.get("counter", [])
             globals().update(loaded_data.get("variables", {}))
     def select_parameters(self, params):
         #print('Start selecting parameters for $!')
