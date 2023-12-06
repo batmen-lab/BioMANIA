@@ -72,12 +72,16 @@ def find_similar_pairs(lib, require_same_depth=False):
 
 if not os.path.exists("./tmp/images"):
     os.makedirs("./tmp/images", exist_ok=True)
-def save_plot_with_timestamp(folder="./tmp/images", prefix="img", format="png"):
+def save_plot_with_timestamp(folder="./tmp/images", prefix="img", format="png", save_pdf=True):
     current_time = datetime.datetime.now()
     timestamp = current_time.strftime("%Y%m%d%H%M%S")
     file_name = f"{prefix}_{timestamp}.{format}"
     save_path = os.path.join(folder, file_name)
     plt.savefig(save_path)
+    if save_pdf:
+        file_name = f"{prefix}_{timestamp}.pdf"
+        save_path = os.path.join(folder, file_name)
+        plt.savefig(save_path)
     return save_path
 
 def compress_api_str_from_list_query_version(api):

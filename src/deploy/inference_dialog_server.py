@@ -36,6 +36,7 @@ from prompt.parameters import prepare_parameters_prompt
 from prompt.summary import prepare_summary_prompt
 
 basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'List', 'Dict']
+basic_types.extend(['_AvailShapes']) # extend for squidpy `shape` type
 
 def change_format(input_params, param_name_list):
     """
@@ -65,8 +66,8 @@ def generate_api_calling(api_name, api_details, returned_content_str):
     parameters_dict = {}
     parameters_info_list = []
     for param_name, param_details in parameters.items():
-        # only include required parameters and optional parameters found from response
-        if param_name in returned_content_dict or not param_details['optional']:
+        # only include required parameters and optional parameters found from response, and a patch for color in scanpy/squidpy pl APIs
+        if (param_name in returned_content_dict) or (not param_details['optional']) or (param_name=='color' and (api_name.startswith('scanpy.pl') or api_name.startswith('squidpy.pl'))):
             print(param_name, param_name in returned_content_dict, not param_details['optional'])
             param_type = param_details['type']
             if param_type in [None, 'None', 'NoneType']:
@@ -688,13 +689,15 @@ class Model:
                     success = True
                     break
                 except Exception as e:
-                    [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="GPT predict error: " + str(e),task_title="GPT predict Error",) for callback in self.callbacks]
-                    self.indexxxx += 1
+                    #[callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="GPT predict error: " + str(e),task_title="GPT predict Error",) for callback in self.callbacks]
+                    #self.indexxxx += 1
+                    pass
                     #return # 231130 fix 
             if not success:
-                [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task="GPT can not return valid parameters prediction, please redesign prompt in backend.",task_title="GPT predict Error",) for callback in self.callbacks]
-                self.indexxxx += 1
-                return
+                #[callback.on_agent_action(block_id="log-" + str(self.indexxxx),task=f"GPT can not return valid parameters prediction, please redesign prompt in backend if you want to predict parameters. We will skip parameters prediction currently",task_title="GPT predict Error",) for callback in self.callbacks]
+                #self.indexxxx += 1
+                response = "{}"
+                print("GPT can not return valid parameters prediction, please redesign prompt in backend if you want to predict parameters. We will skip parameters prediction currently")
             #print('==>parameters_prompt: ', parameters_prompt)
         # generate api_calling
         #print('==>Start generating api_calling')
@@ -708,11 +711,11 @@ class Model:
         #print('After GPT predicting parameters, now the produced API calling is :', api_calling)
         ####### infer parameters
         # $ param
-        #print("Automatically selected params for $, original parameters are: ", self.parameters_info_list['parameters'])
         self.selected_params = self.executor.select_parameters(self.parameters_info_list['parameters'])
         print("Automatically selected params for $, after selection the parameters are: ", self.selected_params)
         # $ param if not fulfilled
         none_dollar_value_params = [param_name for param_name, param_info in self.selected_params.items() if param_info["value"] in ['$']]
+        print(f'none_dollar_value_params: {none_dollar_value_params}')
         if none_dollar_value_params:
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="However, there are still some parameters with special type undefined. Please start from uploading data, or input your query from preprocessing dataset.",task_title="Missing Parameters: special type") for callback in self.callbacks]
             self.indexxxx+=1
@@ -720,6 +723,7 @@ class Model:
         # $ param if multiple choice
         multiple_dollar_value_params = [param_name for param_name, param_info in self.selected_params.items() if ('list' in str(type(param_info["value"]))) and (len(param_info["value"])>1)]
         self.filtered_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (key in multiple_dollar_value_params)}
+        print(f'self.filtered_params: {self.filtered_params}')
         if multiple_dollar_value_params:
             print('==>There exist multiple choice for a special type parameters, start selecting parameters')
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task=f"There are many variables match the expected type. Please determine which one to choose",task_title="Choosing Parameters: special type") for callback in self.callbacks]
@@ -815,6 +819,7 @@ class Model:
             self.selected_params = self.executor.makeup_for_missing_single_parameter(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
+        print(f'self.filtered_params:{self.filtered_params}')
         if len(self.filtered_params)>1:
             self.last_param_name = list(self.filtered_params.keys())[0]
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="Which value do you think is appropriate for the parameters '"+self.last_param_name+"'?", task_title="Enter Parameters: basic type",color="red") for callback in self.callbacks]
@@ -859,7 +864,8 @@ class Model:
         for api_name in api_name_json:
             details = api_info[api_name]
             parameters = details["Parameters"]
-            api_params = {param_name: {"type": param_details["type"]} for param_name, param_details in parameters.items() if not param_details['optional']}
+            api_params = {param_name: {"type": param_details["type"]} for param_name, param_details in parameters.items() if (not param_details['optional']) or (param_name=="color" and (("scanpy.pl" in api_name) or ("squidpy.pl" in api_name)))} # TODO: currently not use optional parameters!!!
+            api_params.update({})
             combined_params = {}
             for param_name, param_info in api_params.items():
                 if param_name not in combined_params:
@@ -884,10 +890,13 @@ class Model:
                     "valuefrom": 'userinput',
                     "optional": param_info["optional"],
                 }
+        print(f'self.selected_params: {self.selected_params}')
         # split parameters according to multiple API, or class/method API
         parameters_list = self.extract_parameters(self.api_name_json, self.API_composite)
         extracted_params = self.split_params(self.selected_params, parameters_list)
+        print(f'extracted_params: {extracted_params}')
         extracted_params_dict = {api_name: extracted_param for api_name, extracted_param in zip(self.api_name_json, extracted_params)}
+        print('extracted_params_dict: ', extracted_params_dict)
         api_params_list = []
         for idx, api_name in enumerate(self.api_name_json):
             if self.api_name_json[api_name]['type']!='class':
@@ -897,10 +906,18 @@ class Model:
                 if fake_class_api in self.api_name_json:
                     if self.api_name_json[fake_class_api]['type']=='class':
                         class_selected_params = extracted_params_dict[fake_class_api]
+                # two patches for pandas type data / squidpy parameters
                 if 'inplace' in self.API_composite[api_name]['Parameters']:
                     extracted_params[idx]['inplace'] = {
                         "type": self.API_composite[api_name]['Parameters']['inplace']['type'],
                         "value": True,
+                        "valuefrom": 'value',
+                        "optional": True,
+                    }
+                if 'shape' in self.API_composite[api_name]['Parameters'] and 'pl.spatial_scatter' in api_name:
+                    extracted_params[idx]['shape'] = {
+                        "type": self.API_composite[api_name]['Parameters']['shape']['type'],
+                        "value": "None",
                         "valuefrom": 'value',
                         "optional": True,
                     }
@@ -933,6 +950,12 @@ class Model:
                 self.plt_status = plt.get_fignums()
             else:
                 pass
+        
+        if len(execution_code_list)>0:
+            self.last_execute_code = self.get_last_execute_code(code)
+        else:
+            self.last_execute_code = {"code":"", 'success':"False"}
+            print('Something wrong with generating code with new API!')
         sys.stdout = sys.__stdout__
         sys.stderr = sys.__stderr__
         print('self.executor.variables:')
@@ -941,9 +964,9 @@ class Model:
         print(self.executor.execute_code)
         content = self.buf.getvalue()
         # print the new variable 
-        if self.executor.execute_code[-1]['success']=='True':
+        if self.last_execute_code['success']=='True':
             # if execute, visualize value
-            code = self.executor.execute_code[-1]['code']
+            code = self.last_execute_code['code']
             vari = [i.strip() for i in code.split('(')[0].split('=')]
             print(f'-----code: {code}')
             print(f'-----vari: {vari}')
@@ -1015,9 +1038,9 @@ class Model:
         file_name=f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
         self.executor.save_environment(file_name)
         self.save_state()
-        if self.executor.execute_code[-1]['success']=='True':
+        if self.last_execute_code['success']=='True':
             # split tuple variable into individual variables
-            ans, new_code = self.executor.split_tuple_variable() # This function verifies whether the new variable is a tuple.
+            ans, new_code = self.executor.split_tuple_variable(self.last_execute_code) # This function verifies whether the new variable is a tuple.
             if ans:
                 [callback.on_agent_action(block_id="code-"+str(self.indexxxx),task=new_code,task_title="Executed code",) for callback in self.callbacks]
                 self.indexxxx+=1
@@ -1035,6 +1058,13 @@ class Model:
     def get_queue(self):
         while not self.queue.empty():
             yield self.queue.get()
+    def get_last_execute_code(self, code):
+        for i in range(1, len(self.executor.execute_code)+1):
+            if self.executor.execute_code[-i]['code']==code:
+                return self.executor.execute_code[-i]
+            else:
+                pass
+        print('Something wrong with getting execution status by code! Enter wrong code')
 
 from queue import Queue
 model = Model()

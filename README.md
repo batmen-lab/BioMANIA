@@ -12,7 +12,7 @@
   <a target="_blank" href="https://github.com/batmen-lab/BioMANIA">
     <img style="height:22pt" src="https://img.shields.io/badge/-Code-black?style=flat&logo=github">
   </a>
-  <a target="_blank" href="https://railway.app/template/WyEd-d">
+  <a target="_blank" href="https://railway.app/template/qaQEvv">
     <img style="height:22pt" src="https://img.shields.io/badge/-Railway-purple?style=flat&logo=railway">
   </a>
   <a target="_blank" href="https://hub.docker.com/repositories/chatbotuibiomania">
@@ -34,7 +34,7 @@ Our demonstration showcases how to utilize a chatbot to simultaneously use scanp
 
 ## Web access online demo
 
-We provide an [online demo](https://biomania.ngrok.io/en) hosted on our server! And an [online demo](https://biomania-frontend-production-4095.up.railway.app/en) hosted on railway.
+We provide an [online demo](https://biomania.ngrok.io/en) hosted on our server! And an [online demo](https://biomaniav118-production.up.railway.app/en) hosted on railway.
 
 Tips:
 - Some tools need an individual environment (like qiime2, scenicplus) and we can not include them all in a single `requirements.txt`. Under this case, currently you need to switch to that conda environment manually and run with script. 
@@ -49,7 +49,7 @@ Tips:
 
 We provide a Railway deployment template that allows you to deploy to Railway with a single click.
 
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/WyEd-d)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/qaQEvv)
 
 You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable `Public Domain` in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
 
@@ -72,15 +72,15 @@ For ease of use, we provide Docker images for several tools. You can refer the d
 
 ```bash
 # Pull back-end service and front-end UI service with:
-docker pull chatbotuibiomania/biomania-together:v1.1.7-scanpy-cuda12.1-ubuntu22.04
+docker pull chatbotuibiomania/biomania-together:v1.1.8-scanpy-cuda12.1-ubuntu22.04
 ```
 
 Start service with
 ```bash
 # run on gpu
-docker run -e LIB=scanpy -e OPENAI_API_KEY="" --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.7-scanpy-cuda12.1-ubuntu22.04
+docker run -e LIB=scanpy -e OPENAI_API_KEY=[your_openai_api_key] --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.8-scanpy-cuda12.1-ubuntu22.04
 # or on cpu
-docker run -e LIB=scanpy -e OPENAI_API_KEY="" -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.7-scanpy-cuda12.1-ubuntu22.04
+docker run -e LIB=scanpy -e OPENAI_API_KEY=[your_openai_api_key] -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.8-scanpy-cuda12.1-ubuntu22.04
 ```
 
 Then check UI service with `http://localhost:3000/en`.
@@ -504,11 +504,12 @@ report/Py2report.py
 
 ## Version History
 - v1.1.9 (coming soon)
+  - Accelerate the retriever training.
   - Add Drive URL installation feature for convenient uploading of large files by users.
   - Support retriever bm25 for `inference_dialog_server.py`.
   - Provide one-click packaging and uploading, as well as one-click installation.
 - v1.1.8 (2023-12-03)
-  - Build a Docker image for each library. Detailed tools list supported are available [here](https://hub.docker.com/repositories/chatbotuibiomania).
+  - Build Docker images for each library. Detailed tools list supported are available [here](https://hub.docker.com/repositories/chatbotuibiomania).
   - Implement session management to facilitate simultaneous use by multiple dialogs. 
   - Introduce session state rollback management, enabling users to revert to previous states and re-initiate inquiries.
 - v1.1.7 (2023-12-01)

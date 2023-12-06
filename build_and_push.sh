@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # set version
-version="v1.1.7"
+version="v1.1.8"
 # set name for repository
 repository="chatbotuibiomania/biomania-together"
 

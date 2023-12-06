@@ -266,12 +266,12 @@ class CodeExecutor:
         else:
             self.generate_code.append(f"{api_call}")
             return import_code+'\n'+f"{api_call}"
-    def split_tuple_variable(self, ):
+    def split_tuple_variable(self, last_code_status):
         print('==>start split_tuple_variable')
         # generate splitting code if the results is a tuple
         # split result_n into result_n+1, reuslt_n+2, result_n+3 = result_n
-        if self.execute_code[-1]['success']=='True':
-            last_code = self.execute_code[-1]
+        if last_code_status['success']=='True':
+            last_code = last_code_status
             try:
                 # Check if the last code snippet ends with 'result'
                 if last_code['code'].strip().startswith('result'):
@@ -349,7 +349,7 @@ class CodeExecutor:
             #print('globals_before:',globals_before)
             #print('globals_after:',globals_after)
             if len(new_vars)<=0:
-                print('oops, there is no new vars even executed successfully')
+                #print('oops, there is no new vars even executed successfully')
                 if len(api_call_code.split('(')[0].split('='))>1:
                     new_vars = [api_call_code.split('(')[0].split('=')[0].strip()] # need to substitute result_*
             for var_name in new_vars: # this depends on the difference between two globals status

@@ -1,6 +1,6 @@
 FROM nvidia/cuda:12.1.0-base-ubuntu22.04
 
-# Install Python and Node.js dependencies
+# Install Python, Node.js, miniconda, dependencies
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -41,12 +41,13 @@ COPY src/plot    /app/src/plot
 COPY src/prompt    /app/src/prompt
 COPY src/report    /app/src/report
 COPY src/retrievers    /app/src/retrievers
-COPY src/tmp    /app/src/tmp
+#COPY src/tmp    /app/src/tmp
 COPY src/data/standard_process/${LIB}/ /app/src/data/standard_process/${LIB}/
 COPY src/hugging_models/retriever_model_finetuned/${LIB}/ /app/src/hugging_models/retriever_model_finetuned/${LIB}/
-
-# Copy the requirements
 COPY docker_utils/ /app/docker_utils/
+
+# mkdir tmp
+RUN mkdir -p /app/src/tmp
 
 # Install Python dependencies
 RUN pip3 install --no-cache-dir -r /app/docker_utils/${LIB}/requirements.txt
@@ -62,7 +63,6 @@ RUN if [ -f /app/docker_utils/${LIB}/requirements.sh ]; then \
         /app/docker_utils/${LIB}/requirements.sh; \
     fi
 
-# Copy the front-end application
 COPY chatbot_ui_biomania/ /app/chatbot_ui_biomania/
 
 # Install node modules and build the front-end
