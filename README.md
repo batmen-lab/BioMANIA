@@ -34,7 +34,7 @@ Our demonstration showcases how to utilize a chatbot to simultaneously use scanp
 
 ## Web access online demo
 
-We provide an [online demo](https://biomania.ngrok.io/en) hosted on our server! And an [online demo](https://biomaniav118-production.up.railway.app/en) hosted on railway.
+We provide an [online demo](https://biomania.ngrok.io/en) hosted on our server! 
 
 Tips:
 - Some tools need an individual environment (like qiime2, scenicplus) and we can not include them all in a single `requirements.txt`. Under this case, currently you need to switch to that conda environment manually and run with script. 
