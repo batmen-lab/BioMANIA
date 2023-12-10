@@ -34,36 +34,25 @@ stream_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 logger.addHandler(stream_handler)
 
-
 def compute_ndcg_for_query(query_tuple):
     query_itr, query_id, top_hits, relevant_docs, corpus_ids, k = query_tuple
     query_relevant_docs = relevant_docs[query_id]
-
     # Build the ground truth relevance scores and the model's predicted scores
     true_relevance = np.zeros(len(corpus_ids))
     predicted_scores = np.zeros(len(corpus_ids))
-
     for hit in top_hits[:k]: # Limit to top k results
         predicted_scores[corpus_ids.index(hit['corpus_id'])] = hit['score']
         if hit['corpus_id'] in query_relevant_docs:
             true_relevance[corpus_ids.index(hit['corpus_id'])] = 1
-
     return ndcg_score([true_relevance], [predicted_scores])
-
 
 class APIEvaluator(SentenceEvaluator):
     """
     This class evaluates an Information Retrieval (IR) setting.
     Given a set of queries and a large corpus set. It will retrieve for each query the top-k most similar document.
     """
-
     def __init__(self,
-             train_queries: Dict[str, str],  # qid => query
-             train_relevant_docs: Dict[str, Set[str]],  # qid => Set[cid]
-             val_queries: Dict[str, str],  # qid => query
-             val_relevant_docs: Dict[str, Set[str]],  # qid => Set[cid]
-             test_queries: Dict[str, str],  # qid => query
-             test_relevant_docs: Dict[str, Set[str]],  # qid => Set[cid]
+             corpus_config: Dict[str, Dict[str, str]],
              corpus: Dict[str, str],  # cid => doc
              corpus_chunk_size: int = 5,
              show_progress_bar: bool = True,
@@ -72,15 +61,15 @@ class APIEvaluator(SentenceEvaluator):
              fig_path: str='./plot/retriever',
              optimize_top_k: int=3,
              ):
-        self.train_queries_id = list(train_queries.keys())
-        self.train_queries = [train_queries[qid] for qid in self.train_queries_id]
-        self.train_relevant_docs = train_relevant_docs
-        self.val_queries_id = list(val_queries.keys())
-        self.val_queries = [val_queries[qid] for qid in self.val_queries_id]
-        self.val_relevant_docs = val_relevant_docs
-        self.test_queries_id = list(test_queries.keys())
-        self.test_queries = [test_queries[qid] for qid in self.test_queries_id]
-        self.test_relevant_docs = test_relevant_docs
+        self.train_queries_id = list(corpus_config['train']['queries'].keys())
+        self.train_queries = [corpus_config['train']['queries'][qid] for qid in self.train_queries_id]
+        self.train_relevant_docs = corpus_config['train']['relevant_docs']
+        self.val_queries_id = list(corpus_config['val']['queries'].keys())
+        self.val_queries = [corpus_config['val']['queries'][qid] for qid in self.val_queries_id]
+        self.val_relevant_docs = corpus_config['val']['relevant_docs']
+        self.test_queries_id = list(corpus_config['test']['queries'].keys())
+        self.test_queries = [corpus_config['test']['queries'][qid] for qid in self.test_queries_id]
+        self.test_relevant_docs = corpus_config['test']['relevant_docs']
 
         self.corpus_ids = list(corpus.keys())
         self.corpus = [corpus[cid] for cid in self.corpus_ids]

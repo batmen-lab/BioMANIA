@@ -47,40 +47,36 @@ Tips:
 
 ## Quick start
 
+We provide three ways to run the service, Docker, railway, python script. Among those, Docker is the easiest way to start.
+
+## Run with Railway
+
 We provide a Railway deployment template that allows you to deploy to Railway with a single click.
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/qaQEvv)
 
 You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable `Public Domain` in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
 
-## Project Overview
-
-Our project workflow is depicted in the images below, showcasing the pipeline, chatbot UI, and tutorials.
-
-Project Overview:
-Our project pipeline is illustrated below:
-![](./images/overview_v2.jpg)
-
-
-## Run with Railway
-
-Refer to section `Quick start` for deployment instructions.
-
 ## Run with Docker
 
 For ease of use, we provide Docker images for several tools. You can refer the detailed tools list from [dockerhub](https://hub.docker.com/repositories/chatbotuibiomania).
 
 ```bash
+# Select $lib from the list below
+# scanpy, squidpy, scenicplus, scikit-bio, pyopenms, pyteomics, deap, eletoolkit, qiime2, scvi-tools, biopython, biotite. sonata, MIOSTONE
+```
+
+```bash
 # Pull back-end service and front-end UI service with:
-docker pull chatbotuibiomania/biomania-together:v1.1.8-scanpy-cuda12.1-ubuntu22.04
+docker pull chatbotuibiomania/biomania-together:v1.1.8-${LIB}-cuda12.1-ubuntu22.04
 ```
 
 Start service with
 ```bash
 # run on gpu
-docker run -e LIB=scanpy -e OPENAI_API_KEY=[your_openai_api_key] --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.8-scanpy-cuda12.1-ubuntu22.04
+docker run -e LIB=${LIB} -e OPENAI_API_KEY=[your_openai_api_key] --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.8-${LIB}-cuda12.1-ubuntu22.04
 # or on cpu
-docker run -e LIB=scanpy -e OPENAI_API_KEY=[your_openai_api_key] -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.8-scanpy-cuda12.1-ubuntu22.04
+docker run -e LIB=${LIB} -e OPENAI_API_KEY=[your_openai_api_key] -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.8-${LIB}-cuda12.1-ubuntu22.04
 ```
 
 Then check UI service with `http://localhost:3000/en`.
@@ -100,6 +96,15 @@ ngrok http 3000
 
 get the url like `https://[ngrok_id].ngrok-free.app` and copy it to chrome!
 
+## Project Overview
+
+Our project workflow is depicted in the images below, showcasing the pipeline, chatbot UI, and tutorials.
+
+Project Overview:
+Our project pipeline is illustrated below:
+![](./images/overview_v2.jpg)
+
+
 ## Run with script
 
 ### Setting up for environment
@@ -112,6 +117,7 @@ cd BioMANIA/src
 conda create -n biomania python=3.10
 conda activate biomania
 pip install -r requirements.txt --index-url https://pypi.org/simple
+export PYTHONPATH=$PYTHONPATH:$(pwd)
 ```
 
 2. Set up your OpenAI API key in the `src/.env` file.
@@ -180,7 +186,7 @@ We also offer some demo chat, you can find them in [`./examples`](https://github
 ### Prepare for front-end UI service
 
 ```bash
-# Under folder BioMANIA/src/chatbot_ui_biomania
+# Under folder BioMANIA/chatbot_ui_biomania
 npm i # install
 ```
 

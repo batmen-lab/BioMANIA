@@ -491,15 +491,21 @@ class Model:
             else:
                 pass
             retrieved_names = self.retrieve_names(user_input)
+            print("retrieved_names:", retrieved_names)
             # produce prompt
             description_jsons = {}
-            for i in retrieved_names:
-                description_jsons[i] = self.description_json[i]
+            try:
+                for i in retrieved_names:
+                    description_jsons[i] = self.description_json[i]
+            except Exception as e:
+                [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=f"The retrieved names is not in API_composite, please double check",task_title="API json Error",) for callback in self.callbacks]
+                self.indexxxx += 1
             if self.retrieve_query_mode=='similar':
                 instruction_shot_example = self.retriever.retrieve_similar_queries(user_input, shot_k=5)
             else:
                 sampled_shuffled = random.sample(self.retriever.shuffled_data, 5)
                 instruction_shot_example = "".join(["\nInstruction: " + ex['query'] + "\nFunction: " + ex['gold'] for ex in sampled_shuffled])
+            print('start preparing api predict prompt')
             api_predict_prompt = f"""
             Task: choose one of the following APIs to use for the instruction. 
             {json.dumps(description_jsons)}
@@ -510,7 +516,7 @@ class Model:
             success = False
             for attempt in range(3):
                 try:
-                    #print(f'==>Ask GPT: {api_predict_prompt}')
+                    print(f'==>Ask GPT: {api_predict_prompt}')
                     response, _ = LLM_response(self.llm, self.tokenizer, api_predict_prompt, history=[], kwargs={})  # llm
                     print('==>GPT response:', response)
                     # hack for if GPT answers this or that
@@ -522,13 +528,10 @@ class Model:
                     success = True
                     break
                 except Exception as e:
-                    [callback.on_tool_start() for callback in self.callbacks]
-                    [callback.on_tool_end() for callback in self.callbacks]
-                    [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=f"GPT predict error: encounter {e} error. Please re-design the query and re-enter.",task_title="GPT predict Error",) for callback in self.callbacks]
-                    self.indexxxx += 1
+                    print(f'Time {attempt}. GPT predict error: {e}')
                     return
             if not success:
-                [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task="GPT can not return valid API name prediction, please try other query.",task_title="GPT predict Error",) for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task="GPT can not return valid API name prediction, please redesign your prompt.",task_title="GPT predict Error",) for callback in self.callbacks]
                 self.indexxxx += 1
                 return
             print(f'length of ambiguous api list: {len(self.ambiguous_api)}')

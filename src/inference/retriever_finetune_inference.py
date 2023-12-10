@@ -1,21 +1,15 @@
-import argparse
-import os
-import json
+import argparse, os, json, time, re
 from xml.etree.ElementTree import QName
 from tqdm import tqdm
-import time
 import pandas as pd
-import re
 from configs.model_config import HUGGINGPATH
 from sentence_transformers import SentenceTransformer, util
 from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version
 import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
 # Print average scores for each rank
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 
 class ToolRetriever:
     def __init__(self, LIB, corpus_tsv_path = "", model_path=""):

@@ -25,37 +25,16 @@ parser.add_argument("--warmup_steps", default=500, type=float, required=True,hel
 parser.add_argument("--max_seq_length", default=256, type=int, required=True,help="Max sequence length.")
 parser.add_argument("--optimize_top_k", default=3, type=int, required=True,help="The metric which to save best model")
 parser.add_argument("--plot_dir", default="./plot/retriever/", type=str, required=True,help="plot dir for saving")
-
 args = parser.parse_args()
-
-logging.basicConfig(format='%(asctime)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S',
-                    level=logging.INFO,
-                    handlers=[LoggingHandler()])
-logger = logging.getLogger(__name__)
 
 torch.manual_seed(42)
 torch.cuda.manual_seed(42)
 
-num_epochs = args.num_epochs
-train_batch_size = args.train_batch_size
-lr = args.learning_rate
-warmup_steps = args.warmup_steps
-data_path = args.data_path
-output_path = args.output_path
-os.makedirs(output_path, exist_ok=True)
+os.makedirs(args.output_path, exist_ok=True)
 os.makedirs(args.plot_dir, exist_ok=True)
 
-#model_save_path = os.path.join(output_path, datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
 model_save_path = os.path.join(args.output_path,'assigned')
 os.makedirs(model_save_path, exist_ok=True)
-
-tensorboard_name = 'name_desc'
-logs_writer = SummaryWriter(os.path.join(output_path, 'tensorboard', tensorboard_name))
-
-def log_callback_st(train_ix, global_step, training_steps, current_lr, loss_value):
-    logs_writer.add_scalar('train_loss', loss_value, global_step)
-    logs_writer.add_scalar('lr', current_lr[0], global_step)
 
 # Model definition
 word_embedding_model = models.Transformer(args.model_name, max_seq_length=args.max_seq_length)
@@ -73,30 +52,37 @@ def load_relevant_docs(labels_df):
         relevant_docs.setdefault(row.qid, set()).add(row.docid)
     return relevant_docs
 
-documents_df = pd.read_csv(os.path.join(data_path, 'corpus.tsv'), sep='\t')
-ir_corpus, _ = process_retrieval_document_query_version(documents_df)
-labels_df_train, ir_train_queries = load_query("train", data_path)
-labels_df_test, ir_test_queries = load_query("test", data_path)
-labels_df_val, ir_val_queries = load_query("val", data_path)
-train_samples = []
-for row in labels_df_train.itertuples():
-    train_samples.append(InputExample(texts=[ir_train_queries[row.qid], ir_corpus[row.docid]], label=row.label))
-train_relevant_docs = load_relevant_docs(labels_df_train)
-test_relevant_docs = load_relevant_docs(labels_df_test)
-val_relevant_docs = load_relevant_docs(labels_df_val)
+def get_data(data_path, ):
+    documents_df = pd.read_csv(os.path.join(data_path, 'corpus.tsv'), sep='\t')
+    ir_corpus, _ = process_retrieval_document_query_version(documents_df)
+    labels_df_train, ir_train_queries = load_query("train", data_path)
+    labels_df_test, ir_test_queries = load_query("test", data_path)
+    labels_df_val, ir_val_queries = load_query("val", data_path)
+    train_samples = []
+    for row in labels_df_train.itertuples():
+        train_samples.append(InputExample(texts=[ir_train_queries[row.qid], ir_corpus[row.docid]], label=row.label))
+    train_relevant_docs = load_relevant_docs(labels_df_train)
+    test_relevant_docs = load_relevant_docs(labels_df_test)
+    val_relevant_docs = load_relevant_docs(labels_df_val)
+    corpus_config = {
+        'train': {'queries': ir_train_queries, 'relevant_docs': train_relevant_docs},
+        'val': {'queries': ir_val_queries, 'relevant_docs': val_relevant_docs},
+        'test': {'queries': ir_test_queries, 'relevant_docs': test_relevant_docs},
+    }
+    return ir_corpus, train_samples, corpus_config
+ir_corpus, train_samples, corpus_config = get_data(args.data_path)
 
-train_dataloader = DataLoader(train_samples, shuffle=True, batch_size=train_batch_size, pin_memory=True)
+train_dataloader = DataLoader(train_samples, shuffle=True, batch_size=args.train_batch_size, pin_memory=True)
 train_loss = losses.MultipleNegativesRankingLoss(model)
-evaluator = APIEvaluator(ir_train_queries, train_relevant_docs, ir_val_queries, val_relevant_docs, ir_test_queries, test_relevant_docs, ir_corpus, fig_path=args.plot_dir,optimize_top_k=args.optimize_top_k)
-
+evaluator = APIEvaluator(corpus_config, ir_corpus, fig_path=args.plot_dir,optimize_top_k=args.optimize_top_k)
 # You may need to modify the .fit() method to ensure all data is moved to the correct device during parallel computations
 #from tensorflow.keras.callbacks import EarlyStopping
 #early_stopping_callback = EarlyStopping(monitor='val_loss', patience=5)
 model.fit(train_objectives=[(train_dataloader, train_loss)],
                 evaluator=evaluator,
-                epochs=num_epochs,
-                warmup_steps=warmup_steps,
-                optimizer_params={'lr': lr},
+                epochs=args.num_epochs,
+                warmup_steps=args.warmup_steps,
+                optimizer_params={'lr': args.learning_rate},
                 output_path=model_save_path
                 )
 
