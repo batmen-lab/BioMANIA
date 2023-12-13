@@ -184,7 +184,7 @@ cp -r data/standard_process/${LIB}/API_init_prepare.json data/standard_process/$
 ```
 
 #### 2.1.3. Run Training Scripts:
-For subsequent steps, refer to the [`Run with script/Training`](README.md#training) section in the README. Following these instructions will result in the generation of data files in data/standard_process/your_project_name and model files in hugging_models.
+For subsequent steps, refer to the following steps of obtaining `API_composite.json` from [`Run with script/Training`](README.md#training) section in the README. Following these instructions will result in the generation of data files in data/standard_process/your_project_name and model files in hugging_models.
 
 ```python
 data/standard_process/your_project_name

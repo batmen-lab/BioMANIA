@@ -22,49 +22,38 @@
 
 Welcome to the BioMANIA! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
 
-Importantly, this README primarily supports the conversion of PyPI tools. We also offer tutorial of conversions for [Python source code](Git2APP.md) and [R](R2APP.md) (231123-Still under developing)! Please refer to the separate README for these processes.
+
+Project Overview:
+
+![](./images/overview_v2.jpg)
+
+
+Importantly, this README primarily supports the conversion of PyPI tools. Please refer to the separate README for tutorials that supporting other tools.
+- [For PyPI Tools](README.md)
+- [For Python Source Code from Git Repo](Git2APP.md)
+- [For R Package](R2APP.md) (231123-Still under developing)
 
 🌟 We warmly invite you to share your trained models and datasets in our [issues section](https://github.com/batmen-lab/BioMANIA/issues/2), making it easier for others to utilize and extend your work, thus amplifying its impact. Feel free to explore and provide feedback on tools shared by other contributors as well! 🚀🔍
 
-## Video demo
+We welcome 🤗 you to refer to the [Q&A](Q&A.md) section if you encounter any problems during your exploration and contribute some issues for discussion! 🧐 👨‍💻
+
+# Video demo
 
 Our demonstration showcases how to utilize a chatbot to simultaneously use scanpy and squidpy in a single conversation, including loading data, invoking functions for analysis, and presenting outputs in the form of code, images, and tables
 
 <img src="examples/video_demo.gif" style="width:800px;height:460px;animation: play 0.25s steps(10) infinite;">
 
-## Web access online demo
+# Web access online demo
 
 We provide an [online demo](https://biomania.ngrok.io/en) hosted on our server! 
 
-Tips:
-- Some tools need an individual environment (like qiime2, scenicplus) and we can not include them all in a single `requirements.txt`. Under this case, currently you need to switch to that conda environment manually and run with script. 
-- We have implemented switching different libraries inside one dialog. You can 
-- Notice that the inference speed depends on OpenAI key and back-end device. A paid OpenAI key and running back-end on GPU will speed up the inference quite a lot!
-- All uploaded files are saved under `./tmp` folder. Please enter `./tmp/`+your_file_name when the API requires filename parameters.
-- It will be quite slow if the file for transmission is large. If the file transfer is too large, you may encounter the following issue: "JavaScript heap memory exhaustion caused by excessive memory usage or memory leaks in the program.". **You can copy the file under `src/tmp/` folder directly.**
-
-> **This has only one backend, which may lead to request confusion when multiple users request simultaneously. The stability of the operation is affected by the device's network. When it runs on the CPU, switching between different libraries takes about half a minute to load models and data. We recommend prioritizing running it locally with GPU, which takes only about 3 seconds to switch between different libraries!**
-
-## Quick start
+# Quick start
 
 We provide three ways to run the service, Docker, railway, python script. Among those, Docker is the easiest way to start.
-
-## Run with Railway
-
-We provide a Railway deployment template that allows you to deploy to Railway with a single click.
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/qaQEvv)
-
-You'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable `Public Domain` in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
 
 ## Run with Docker
 
 For ease of use, we provide Docker images for several tools. You can refer the detailed tools list from [dockerhub](https://hub.docker.com/repositories/chatbotuibiomania).
-
-```bash
-# Select $lib from the list below
-# scanpy, squidpy, scenicplus, scikit-bio, pyopenms, pyteomics, deap, eletoolkit, qiime2, scvi-tools, biopython, biotite. sonata, MIOSTONE
-```
 
 ```bash
 # Pull back-end service and front-end UI service with:
@@ -82,30 +71,25 @@ docker run -e LIB=${LIB} -e OPENAI_API_KEY=[your_openai_api_key] -d -p 3000:3000
 Then check UI service with `http://localhost:3000/en`.
 
 Important Tips for Running Docker Without Bugs:
-- Be careful for the `http/https`, `PORT`, `url` in `chatbot_ui_biomania/utils/server/index.ts`, and the effectiveness of the API key, as they will affect the connection between backend and frontend service.
 - To run docker on GPU, you need to install `nvidia-docker` and [`nvidia container toolkit`](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html). Run `docker info | grep "Default Runtime"` to check if your device can run docker with gpu.
-- Feel free to adjust the [cuda image version](https://hub.docker.com/r/nvidia/cuda/tags?page=1) inside the `src/Dockerfile` to configure it for different CUDA settings which is compatible for your device, or you can remove the `runtime: nvidia` from the `docker-compose.yml` to run it using the CPU.
-- Please double check that the firewall allows communication between containers.
+- Feel free to adjust the [cuda image version](https://hub.docker.com/r/nvidia/cuda/tags?page=1) inside the `src/Dockerfile` to configure it for different CUDA settings which is compatible for your device.
 
-### Setting up services on separate devices
-
-If you're operating the docker on server, visualize the UI by initiating the [ngrok service](https://ngrok.com/docs/getting-started/)
+We understand the desire to run the service on a server and visualize locally. You can initiate the [ngrok service](https://ngrok.com/docs/getting-started/) by running this script on your server:
 ```bash
 ngrok http 3000
 ```
 
-get the url like `https://[ngrok_id].ngrok-free.app` and copy it to chrome!
+then get the url like `https://[ngrok_id].ngrok-free.app` and copy it to chrome to start!
 
-## Project Overview
+## Run with Railway
 
-Our project workflow is depicted in the images below, showcasing the pipeline, chatbot UI, and tutorials.
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/qaQEvv)
 
-Project Overview:
-Our project pipeline is illustrated below:
-![](./images/overview_v2.jpg)
-
+To use railway, you'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable `Public Domain` in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
 
 ## Run with script
+
+For instance, let's take `scanpy` as an example. Detailed library support information can be found in the [Q&A](Q&A.md)
 
 ### Setting up for environment
 To prepare your environment for the BioMANIA project, follow these steps:
@@ -177,14 +161,13 @@ hugging_models
 
 By meticulously following the steps above, you'll have all the essential data and models perfectly organized for the project.
 
-We provide data and pre-trained models for available tools mentioned in our paper. For experimenting with more libraries, use our library installation service.
-
-We also offer some demo chat, you can find them in [`./examples`](https://github.com/batmen-lab/BioMANIA/blob/main/examples) and use `import data` button to visualize it in chatbot UI. Notice that these demo chat are converted from the PyPI readthedoc tutorials. You can check the original tutorial link through the `tutorial_links.txt`.
+We also offer some demo chat, you can find them in [`./examples`](https://github.com/batmen-lab/BioMANIA/blob/main/examples). Notice that these demo chat are converted from the PyPI readthedoc tutorials. You can check the original tutorial link through the `tutorial_links.txt`.
 
 ![](./images/demo_full.jpg)
 
 ### Prepare for front-end UI service
 
+This is compatible with Node.js version 19.
 ```bash
 # Under folder BioMANIA/chatbot_ui_biomania
 npm i # install
@@ -221,9 +204,9 @@ We provide a robust training script for additional customization and enhancement
     },
     ...
     # simplest input
-    'your_lib':{
-        "LIB":'your_lib_name', # NECESSARY
-        "LIB_ALIAS":'your_lib_alias', # NECESSARY
+    'scikit-learn':{
+        "LIB":'scikit-learn', # NECESSARY
+        "LIB_ALIAS":'sklearn', # NECESSARY
         "API_HTML_PATH": null, # OPTIONAL
         "GITHUB_LINK": null, # OPTIONAL
         "READTHEDOC_LINK": null, # OPTIONAL
@@ -237,58 +220,59 @@ We provide a robust training script for additional customization and enhancement
 export LIB=scanpy
 ```
 
-> **For example, for `scikit-learn`, the LIB is `scikit-learn`, while the LIB_ALIAS is `sklearn`. API_HTML_PATH is the API list page.**
-
 > **We download API_HTML_PATH instead of the whole READTHEDOC for saving time.**
 
 > **Notice that the READTHEDOC version should be compatible with your PyPI version, otherwise it may ignore some APIs.**
 
-(Optional) Download the necessary readthedoc materials to folder `../../resources/readthedoc_files` with:
+(Optional) Feel free to skip these two scripts if you don't need `composite_API`. They aim to download the necessary readthedoc materials to folder `../../resources/readthedoc_files` with:
 ```bash
+# Under folder `BioMANIA/src`
 # download materials according to your provided url links
 python dataloader/utils/other_download.py --LIB ${LIB}
 # generate codes for your downloaded tutorial files, support for either html, ipynb.
 python dataloader/utils/tutorial_loader_strategy.py --LIB ${LIB} --file_type 'html'
-# These two scripts are required for getting `API_composite.json`. Feel free to skip this if you don't need `API_composite.json`.
 ```
 
-Install the PyPI library by `pip install {LIB}` or other ways that recommended from their Github.
+Install the PyPI library by below, or other ways that recommended from their Github.
+```bash
+pip install {LIB}
+```
 
-For further web UI, don't forget to add the new lib information to `BioMANIA/chatbot_ui_biomania/components/Chat/LibCardSelect.tsx`. Also add the new lib logo to `BioMANIA/chatbot_ui_biomania/public/apps/`.
+To use web UI smoothly, don't forget to add the new lib information to `BioMANIA/chatbot_ui_biomania/components/Chat/LibCardSelect.tsx`. Also add the new lib logo to `BioMANIA/chatbot_ui_biomania/public/apps/`.
 
 2. Generate API_init.json using the provided script.
 ```bash
 python dataloader/get_API_init_from_sourcecode.py --LIB ${LIB}
 ```
 
-> **Notice: You might want to DIY the filtering rules in  `filter_specific_apis` inside get_API_init_from_sourcecode.py file. Currently we remove API type with `property/constant/builtin`, remove API without docstring, API without input/output simultaneously. Most retained APIs are of type `function/method/Class`, which is more meaningful for user query inference. You can check your API_init.json and modify rules accordingly!**
-
 3. (Optional) Generate API_composite.json automatically with:
 ```bash
+# get composite API if you have already provided tutorial
 python dataloader/get_API_composite_from_tutorial.py --LIB ${LIB}
-```
-
-If you skip this step, don't forget to generate a file of `./data/standard_process/{LIB}/API_composite.json` to guarantee the following steps can run smoothly.
-
-```bash
+# or skip it by running
 cp -r ./data/standard_process/${LIB}/API_init.json ./data/standard_process/${LIB}/API_composite.json
 ```
 
-4. Following this, create instructions, generate various JSON files, and split the data.
+Notice that this step also requires OpenAI API to polish the docstring of the composite API.
+
+If you skip this step, ensure that you contain a file of `./data/standard_process/{LIB}/API_composite.json` to guarantee that the following steps can run smoothly.
+
+4. Following this, create instructions, and split the data for retriever training preparation.
 ```bash
 python dataloader/preprocess_retriever_data.py --LIB ${LIB}
 ```
 
 Tips:
-- The automatically generated API_inquiry_annotate.json do not have human annotated data here, you need to annotate the API_inquiry_annotate.json by yourself if you want to test performance on human annotate data.
-- The time cost is related with the total number of APIs in the lib and the OpenAI account.
+- (Optional) The automatically generated API_inquiry_annotate.json do not have human annotated data here, you need to annotate the API_inquiry_annotate.json by yourself if you want to test performance on human annotate data.
+- If you skip the above step, please only refer to `train/val` performance instead of `test` performance.
+- The time cost is related with the total number of APIs of lib and the `paid OpenAI account`.
 
 5. Train the api/non-api classification model.
 ```bash
 python models/chitchat_classification.py --LIB ${LIB}
 ```
 
-6. (Optional) Test bm25 retriever
+6. (Optional) Try the unpretrained bm25 retriever for a quick inference on your generated instructions.
 ```bash
 python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
 ```
@@ -312,28 +296,9 @@ python models/train_retriever.py \
     --plot_dir ./plot/${LIB}/retriever/
 ```
 
-Note that the num_epochs need to be modified according to different tools. You can check the training performance curve under `./src/plot/${LIB}/` to determine the number of epochs.
+You can check the training performance curve under `./src/plot/${LIB}/` to determine whether you need more number of epochs.
 
-Or, you can finetune based on pretrained models from other libs.
-```bash
-export LIB=scanpy
-export OTHER_LIB=squidpy
-CUDA_VISIBLE_DEVICES=0
-mkdir ./hugging_models/retriever_model_finetuned/${LIB}
-python models/train_retriever.py \
-    --data_path ./data/standard_process/${LIB}/retriever_train_data/ \
-    --model_name ./hugging_models/retriever_model_finetuned/${OTHER_LIB}/assigned/ \
-    --output_path ./hugging_models/retriever_model_finetuned/${LIB} \
-    --num_epochs 25 \
-    --train_batch_size 32 \
-    --learning_rate 1e-5 \
-    --warmup_steps 500 \
-    --max_seq_length 256 \
-    --optimize_top_k 3 \
-    --plot_dir ./plot/${LIB}/retriever/
-```
-
-test the inference performance using:
+8. Test the inference performance using:
 ```bash 
 export LIB=scanpy
 export HUGGINGPATH=./hugging_models
@@ -347,27 +312,17 @@ python inference/retriever_finetune_inference.py  \
     --LIB ${LIB}
 ```
 
-Or compare the inference performance with:
-```bash
-export HUGGINGPATH=./hugging_models
-python inference/retriever_finetune_inference.py  \
-    --retrieval_model_path bert-base-uncased \
-    --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
-    --input_query_file ./data/standard_process/${LIB}/API_inquiry_annotate.json \
-    --idx_file ./data/standard_process/${LIB}/API_instruction_testval_query_ids.json \
-    --retrieved_api_nums 3 \
-    --LIB ${LIB}
-```
-
 You can refer to `src/plot/${LIB}/error_train.json` for detailed error case.
 
-8. Test api name prediction using either the gpt baseline or the classification model.
-
-GPT-baseline
+9. (Optional) Test api name prediction using gpt baseline.
 
 **Run code inside gpt_baseline.ipynb to check results.** You can either choose top_k, gpt3.5/gpt4 model, random shot/similar shot example, narrowed retrieved api list/whole api list parameters here. The performance described in our paper was evaluated using GPT versions GPT-3.5-turbo-16k-0613 and GPT-4-0613.
 
-Besides, even though we use gpt prompt to predict api, we also provide an api-name prediction classification model
+Note that using GPT-4 can be costly and is intended solely for reproducibility purposes.
+
+10. (Optional) Test api name prediction using classification model.
+
+Besides, even though we use gpt prompt to predict api during inference period, we also provide an api-name prediction classification model
 
 Please refer to [lit-llama](https://github.com/Lightning-AI/lit-llama) for getting llama weights and preprocessing. 
 
@@ -472,7 +427,7 @@ If you want to share your pretrained APP to others, there are two ways.
 
 ### Share docker
 
-You can build docker and push to dockerhub, and share your docker image url in [our issue](https://github.com/batmen-lab/BioMANIA/issues/2).
+You can build docker and push to dockerhub, and share your docker image url in [our issue](https://github.com/batmen-lab/BioMANIA/issues/2). For environment setting of your tool, please refer to `BioMANIA/docker_utils/{LIB}/` to add the env files, or modify the Dockerfile to build your environment.
 ```bash
 # cd BioMANIA
 docker build --build-arg LIB=[your_tool_name] -t [docker_image_name] -f Dockerfile ./
@@ -507,6 +462,7 @@ We will provide the below files and the data of more tools later
 ```
 report/Py2report.py
 ```
+
 
 ## Version History
 - v1.1.9 (coming soon)
