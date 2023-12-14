@@ -1,0 +1,45 @@
+
+## Version History
+- v1.1.9 (coming soon)
+  - Accelerate the retriever training.
+  - Add Drive URL installation feature for convenient uploading of large files by users.
+  - Support retriever bm25 for `inference_dialog_server.py`.
+  - Provide one-click packaging and uploading, as well as one-click installation.
+- v1.1.8 (2023-12-03)
+  - Build Docker images for each library. Detailed tools list supported are available [here](https://hub.docker.com/repositories/chatbotuibiomania).
+  - Implement session management to facilitate simultaneous use by multiple dialogs. 
+  - Introduce session state rollback management, enabling users to revert to previous states and re-initiate inquiries.
+- v1.1.7 (2023-12-01)
+  - Added [SONATA tutorial](./examples/sonata_SNARE_seq.html) and [MIOSTONE tutorial](./examples/MIOSTONE_IBD200.html) to showcase tool usage. Upload data and pretrained models onto [drive](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).
+  - Fixed bug in class-type APIs that caused errors when using methods. Methods can now be called and used correctly.
+  - Resolved program exit issue without error throw. Errors are now handled properly with relevant error messages displayed.
+  - Addressed retriever loading issue for specific tools. Indivdual retrievers can now be loaded and utilized correctly for each tool.
+  - Enhance Robustness for basic type parameters. When entering `result_*` for basic type parameters, it will show `result_*` instead of `"result_*"` even it is of `str` type.
+  - Fix bug of `secrets` variable in `src/gpt/gpt_interface.py`. Change the way to call OpenAI from langchain to OpenAI lib in `models/model.py`
+- v1.1.6 (2023-11-27)
+  - Support sharing your APP and install others' APP through [our issue](https://github.com/batmen-lab/BioMANIA/issues/2)!
+  - Enhance code robustness: 
+    - When it returns a tuple, split it to multiple variables by adding code `result_n+1, result_n+2, ... = result_n`. 
+    - During parameter inference, if a parameter is of 'NoneType', replace it with 'Any' to run smoothly.
+    - Fix bug for adding quotation when user input value for str type parameters.
+  - Release a package.
+- v1.1.5 (2023-11-25)
+  - Enhanced Docker Integration: Now featuring seamless packaging of both front-end and back-end components using Docker. This update simplifies deployment processes, ensuring a more streamlined development experience. We update `chatbotuibiomania/biomania-together:v1.1.3`.
+  - Automated Docstring Addition: Users can now effortlessly convert GitHub source code to our tool with scripts that automatically add docstrings, freeing them from the manual effort previously required.
+- v1.1.4 (2023-11-22)
+  - Add [`manual`](R2APP.md) support for converting R code to API_init.json. Will support for converting R code to APP later!
+  - Release docker v1.1.3 with support for 12 PyPI biotools. Notice that some tools are only available under their own conda environment!! We update `chatbotuibiomania/biomania-frontend:v1.1.3` and `chatbotuibiomania/biomania-backend:v1.1.3`.
+  - Resolved issues related to Docker networking and Docker CUDA.
+  - Improved the stability of the server demo by ensuring that it runs continuously in the background.
+- v1.1.3 (2023-11-20)
+  - Support web access on our server. Provide data/models for 12 tools mentioned in our paper through drive link.
+  - Upload Composite API generation related codes.
+  - Add demo chat for these tools under `BioMANIA/examples`.
+  - Support manually set maximum concurrency for bulk instruction generation, added a visualization bar.
+- v1.1.2 (2023-11-17)
+  - Release docker v1.1.2 with support for 8 PyPI bio tools. We will release more libs in a later version.
+  - Add [`manual`](Git2APP.md) support for converting github repo/source code to BioMANIA APP.
+  - Support for switching libs during a dialog. Now you can let multiple tool cooperate inside one dialog!
+- v1.1.1 (2023-11-10)
+  - Initial release with analysis pipeline for `scanpy`.
+  - Add one-click deploy using railway.
