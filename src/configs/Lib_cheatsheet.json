@@ -33,7 +33,7 @@
         "GITHUB_LINK": "https://github.com/aertslab/scenicplus",
         "READTHEDOC_LINK": "https://scenicplus.readthedocs.io/en/latest/",
         "TUTORIAL_HTML_PATH": "scenicplus.readthedocs.io/en/latest/examples/",
-        "TUTORIAL_GITHUB": null
+        "TUTORIAL_GITHUB": "https://github.com/aertslab/scenicplus_analyses"
     },
     "biopython": {
         "GITHUB_LINK": "https://github.com/biopython/biopython",
@@ -42,7 +42,7 @@
         "API_HTML_PATH": "biopython.org/docs/latest/api",
         "LIB_ALIAS": "Bio",
         "TUTORIAL_GITHUB":"https://github.com/biopython/biopython/tree/master/Doc/Tutorial",
-        "TUTORIAL_HTML_PATH":"scenicplus.readthedocs.io/en/latest/examples/"
+        "TUTORIAL_HTML_PATH":"https://biopython.org/DIST/docs/tutorial/Tutorial.html"
     },
     "qiime2": {
         "LIB": "qiime2",
@@ -50,8 +50,8 @@
         "API_HTML_PATH": "docs.qiime2.org/2023.9/interfaces/artifact-api/index.html",
         "GITHUB_LINK": "https://github.com/qiime2/qiime2",
         "READTHEDOC_LINK": "https://docs.qiime2.org/2023.9/",
-        "TUTORIAL_HTML_PATH":"docs.qiime2.org/2023.9/tutorials",
-        "TUTORIAL_GITHUB": null
+        "TUTORIAL_GITHUB": "https://github.com/biocore/validation-notebooks/tree/main",
+        "TUTORIAL_HTML_PATH":"docs.qiime2.org/2023.9/tutorials"
     },
     "eletoolkit": {
         "LIB": "eletoolkit",
@@ -59,7 +59,7 @@
         "API_HTML_PATH": "etetoolkit.github.io/ete/reference/index.html",
         "GITHUB_LINK": "https://github.com/etetoolkit/ete",
         "READTHEDOC_LINK": "https://etetoolkit.github.io/ete/",
-        "TUTORIAL_GITHUB":null, 
+        "TUTORIAL_GITHUB": "https://github.com/etetoolkit/cookbook", 
         "TUTORIAL_HTML_PATH":"etetoolkit.org/docs/latest/tutorial"
     },
     "pyopenms": {
@@ -69,7 +69,7 @@
         "GITHUB_LINK": "https://github.com/OpenMS/OpenMS",
         "READTHEDOC_LINK": "https://pyopenms.readthedocs.io",
         "TUTORIAL_HTML_PATH":"pyopenms.readthedocs.io/en/latest/user_guide",
-        "TUTORIAL_GITHUB": null
+        "TUTORIAL_GITHUB": "https://github.com/biosustain/pyOpenMS_UmetaFlow"
     },
     "pyteomics": {
         "LIB": "pyteomics",
@@ -86,8 +86,8 @@
         "API_HTML_PATH": "scikit.bio/docs/latest/index.html",
         "GITHUB_LINK": "https://github.com/biocore/scikit-bio",
         "READTHEDOC_LINK": "https://scikit.bio/docs/latest/",
-        "TUTORIAL_HTML_PATH": null,
-        "TUTORIAL_GITHUB": null
+        "TUTORIAL_HTML_PATH": "https://nbviewer.org/github/scikit-bio/scikit-bio-cookbook/tree/master/",
+        "TUTORIAL_GITHUB": "https://github.com/scikit-bio/scikit-bio-cookbook"
     },
     "emperor": {
         "LIB": "emperor",
@@ -96,7 +96,7 @@
         "GITHUB_LINK": "https://github.com/biocore/emperor",
         "READTHEDOC_LINK": "http://biocore.github.io/emperor/",
         "TUTORIAL_HTML_PATH": "biocore.github.io/emperor/tutorials/",
-        "TUTORIAL_GITHUB": null
+        "TUTORIAL_GITHUB": "https://nbviewer.org/github/biocore/emperor/tree/new-api/examples/"
     },
     "gneiss": {
         "LIB": "gneiss",
@@ -105,15 +105,6 @@
         "GITHUB_LINK": "https://github.com/biocore/gneiss",
         "READTHEDOC_LINK": "https://biocore.github.io/gneiss/docs/v0.4.0/",
         "TUTORIAL_HTML_PATH": "biocore.github.io/gneiss/docs/v0.4.0/tutorials/python/",
-        "TUTORIAL_GITHUB": null
-    },
-    "biostars": {
-        "LIB": "biostars",
-        "LIB_ALIAS": "biostars",
-        "API_HTML_PATH": null,
-        "GITHUB_LINK": null,
-        "READTHEDOC_LINK": "https://www.biostars.org/",
-        "TUTORIAL_HTML_PATH": null,
         "TUTORIAL_GITHUB": null
     },
     "deap": {
@@ -132,7 +123,7 @@
         "GITHUB_LINK": "https://github.com/tskit-dev/tskit",
         "READTHEDOC_LINK": "https://tskit.dev/tskit/docs/latest/introduction.html",
         "TUTORIAL_HTML_PATH": "tskit.dev/tutorials/",
-        "TUTORIAL_GITHUB": null
+        "TUTORIAL_GITHUB": "https://github.com/tskit-dev/tutorials"
     },
     "biotite": {
         "LIB": "biotite",
@@ -141,7 +132,7 @@
         "GITHUB_LINK": "https://github.com/biotite-dev/biotite",
         "READTHEDOC_LINK": "https://www.biotite-python.org/",
         "TUTORIAL_HTML_PATH": "www.biotite-python.org/tutorial/target/index.html",
-        "TUTORIAL_GITHUB": null
+        "TUTORIAL_GITHUB": "https://github.com/biotite-dev/article-notebooks"
     },
     "sonata":{
         "LIB": "sonata",

@@ -529,8 +529,10 @@ class Model:
                     break
                 except Exception as e:
                     print(f'Time {attempt}. GPT predict error: {e}')
-                    return
+                    #return 
             if not success:
+                [callback.on_tool_start() for callback in self.callbacks]
+                [callback.on_tool_end() for callback in self.callbacks]
                 [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task="GPT can not return valid API name prediction, please redesign your prompt.",task_title="GPT predict Error",) for callback in self.callbacks]
                 self.indexxxx += 1
                 return
@@ -897,12 +899,14 @@ class Model:
         # split parameters according to multiple API, or class/method API
         parameters_list = self.extract_parameters(self.api_name_json, self.API_composite)
         extracted_params = self.split_params(self.selected_params, parameters_list)
-        print(f'extracted_params: {extracted_params}')
+        print(f'==>self.api_name_json: {self.api_name_json}', f'parameters_list: {parameters_list}')
+        print(f'==>extracted_params: {extracted_params}')
         extracted_params_dict = {api_name: extracted_param for api_name, extracted_param in zip(self.api_name_json, extracted_params)}
         print('extracted_params_dict: ', extracted_params_dict)
         api_params_list = []
         for idx, api_name in enumerate(self.api_name_json):
-            if self.api_name_json[api_name]['type']!='class':
+            if True:
+                #if self.api_name_json[api_name]['type']=='class': # !
                 #print('==>assume not start with class API:', api_name)
                 class_selected_params = {}
                 fake_class_api = '.'.join(api_name.split('.')[:-1])
@@ -928,6 +932,7 @@ class Model:
                                         "parameters":extracted_params[idx], 
                                         "return_type":self.API_composite[api_name]['Returns']['type'],
                                         "class_selected_params":class_selected_params})
+        print('==>api_params_list:', json.dumps(api_params_list))
         execution_code = self.executor.generate_execution_code(api_params_list)
         print('==>execution_code:',execution_code)
         [callback.on_tool_start() for callback in self.callbacks]
@@ -1036,7 +1041,7 @@ class Model:
                 self.indexxxx+=1
         else:
             print(f'Execution Error: {content}')
-            [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=""+"".join(error_list),task_title="Executed results [Fail]",) for callback in self.callbacks] # Execution failed! 
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="".join(list(set(error_list))),task_title="Executed results [Fail]",) for callback in self.callbacks] # Execution failed! 
             self.indexxxx+=1
         file_name=f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
         self.executor.save_environment(file_name)

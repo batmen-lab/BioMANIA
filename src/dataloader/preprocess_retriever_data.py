@@ -1,6 +1,9 @@
 # instruction_generation
 # prepare for retriever data
 import json, os, re, copy, ast, random, time, cProfile, pstats, argparse, asyncio
+from dotenv import load_dotenv
+load_dotenv()
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
 
 from tqdm import tqdm as tqdm_normal
 from tqdm.asyncio import tqdm_asyncio
