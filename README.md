@@ -28,14 +28,9 @@ Project Overview:
 ![](./images/overview_v2.jpg)
 
 
-Importantly, this README primarily supports the conversion of PyPI tools. Please refer to the separate README for tutorials that supporting other tools.
-- [For PyPI Tools](README.md)
-- [For Python Source Code from Git Repo](Git2APP.md)
-- [For R Package](R2APP.md) (231123-Still under developing)
-
 🌟 We warmly invite you to share your trained models and datasets in our [issues section](https://github.com/batmen-lab/BioMANIA/issues/2), making it easier for others to utilize and extend your work, thus amplifying its impact. Feel free to explore and provide feedback on tools shared by other contributors as well! 🚀🔍
 
-We welcome 🤗 you to refer to the [Q&A](Q&A.md) section if you encounter any problems during your exploration and contribute some issues for discussion! 🧐 👨‍💻
+We welcome 🤗 you to refer to the [Q&A](./docs/Q&A.md) section if you encounter any problems during your exploration and contribute some issues for discussion! 🧐 👨‍💻
 
 # Video demo
 
@@ -89,7 +84,7 @@ To use railway, you'll need to fill in the `OpenAI_API_KEY` in the Variables pag
 
 ## Run with script
 
-For instance, let's take `scanpy` as an example. Detailed library support information can be found in the [Q&A](Q&A.md)
+For instance, let's take `scanpy` as an example. Detailed library support information can be found in the [Q&A](./docs/Q&A.md)
 
 ### Setting up for environment
 To prepare your environment for the BioMANIA project, follow these steps:
@@ -138,7 +133,7 @@ data
 │   ├── test_data.csv
 │   └── train_data.csv
 └── standard_process
-    ├── scanpy
+    ├── {LIB}
     │   ├── API_composite.json
     │   ├── API_init.json
     │   ├── API_inquiry.json
@@ -154,8 +149,7 @@ data
 
 hugging_models
 └── retriever_model_finetuned
-    ├── scanpy
-    ├── squidpy
+    ├── {LIB}
     └── ...
 ```
 
@@ -170,7 +164,7 @@ We also offer some demo chat, you can find them in [`./examples`](https://github
 This is compatible with Node.js version 19.
 ```bash
 # Under folder BioMANIA/chatbot_ui_biomania
-npm i # install
+npm install
 ```
 
 ### Inference with pretrained models
@@ -185,240 +179,13 @@ Your chatbot server is now operational at `http://localhost:3000/en`, primed to 
 
 > **When selecting different libraries on the UI page, the retriever's path will automatically be changed based on the library selected**
 
-### Training from scratch
+## Build your APP!
 
-We provide a robust training script for additional customization and enhancement of the BioMANIA project. Follow the steps in the Training section to modify library settings, download materials, generate JSON files, and train models.
+Please refer to the separate README for tutorials that supporting converting different coding tools to our APP.
+- [For PyPI Tools](./docs/PyPI2APP.md)
+- [For Python Source Code from Git Repo](./docs/Git2APP.md)
+- [For R Package](./docs/R2APP.md) (231123-Still under developing)
 
-1. Modify the library setting in `Lib_cheatsheet.json`.
-```bash
-{
-    ...
-    'scanpy':{
-        "LIB":'scanpy',
-        "LIB_ALIAS":'scanpy',
-        "API_HTML_PATH": 'scanpy.readthedocs.io/en/latest/api/index.html',
-        "GITHUB_LINK": "https://github.com/scverse/scanpy",
-        "READTHEDOC_LINK": "https://scanpy.readthedocs.io/",
-        "TUTORIAL_HTML_PATH":"scanpy.readthedocs.io/en/latest/tutorials",
-        "TUTORIAL_GITHUB":"https://github.com/scverse/scanpy-tutorials",
-    },
-    ...
-    # simplest input
-    'scikit-learn':{
-        "LIB":'scikit-learn', # NECESSARY
-        "LIB_ALIAS":'sklearn', # NECESSARY
-        "API_HTML_PATH": null, # OPTIONAL
-        "GITHUB_LINK": null, # OPTIONAL
-        "READTHEDOC_LINK": null, # OPTIONAL
-        "TUTORIAL_HTML_PATH": null, # OPTIONAL
-        "TUTORIAL_GITHUB": null, # OPTIONAL
-    }
-}
-```
-
-```bash
-export LIB=scanpy
-```
-
-> **We download API_HTML_PATH instead of the whole READTHEDOC for saving time.**
-
-> **Notice that the READTHEDOC version should be compatible with your PyPI version, otherwise it may ignore some APIs.**
-
-(Optional) Feel free to skip these two scripts if you don't need `composite_API`. They aim to download the necessary readthedoc materials to folder `../../resources/readthedoc_files` with:
-```bash
-# Under folder `BioMANIA/src`
-# download materials according to your provided url links
-python dataloader/utils/other_download.py --LIB ${LIB}
-# generate codes for your downloaded tutorial files, support for either html, ipynb.
-python dataloader/utils/tutorial_loader_strategy.py --LIB ${LIB} --file_type 'html'
-```
-
-Install the PyPI library by below, or other ways that recommended from their Github.
-```bash
-pip install {LIB}
-```
-
-To use web UI smoothly, don't forget to add the new lib information to `BioMANIA/chatbot_ui_biomania/components/Chat/LibCardSelect.tsx`. Also add the new lib logo to `BioMANIA/chatbot_ui_biomania/public/apps/`.
-
-2. Generate API_init.json using the provided script.
-```bash
-python dataloader/get_API_init_from_sourcecode.py --LIB ${LIB}
-```
-
-3. (Optional) Generate API_composite.json automatically with:
-```bash
-# get composite API if you have already provided tutorial
-python dataloader/get_API_composite_from_tutorial.py --LIB ${LIB}
-# or skip it by running
-cp -r ./data/standard_process/${LIB}/API_init.json ./data/standard_process/${LIB}/API_composite.json
-```
-
-Notice that this step also requires OpenAI API to polish the docstring of the composite API.
-
-If you skip this step, ensure that you contain a file of `./data/standard_process/{LIB}/API_composite.json` to guarantee that the following steps can run smoothly.
-
-4. Following this, create instructions, and split the data for retriever training preparation.
-```bash
-python dataloader/preprocess_retriever_data.py --LIB ${LIB}
-```
-
-Tips:
-- (Optional) The automatically generated API_inquiry_annotate.json do not have human annotated data here, you need to annotate the API_inquiry_annotate.json by yourself if you want to test performance on human annotate data.
-- If you skip the above step, please only refer to `train/val` performance instead of `test` performance.
-- The time cost is related with the total number of APIs of lib and the `paid OpenAI account`.
-
-5. Train the api/non-api classification model.
-```bash
-python models/chitchat_classification.py --LIB ${LIB}
-```
-
-6. (Optional) Try the unpretrained bm25 retriever for a quick inference on your generated instructions.
-```bash
-python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
-```
-
-7. Fine-tune the retriever.
-You can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
-```bash
-export LIB=scanpy
-CUDA_VISIBLE_DEVICES=0
-mkdir ./hugging_models/retriever_model_finetuned/${LIB}
-python models/train_retriever.py \
-    --data_path ./data/standard_process/${LIB}/retriever_train_data/ \
-    --model_name bert-base-uncased \
-    --output_path ./hugging_models/retriever_model_finetuned/${LIB} \
-    --num_epochs 25 \
-    --train_batch_size 32 \
-    --learning_rate 1e-5 \
-    --warmup_steps 500 \
-    --max_seq_length 256 \
-    --optimize_top_k 3 \
-    --plot_dir ./plot/${LIB}/retriever/
-```
-
-You can check the training performance curve under `./src/plot/${LIB}/` to determine whether you need more number of epochs.
-
-8. Test the inference performance using:
-```bash 
-export LIB=scanpy
-export HUGGINGPATH=./hugging_models
-CUDA_VISIBLE_DEVICES=0
-python inference/retriever_finetune_inference.py  \
-    --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
-    --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
-    --input_query_file ./data/standard_process/${LIB}/API_inquiry_annotate.json \
-    --idx_file ./data/standard_process/${LIB}/API_instruction_testval_query_ids.json \
-    --retrieved_api_nums 3 \
-    --LIB ${LIB}
-```
-
-You can refer to `src/plot/${LIB}/error_train.json` for detailed error case.
-
-9. (Optional) Test api name prediction using gpt baseline.
-
-**Run code inside gpt_baseline.ipynb to check results.** You can either choose top_k, gpt3.5/gpt4 model, random shot/similar shot example, narrowed retrieved api list/whole api list parameters here. The performance described in our paper was evaluated using GPT versions GPT-3.5-turbo-16k-0613 and GPT-4-0613.
-
-Note that using GPT-4 can be costly and is intended solely for reproducibility purposes.
-
-10. (Optional) Test api name prediction using classification model.
-
-Besides, even though we use gpt prompt to predict api during inference period, we also provide an api-name prediction classification model
-
-Please refer to [lit-llama](https://github.com/Lightning-AI/lit-llama) for getting llama weights and preprocessing. 
-
-process data:
-```bash
-CUDA_VISIBLE_DEVICES=0
-export TOKENIZERS_PARALLELISM=true
-python models/data_classification.py \
-    --pretrained_path ./hugging_models/llama-2-finetuned/checkpoints/lite-llama2/lit-llama.pth \
-    --tokenizer_path ./hugging_models/llama-2-finetuned/checkpoints/tokenizer.model \
-    --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
-    --retriever_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned/ \
-    --data_dir ./data/standard_process/${LIB}/API_inquiry_annotate.json \
-    --out_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
-    --plot_dir ./plot/${LIB}/classification \
-    --device_count 1 \
-    --top_k 10 \
-    --debug_mode "1" \
-    --save_path ./data/standard_process/${LIB}/classification_train \
-    --idx_file ./data/standard_process/${LIB}/API_instruction_testval_query_ids.json \
-    --API_composite_dir ./data/standard_process/${LIB}/API_composite.json \
-    --batch_size 8 \
-    --retrieved_path ./data/standard_process/${LIB} \
-    --LIB ${LIB}
-```
-
-Then, finetune model:
-```bash
-CUDA_VISIBLE_DEVICES=0 \
-python models/train_classification.py \
-    --data_dir ./data/standard_process/${LIB}/classification_train/ \
-    --out_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
-    --plot_dir ./plot/${LIB}/classification \
-    --max_iters 120 \
-    --batch_size 8
-```
-
-Finally, check the performance:
-```bash
-CUDA_VISIBLE_DEVICES=0 \
-python models/inference_classification.py \
-    --data_dir ./data/standard_process/${LIB}/classification_train/ \
-    --checkpoint_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/combined_model_checkpoint.pth \
-    --batch_size 1
-```
-
-## Report Generation
-
-BioMANIA can generate various reports, including Python files, Jupyter notebooks, performance summaries, and common issue logs. Follow the instructions in the Report Generation section to create these reports.
-
-### For chat Python File: 
-
-Firstly, press `export chat` button on UI to get the chat json data. Convert the chat JSON into a Python code using the Chat2Py.py script.
-
-```bash
-# cd src
-python report/Chat2Py.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
-```
-![](./images/pyfile.jpg)
-
-
-### For chat report
-
-Convert the chat JSON into an [ipynb report](https://github.com/batmen-lab/BioMANIA/blob/main/src/report/demo_Preprocessing_and_clustering_3k_PBMCs.ipynb) using the Chat2jupyter.py script.
-
-```bash
-# cd src
-python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
-```
-![](./images/jupyter.jpg)
-
-
-### For performance report
-
-Combine and sort the performance figures into a short report.
-
-```bash
-# cd src
-python report/PNG2report.py scanpy
-```
-
-Please note that the generation of this report must be based on the premise that the retriever models have already been trained, and the gpt baseline has already been tested. You need to first obtain the results of each model before running this script. Here is a reference for a [demo report](https://github.com/batmen-lab/BioMANIA/tree/main/src/report/performance_report.pdf).
-
-![](./images/performance_report.jpg)
-
-
-### For common issue report
-
-Displaying common issues in the process of converting Python tools into libraries
-
-```bash
-# cd src
-python report/Py2report.py scanpy
-```
-
-The output files are located in the ./report folder.
 
 
 ## Share your APP!
@@ -455,14 +222,6 @@ We extend our gratitude to the following references:
 
 Thank you for choosing BioMANIA. We hope this guide assists you in navigating through our project with ease.
 
-TODO:
-
-We will provide the below files and the data of more tools later
-
-```
-report/Py2report.py
-```
-
 
 ## Version History
 - v1.1.9 (coming soon)
@@ -470,44 +229,7 @@ report/Py2report.py
   - Add Drive URL installation feature for convenient uploading of large files by users.
   - Support retriever bm25 for `inference_dialog_server.py`.
   - Provide one-click packaging and uploading, as well as one-click installation.
-- v1.1.8 (2023-12-03)
-  - Build Docker images for each library. Detailed tools list supported are available [here](https://hub.docker.com/repositories/chatbotuibiomania).
-  - Implement session management to facilitate simultaneous use by multiple dialogs. 
-  - Introduce session state rollback management, enabling users to revert to previous states and re-initiate inquiries.
-- v1.1.7 (2023-12-01)
-  - Added [SONATA tutorial](./examples/sonata_SNARE_seq.html) and [MIOSTONE tutorial](./examples/MIOSTONE_IBD200.html) to showcase tool usage. Upload data and pretrained models onto [drive](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link).
-  - Fixed bug in class-type APIs that caused errors when using methods. Methods can now be called and used correctly.
-  - Resolved program exit issue without error throw. Errors are now handled properly with relevant error messages displayed.
-  - Addressed retriever loading issue for specific tools. Indivdual retrievers can now be loaded and utilized correctly for each tool.
-  - Enhance Robustness for basic type parameters. When entering `result_*` for basic type parameters, it will show `result_*` instead of `"result_*"` even it is of `str` type.
-  - Fix bug of `secrets` variable in `src/gpt/gpt_interface.py`. Change the way to call OpenAI from langchain to OpenAI lib in `models/model.py`
-- v1.1.6 (2023-11-27)
-  - Support sharing your APP and install others' APP through [our issue](https://github.com/batmen-lab/BioMANIA/issues/2)!
-  - Enhance code robustness: 
-    - When it returns a tuple, split it to multiple variables by adding code `result_n+1, result_n+2, ... = result_n`. 
-    - During parameter inference, if a parameter is of 'NoneType', replace it with 'Any' to run smoothly.
-    - Fix bug for adding quotation when user input value for str type parameters.
-  - Release a package.
-- v1.1.5 (2023-11-25)
-  - Enhanced Docker Integration: Now featuring seamless packaging of both front-end and back-end components using Docker. This update simplifies deployment processes, ensuring a more streamlined development experience. We update `chatbotuibiomania/biomania-together:v1.1.3`.
-  - Automated Docstring Addition: Users can now effortlessly convert GitHub source code to our tool with scripts that automatically add docstrings, freeing them from the manual effort previously required.
-- v1.1.4 (2023-11-22)
-  - Add [`manual`](R2APP.md) support for converting R code to API_init.json. Will support for converting R code to APP later!
-  - Release docker v1.1.3 with support for 12 PyPI biotools. Notice that some tools are only available under their own conda environment!! We update `chatbotuibiomania/biomania-frontend:v1.1.3` and `chatbotuibiomania/biomania-backend:v1.1.3`.
-  - Resolved issues related to Docker networking and Docker CUDA.
-  - Improved the stability of the server demo by ensuring that it runs continuously in the background.
-- v1.1.3 (2023-11-20)
-  - Support web access on our server. Provide data/models for 12 tools mentioned in our paper through drive link.
-  - Upload Composite API generation related codes.
-  - Add demo chat for these tools under `BioMANIA/examples`.
-  - Support manually set maximum concurrency for bulk instruction generation, added a visualization bar.
-- v1.1.2 (2023-11-17)
-  - Release docker v1.1.2 with support for 8 PyPI bio tools. We will release more libs in a later version.
-  - Add [`manual`](Git2APP.md) support for converting github repo/source code to BioMANIA APP.
-  - Support for switching libs during a dialog. Now you can let multiple tool cooperate inside one dialog!
-- v1.1.1 (2023-11-10)
-  - Initial release with analysis pipeline for `scanpy`.
-  - Add one-click deploy using railway.
+view [version_history](./docs/version_history.md) for more details!
 
 ## Star History
 
