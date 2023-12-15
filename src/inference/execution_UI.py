@@ -255,7 +255,7 @@ class CodeExecutor:
             final_api_name = api_parts[-1]
             api_call = f"{final_api_name}({params_formatted})"
         # generate return information
-        if (return_type not in ["NoneType", None]) and (not return_type.startswith('Optional')):
+        if (return_type not in ["NoneType", None, "None"]) and (not return_type.startswith('Optional')):
             self.counter += 1
             tmp_api_call = api_call.split('\n')[-1]
             if '=' in tmp_api_call:
@@ -265,6 +265,7 @@ class CodeExecutor:
                 #print('debugging2 for return class API:', api_name, return_type, api_call, '--end')
                 return_var = f"result_{self.counter} = "
                 new_code = f"{return_var}{tmp_api_call}"
+                # TODO: note this step assumes the lastline is the class.attribute line
                 if len(api_call.split('\n'))>=2:
                     new_code = '\n'.join(api_call.split('\n')[:-1]+[new_code])
                 self.generate_code.append(new_code)
@@ -277,33 +278,30 @@ class CodeExecutor:
         print('==>start split_tuple_variable')
         # generate splitting code if the results is a tuple
         # split result_n into result_n+1, reuslt_n+2, result_n+3 = result_n
-        if last_code_status['success']=='True':
-            last_code = last_code_status
-            try:
-                # Check if the last code snippet ends with 'result'
-                if last_code['code'].strip().startswith('result'):
-                    # Extract the variable name that starts with 'result'
-                    result_name_tuple = last_code['code'].strip().split('=')[0].strip()
-                    #print(f'self.variables: {self.variables},')
-                    result_variable = self.variables[result_name_tuple]
-                    # Check if the variable is a tuple
-                    if 'tuple' in str(type(result_variable['value'])):
-                        #print('==>start split tuple variables!')
-                        length = len(result_variable['value'])
-                        new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
-                        new_code = ', '.join(new_variables) + f" = {result_name_tuple}"
-                        # execute new api call
-                        #print('==>for split_tuple_variable, execute code: ', last_code['code']+'\n'+new_code)
-                        self.execute_api_call(new_code, last_code['code_type'])
-                        # Update the count
-                        self.counter += length
-                        print('Finished split_tuple_variable')
-                        return True, new_code
-            except Exception as e:
-                print(f'Something wrong in split_tuple_variable: {e}')
-                False, ""
-        else:
-            return False, ""
+        try:
+            code = last_code_status['code'].split('\n')[-1].strip()
+            # Check if the last code snippet ends with 'result'
+            if code.startswith('result'):
+                # Extract the variable name that starts with 'result'
+                result_name_tuple = code.strip().split('=')[0].strip()
+                #print(f'self.variables: {self.variables},')
+                result_variable = self.variables[result_name_tuple]
+                # Check if the variable is a tuple
+                if 'tuple' in str(type(result_variable['value'])):
+                    #print('==>start split tuple variables!')
+                    length = len(result_variable['value'])
+                    new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
+                    new_code = ', '.join(new_variables) + f" = {result_name_tuple}"
+                    # execute new api call
+                    #print('==>for split_tuple_variable, execute code: ', code+'\n'+new_code)
+                    self.execute_api_call(new_code, last_code_status['code_type'])
+                    # Update the count
+                    self.counter += length
+                    print('Finished split_tuple_variable')
+                    return True, new_code
+        except Exception as e:
+            print(f'Something wrong in split_tuple_variable: {e}')
+            False, ""
     def get_max_result_from_variable_list(self, result_name_list):
         max_value = float('-inf')
         max_variable = None
@@ -413,7 +411,6 @@ class CodeExecutor:
         execution_code_list = execution_code.split('\n')
         for code in execution_code_list:
             self.execute_api_call(code, "code")
-            #self.split_tuple_variable()
     def execute_code_past_success(self, code_type='import'):
         successful_imports = [item['code'] for item in self.execute_code if item['code_type'] == code_type and item['success'] == 'True']
         for code in successful_imports:
@@ -610,6 +607,8 @@ if __name__=='__main__':
     executor.execute_api_call("labels = np.array([0, 1, 0])", "code")
     for api_info in test_apis:
         executor.execute_one_pass(api_info)
+        last_code_status = executor.execute_code[-1]
+        executor.split_tuple_variable(last_code_status)
     print('-'*10)
     print('Current variables in namespace:')
     print(json.dumps(str(executor.variables.keys())))
