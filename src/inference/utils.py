@@ -102,6 +102,21 @@ def process_retrieval_document_query_version(documents_df):
         corpus2tool[compress_api_str_from_list_query_version(doc)] = doc['api_calling'][0].split('(')[0]
     return ir_corpus, corpus2tool
 
+def compress_tut_version(doc):
+    text = doc['text']
+    code = doc['code']
+    compressed_str = f"tutorial text: {text}, code: {code}"
+    return compressed_str
+
+def process_tut_version(documents_df):
+    ir_corpus = {}
+    corpus2tool = {}
+    for row in documents_df.itertuples():
+        doc = json.loads(row.document_content)
+        ir_corpus[row.docid] = compress_tut_version(doc)
+        corpus2tool[compress_tut_version(doc)] = doc['relevant_API']
+    return ir_corpus, corpus2tool
+
 def compress_api_str_from_list(api):
     api_name = api['api_calling'][0].split('(')[0]
     api_desc_truncated = api['description'].split('\n')[0]

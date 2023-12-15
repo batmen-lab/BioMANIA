@@ -257,13 +257,20 @@ class CodeExecutor:
         # generate return information
         if (return_type not in ["NoneType", None]) and (not return_type.startswith('Optional')):
             self.counter += 1
-            if '=' in api_call:
+            tmp_api_call = api_call.split('\n')[-1]
+            if '=' in tmp_api_call:
+                #print('debugging1 for return class API:', api_name, return_type, api_call, '--end')
                 return import_code+'\n'+f"{api_call}"
             else:
+                #print('debugging2 for return class API:', api_name, return_type, api_call, '--end')
                 return_var = f"result_{self.counter} = "
-                self.generate_code.append(f"{return_var}{api_call}")
-                return import_code+'\n'+f"{return_var}{api_call}"
+                new_code = f"{return_var}{tmp_api_call}"
+                if len(api_call.split('\n'))>=2:
+                    new_code = '\n'.join(api_call.split('\n')[:-1]+[new_code])
+                self.generate_code.append(new_code)
+                return import_code+'\n'+new_code
         else:
+            #print('debugging3 for return class API:', api_name, return_type, api_call, '--end')
             self.generate_code.append(f"{api_call}")
             return import_code+'\n'+f"{api_call}"
     def split_tuple_variable(self, last_code_status):
@@ -605,7 +612,7 @@ if __name__=='__main__':
         executor.execute_one_pass(api_info)
     print('-'*10)
     print('Current variables in namespace:')
-    print(json.dumps(str(executor.variables)))
+    print(json.dumps(str(executor.variables.keys())))
     print('All successfully executed code:')
     print('='*10)
     print('code:    success or not:')
@@ -623,7 +630,7 @@ if __name__=='__main__':
     print('Load variable json:')
     #executor.load_variables_to_json()
     executor.load_environment(os.path.join(executor.save_directory,f"_environment.pkl"))
-    print(executor.variables)
+    print(executor.variables.keys())
     print(executor.execute_code)
     assert list(tmp_variables.keys()) == list(executor.variables.keys()), "Variables do not match after loading."
     assert tmp_execute_code == executor.execute_code, "Execute code records do not match after loading."
