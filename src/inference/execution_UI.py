@@ -191,16 +191,6 @@ class CodeExecutor:
             return str(value)
         else:
             return str(value)
-    def generate_execution_code(self, api_params_list):
-        generated_code = []
-        for api_info in api_params_list:
-            api_name = api_info['api_name']
-            selected_params = api_info['parameters']
-            return_type = api_info['return_type']
-            class_selected_params = api_info['class_selected_params']
-            code_for_one_api = self.generate_execution_code_for_one_api(api_name, selected_params, return_type, class_selected_params)
-            generated_code.append(code_for_one_api)
-        return '\n'.join(generated_code)
     def format_arguments(self, selected_params):
         positional_args = []
         keyword_args = []
@@ -212,15 +202,26 @@ class CodeExecutor:
         params_formatted = ', '.join(positional_args + keyword_args)
         return params_formatted
 
+    def generate_execution_code(self, api_params_list):
+        generated_code = []
+        for api_info in api_params_list:
+            api_name = api_info['api_name']
+            selected_params = api_info['parameters']
+            return_type = api_info['return_type']
+            class_selected_params = api_info['class_selected_params']
+            print(f'==>check individual apis now, api_name {api_name}, selected_params {selected_params}, class_selected_params {class_selected_params}')
+            code_for_one_api = self.generate_execution_code_for_one_api(api_name, selected_params, return_type, class_selected_params)
+            generated_code.append(code_for_one_api)
+        return '\n'.join(generated_code)
+    
     def generate_execution_code_for_one_api(self, api_name, selected_params, return_type, class_selected_params={}):
         import_code, type_api = self.get_import_code(api_name)
+        print(f'==>import_code, type_api, {import_code, type_api}')
         if import_code in [i['code'] for i in self.execute_code if i['code_type']=='import' and i['success']=='True']:
-            # if already imported
-            #print('==>api already imported!')
+            print('==>api already imported!')
             pass
         else:
-            #print('==>api not imported, import now!')
-            #print("==>import_code", import_code)
+            print('==>api not imported, import now!', import_code)
             tmp_result = self.execute_api_call(import_code, "import")
             if tmp_result:
                 print(f'==?Error during importing of api calling! {tmp_result}')
@@ -287,7 +288,7 @@ class CodeExecutor:
                 #print(f'self.variables: {self.variables},')
                 result_variable = self.variables[result_name_tuple]
                 # Check if the variable is a tuple
-                if 'tuple' in str(type(result_variable['value'])):
+                if ('tuple' in str(type(result_variable['value']))) and ('None' not in str(result_variable['value'])):
                     #print('==>start split tuple variables!')
                     length = len(result_variable['value'])
                     new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
@@ -299,9 +300,13 @@ class CodeExecutor:
                     self.counter += length
                     print('Finished split_tuple_variable')
                     return True, new_code
+                else:
+                    return False, ""
+            else:
+                return False, ""
         except Exception as e:
             print(f'Something wrong in split_tuple_variable: {e}')
-            False, ""
+            return False, ""
     def get_max_result_from_variable_list(self, result_name_list):
         max_value = float('-inf')
         max_variable = None
@@ -315,27 +320,6 @@ class CodeExecutor:
                 pass
         return max_variable
     
-    def split_tuple_variable_from_variables(self, ):
-        # generate splitting code if the results is a tuple
-        # split result_n into result_n+1, reuslt_n+2, result_n+3 = result_n
-        current_max_result_variable_name = self.get_max_result_from_variable_list(list(self.variables.keys()))
-        if current_max_result_variable_name: # if exist result_* variable in namespace
-            # Extract the variable name that starts with 'result'
-            current_max_result_variable = self.variables[current_max_result_variable_name]
-            # Check if the variable is a tuple
-            if 'tuple' in str(type(current_max_result_variable['value'])):
-                print('==>start split tuple variables!')
-                length = len(current_max_result_variable['value'])
-                new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
-                new_code = ', '.join(new_variables) + f" = {current_max_result_variable_name}"
-                # execute new api call
-                print('==>for split_tuple_variable, execute code: ', new_code)
-                self.execute_api_call(new_code, 'code')
-                # Update the count
-                self.counter += length
-        else:
-            pass
-
     def execute_api_call(self, api_call_code, code_type):
         if code_type=='import':
             successful_imports = [item['code'] for item in self.execute_code if item['code_type'] == 'import' and item['success'] == 'True']

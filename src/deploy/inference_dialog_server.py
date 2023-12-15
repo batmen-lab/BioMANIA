@@ -928,10 +928,12 @@ class Model:
                         "valuefrom": 'value',
                         "optional": True,
                     }
-                api_params_list.append({"api_name":api_name, 
-                                        "parameters":extracted_params[idx], 
-                                        "return_type":self.API_composite[api_name]['Returns']['type'],
-                                        "class_selected_params":class_selected_params})
+                # don't include class API, just include class.attribute API
+                if self.API_composite[api_name]['api_type']!='class':
+                    api_params_list.append({"api_name":api_name, 
+                                            "parameters":extracted_params[idx], 
+                                            "return_type":self.API_composite[api_name]['Returns']['type'],
+                                            "class_selected_params":class_selected_params})
         print('==>api_params_list:', json.dumps(api_params_list))
         execution_code = self.executor.generate_execution_code(api_params_list)
         print('==>execution_code:',execution_code)
@@ -1041,7 +1043,7 @@ class Model:
                 self.indexxxx+=1
         else:
             print(f'Execution Error: {content}')
-            [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="".join(list(set(error_list))),task_title="Executed results [Fail]",) for callback in self.callbacks] # Execution failed! 
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="\n".join(list(set(error_list))),task_title="Executed results [Fail]",) for callback in self.callbacks] # Execution failed! 
             self.indexxxx+=1
         file_name=f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
         self.executor.save_environment(file_name)

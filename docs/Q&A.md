@@ -165,3 +165,39 @@ A: Regarding improvements, we suggest two approaches.
 - Another approach is to modify the Docstrings to ensure that meaning of APIs do not appear too similar. 
 
 For `filter_specific_apis` function. Currently we remove API type with `property/constant/builtin`, remove API without docstring, API without input/output simultaneously. Most retained APIs are of type `function/method/Class`, which is more meaningful for user query inference. You can check your API_init.json and modify rules accordingly!
+
+## Issues during transferring your tool to BioMANIA APP
+
+**Q: Why doesn't it visualize the figure output using plotting API?**
+
+A: Please ensure that the images are displayed, similar to `plt.show()`. Our program will automatically capture the image output and visualize it in the frontend.
+
+**Q: Why are some of my parameters considered as special parameters?**
+
+A: For typing input data using text input boxes, only basic types such as str, int, float, list, etc., are allowed. Anything beyond this, requiring loading from data, is considered special parameters. 
+
+We will look for corresponding parameters of the same type in the environment based on special types. This process is automatic. Therefore, please make every effort to ensure the accuracy of parameter types.
+
+**Q: Why are some of my parameters considered as type `None`?**
+
+A: You can adjust the parameter information by modifying parameters type like 
+```bash
+def function(param: int) -> float:
+    """
+    docstring placeholder here
+    """
+    function_body here
+```
+**Q: If I have many candidates for a particular parameter prediction, can it be automatically recognized by the system?**
+
+A: We will visualize all candidates of parameters of the same type in the frontend for user selection.
+
+**Q: How to use class type API? Do I need to initialize it to use their methods?**
+
+A: You can directly request the methods or functions. Our system will automatically check if we have initialized this class instance before. If we have, we will skip the initialization; otherwise, we will proceed with the initialization.
+
+**Q: How to input basic parameters like str, int, List?**
+
+A: Just type them as how it calls in python programming. You can refer to the `./examples` for example usage.
+
+
