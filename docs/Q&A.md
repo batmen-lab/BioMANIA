@@ -27,13 +27,15 @@ A: All uploaded files are stored under the `BioMANIA/src/tmp` folder. When provi
 
 **Q: How can I handle large file transfers to avoid performance issues?**
 
-A: Large file transfers may lead to memory issues. If file transfer is substantial, users can directly copy the file to the src/tmp/ folder to mitigate JavaScript heap memory exhaustion. We have provided this issue by supporting the download through Drive URLs.
+A: Large file transfers may lead to memory issues. If file transfer is substantial, users can directly copy the file to the src/tmp/ folder to mitigate JavaScript heap memory exhaustion. We have provided this issue by supporting the download through Drive URLs or Other URLs.
 
 Follow the instructions for uploading your data using Google Drive:
-- Package your data, even if it's just one file, into a ZIP archive.
+- Package your data, even if it's just one file, into a `ZIP` archive.
 - Upload the ZIP file to Google Drive and obtain the file's shareable link.
 - Extract the `file_id` from the link and enter it into the `URL` input field on UI page.
-- Our program will automatically downloading it and extracted the ZIP file, you can use `./tmp/your_file_name` to infer. It still follows your original file structure.
+- Our program will automatically downloading it and extracted the `ZIP` file, you can use `./tmp/your_file_name` to infer. It still follows your original file structure.
+
+We also support downloading files through other links. Please note that in this case, only individual files URL can be recognized, ZIP is not supported.
 
 ## Online Demo and Stability
 **Q: For online demo, sometimes it shows a network error and does not display results.**

@@ -777,6 +777,7 @@ class Model:
             self.selected_params = self.executor.makeup_for_missing_single_parameter_type_special(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
+        print(f'self.filtered_params:{self.filtered_params}')
         if len(self.filtered_params)>1:
             self.last_param_name = list(self.filtered_params.keys())[0]
             candidate_text = ""
@@ -788,6 +789,7 @@ class Model:
             self.last_user_states = self.user_states
             self.user_states = "run_select_special_params"
             del self.filtered_params[self.last_param_name]
+            print(f'self.filtered_params:{self.filtered_params}')
             self.save_state()
             return
         elif len(self.filtered_params)==1:
@@ -801,6 +803,8 @@ class Model:
             self.last_user_states = self.user_states
             self.user_states = "run_pipeline_after_select_special_params"
             del self.filtered_params[self.last_param_name]
+            print(f'self.filtered_params:{self.filtered_params}')
+            self.save_state()
         else:
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="The parameters candidate list is empty", task_title="Error Enter Parameters: basic type",color="red") for callback in self.callbacks]
             self.save_state()
@@ -857,6 +861,7 @@ class Model:
             self.last_user_states = self.user_states
             self.user_states = "run_pipeline_after_entering_params"
             del self.filtered_params[self.last_param_name]
+            self.save_state()
         else:
             # break out the pipeline
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="The parameters candidate list is empty", task_title="Error Enter Parameters: basic type",color="red") for callback in self.callbacks]

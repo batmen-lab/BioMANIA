@@ -111,40 +111,21 @@ export PYTHONPATH=$PYTHONPATH:$(pwd)
 ### Prepare for Data and Model
 Download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link) or [Baidu Drive link](https://pan.baidu.com/s/1AZgKRfptrUTI3L2YbZwHww?pwd=36fi). For those library data, you can download only the one you need.
 
-Organize the downloaded files at `src/data` or `src/hugging_models` as follows:
+We provide a script for downloading models and datas from Google Drive for scanpy as an example. This works if you are accessible to google. And don't forget to rename the retriever model `multicorpus` as your lib name for usage.
+```bash
+# under src
+sh download_data_model.sh
+```
 
+Organize the downloaded files at `src/data` or `src/hugging_models` as follows:
 ```
 data
 ├── conversations
-│   ├── test_freq.json
-│   ├── test_rare.json
-│   ├── train.json
-│   ├── valid_freq.json
-│   └── valid_rare.json
 ├── others-data
-│   ├── combined_data.csv
-│   ├── dialogue_questions.csv
-│   ├── final_data.csv
-│   ├── qna_chitchat_caring.tsv
-│   ├── qna_chitchat_enthusiastic.tsv
-│   ├── qna_chitchat_friendly.tsv
-│   ├── qna_chitchat_professional.tsv
-│   ├── qna_chitchat_witty.tsv
-│   ├── test_data.csv
-│   └── train_data.csv
 └── standard_process
     ├── {LIB}
     │   ├── API_composite.json
-    │   ├── API_init.json
-    │   ├── API_inquiry.json
-    │   ├── API_inquiry_annotate.json
-    │   ├── API_instruction_testval_query_ids.json
-    │   ├── Composite_API.py
-    │   ├── api_data.csv
-    │   ├── centroids.pkl
-    │   ├── classification_train
-    │   ├── retriever_train_data
-    │   └── vectorizer.pkl
+    ├── └── ...
     └── ...
 
 hugging_models
@@ -187,7 +168,6 @@ Please refer to the separate README for tutorials that supporting converting dif
 - [For R Package](./docs/R2APP.md) (231123-Still under developing)
 
 
-
 ## Share your APP!
 
 If you want to share your pretrained APP to others, there are two ways.
@@ -226,9 +206,10 @@ Thank you for choosing BioMANIA. We hope this guide assists you in navigating th
 ## Version History
 - v1.1.9 (coming soon)
   - Accelerate the retriever training.
-  - Add Drive URL installation feature for convenient uploading of large files by users.
+  - Incorporate a Drive URL installation feature for the convenient upload of large files by users. More details are in [Q and A](./docs/Q&A.md)
   - Support retriever bm25 for `inference_dialog_server.py`.
   - Provide one-click packaging and uploading, as well as one-click installation.
+
 view [version_history](./docs/version_history.md) for more details!
 
 ## Star History
