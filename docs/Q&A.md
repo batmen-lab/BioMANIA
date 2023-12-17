@@ -27,7 +27,13 @@ A: All uploaded files are stored under the `BioMANIA/src/tmp` folder. When provi
 
 **Q: How can I handle large file transfers to avoid performance issues?**
 
-A: Large file transfers may lead to memory issues. If file transfer is substantial, users can directly copy the file to the src/tmp/ folder to mitigate JavaScript heap memory exhaustion. We will address this issue by supporting the download through Drive URLs in the future.
+A: Large file transfers may lead to memory issues. If file transfer is substantial, users can directly copy the file to the src/tmp/ folder to mitigate JavaScript heap memory exhaustion. We have provided this issue by supporting the download through Drive URLs.
+
+Follow the instructions for uploading your data using Google Drive:
+- Package your data, even if it's just one file, into a ZIP archive.
+- Upload the ZIP file to Google Drive and obtain the file's shareable link.
+- Extract the `file_id` from the link and enter it into the `URL` input field on UI page.
+- Our program will automatically downloading it and extracted the ZIP file, you can use `./tmp/your_file_name` to infer. It still follows your original file structure.
 
 ## Online Demo and Stability
 **Q: For online demo, sometimes it shows a network error and does not display results.**
@@ -200,4 +206,7 @@ A: You can directly request the methods or functions. Our system will automatica
 
 A: Just type them as how it calls in python programming. You can refer to the `./examples` for example usage.
 
+**Q: Why does it only prompt me for certain parameters, and some parameters are not prompted?**
+
+A: We currently only support required parameters (without default value), as there are so many optional parameters in some libs. It's recommended to only expose those required parameters which need to be inferred.
 

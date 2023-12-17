@@ -65,6 +65,8 @@ To use web UI smoothly, don't forget to add the new lib information to `BioMANIA
 python dataloader/get_API_init_from_sourcecode.py --LIB ${LIB}
 ```
 
+Note: If you have prepared an API list txt file, you can add `--api_txt_path your_file_path` to extract the API information. The sequence is firstly to recognize the API txt file, if not given then recognize the API html page, finally we start from Lib_ALIAS and check all its submodules.
+
 3. (Optional) Generate API_composite.json automatically with:
 ```bash
 # get composite API if you have already provided tutorial

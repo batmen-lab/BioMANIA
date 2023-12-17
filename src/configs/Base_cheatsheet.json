@@ -61,9 +61,6 @@
         "anndata.read_csv",
         "anndata.AnnData.write_csvs"
     ],
-    "request":[
-        ""
-    ],
     "pooch":[
         "pooch.retrieve"
     ],

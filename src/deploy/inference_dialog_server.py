@@ -125,7 +125,19 @@ def infer(query, vectorizer, centroids, labels):
 if not os.path.exists('tmp'):
     os.mkdir('tmp')
 
+def download_file_from_google_drive(file_id, save_dir="./tmp", output_path="output.zip"):
+    import gdown
+    url = f'https://drive.google.com/uc?id={file_id}'
+    gdown.download(url, os.path.join(save_dir, output_path), quiet=False)
+    subprocess.run(["unzip", os.path.join(save_dir, output_path), "-d", save_dir], check=True)
+
 def download_data(url, save_dir="tmp"):
+    # try uploading drive first
+    try:
+        save_path = download_file_from_google_drive(url)
+        return save_path
+    except:
+        pass
     response = requests.head(url)
     if response.status_code == 200:
         content_length = response.headers.get('Content-Length')
@@ -161,7 +173,11 @@ def save_decoded_file(raw_file):
             f.write(decoded_data)
     elif source_type=='url':
         decoded_data = raw_file['data']
-        filename = download_data(decoded_data)
+        try:
+            filename = download_data(decoded_data)
+        except:
+            print('==>Input URL Error!')
+            pass
     return filename
 
 class Model:

@@ -123,7 +123,7 @@ pip install  -e .
 
 ## Step 2: Use BioMANIA
 
-Now that your GitHub repository is properly installed, you can create a BioMANIA app to use it. Here are the steps:
+Now that your GitHub repository is properly installed, you can create a BioMANIA app to use it. Feel free to skip any Optional steps to make it easy. Here are the steps:
 
 ### 2.1. Create BioMANIA app:
 

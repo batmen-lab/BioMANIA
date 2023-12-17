@@ -52,5 +52,5 @@ typing_extensions==4.8.0
 # triton
 # scenicplus @ git+https://github.com/aertslab/scenicplus.git
 # https://github.com/etetoolkit/ete/archive/ete4.zip
-MIOSTONE @ git+https://github.com/DoraDong-2023/MIOSTONE.git
-sonata @ git+https://github.com/DoraDong-2023/SONATA.git
+#MIOSTONE @ git+https://github.com/DoraDong-2023/MIOSTONE.git
+#sonata @ git+https://github.com/DoraDong-2023/SONATA.git

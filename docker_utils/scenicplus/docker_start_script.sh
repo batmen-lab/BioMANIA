@@ -1,3 +1,8 @@
+git clone https://github.com/aertslab/scenicplus
+cd scenicplus
+pip install -e .
+cd ..
+
 cd /app/src/
 python3 deploy/inference_dialog_server.py &
 backend_pid=$!
