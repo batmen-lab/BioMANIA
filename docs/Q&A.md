@@ -174,6 +174,12 @@ A: Regarding improvements, we suggest two approaches.
 
 For `filter_specific_apis` function. Currently we remove API type with `property/constant/builtin`, remove API without docstring, API without input/output simultaneously. Most retained APIs are of type `function/method/Class`, which is more meaningful for user query inference. You can check your API_init.json and modify rules accordingly!
 
+## Chitchat Training and Performance
+
+**Q: How can I improve the performance of chitchat classification model?**
+
+A: We have released a multicorpus chitchat model on drive link. You can download it and replace your lib's chitchat model with this model to use.
+
 ## Issues during transferring your tool to BioMANIA APP
 
 **Q: Why doesn't it visualize the figure output using plotting API?**

@@ -260,8 +260,10 @@ class Model:
             self.executor.execute_api_call(f"np.seterr(under='ignore')", "import")
             self.executor.execute_api_call(f"import warnings", "import")
             self.executor.execute_api_call(f"warnings.filterwarnings('ignore')", "import")
-            end_of_docstring_summary = re.compile(r'[{}\n]+'.format(re.escape(punctuation)))
-            all_apis = {x: end_of_docstring_summary.split(self.API_composite[x]['Docstring'])[0].strip() for x in self.API_composite}
+            #end_of_docstring_summary = re.compile(r'[{}\n]+'.format(re.escape(punctuation)))
+            #all_apis = {x: end_of_docstring_summary.split(self.API_composite[x]['Docstring'])[0].strip() for x in self.API_composite} #used before 231219 
+            # 231219 changed API description
+            all_apis = {x: self.API_composite[x]['description'] for x in self.API_composite}
             all_apis = list(all_apis.items())
             self.description_json = {i[0]:i[1] for i in all_apis}
             print('==>Successfully loading model!')
@@ -668,9 +670,17 @@ class Model:
         [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=response,task_title=f"Predicted API: {self.predicted_api_name}",) for callback in self.callbacks]
         self.indexxxx+=1
 
-        #print("==>Need to collect all parameters for a composite API")
+        print("==>Need to collect all parameters for a composite API")
         combined_params = {}
+        # if the class API has already been initialized, then skip it
         for api in self.api_name_json:
+            api_parts = api.split('.')
+            maybe_class_name = api_parts[-2]
+            maybe_instance_name = maybe_class_name.lower() + "_instance"
+            if (maybe_instance_name in self.executor.variables) and (self.API_composite[api]['api_type']=='class'):
+                continue
+            else:
+                pass
             combined_params.update(self.API_composite[api]['Parameters'])
         parameters_name_list = [key for key, value in combined_params.items() if (key not in ['path', "Path"])] 
         #parameters_name_list = [key for key, value in combined_params.items() if (not value['optional']) and (key not in ['path', "Path"])] # 
@@ -753,7 +763,7 @@ class Model:
             for idx, api in enumerate(self.filtered_params):
                 if idx!=0:
                     tmp_input_para+=" and "
-                tmp_input_para+=self.filtered_params[api]['description']
+                tmp_input_para+="'"+self.filtered_params[api]['description']+ "'"
                 tmp_input_para+=f"('{api}': {self.filtered_params[api]['type']}), "
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task=f"The predicted API takes {tmp_input_para} as input. However, there are still some parameters undefined in the query.", task_title="Enter Parameters: special type",color="red") for callback in self.callbacks]
             self.indexxxx+=1
@@ -994,6 +1004,7 @@ class Model:
         print('self.executor.execute_code:')
         print(self.executor.execute_code)
         content = self.buf.getvalue()
+        print('content', content) ###??? no output
         # print the new variable 
         if self.last_execute_code['success']=='True':
             # if execute, visualize value
@@ -1075,7 +1086,7 @@ class Model:
             if ans:
                 [callback.on_agent_action(block_id="code-"+str(self.indexxxx),task=new_code,task_title="Executed code",) for callback in self.callbacks]
                 self.indexxxx+=1
-                [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="",task_title="Executed results [Success]",) for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Splitting the returned tuple variable into individual variables",task_title="Executed results [Success]",) for callback in self.callbacks]
                 self.indexxxx+=1
         print("Show current variables in namespace:")
         print(list(self.executor.variables.keys()))

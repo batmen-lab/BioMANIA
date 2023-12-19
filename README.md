@@ -205,9 +205,8 @@ Thank you for choosing BioMANIA. We hope this guide assists you in navigating th
 
 ## Version History
 - v1.1.9 (coming soon)
-  - Accelerate the retriever training.
   - Incorporate a Drive URL installation feature for the convenient upload of large files by users. More details are in [Q and A](./docs/Q&A.md)
-  - Support retriever bm25 for `inference_dialog_server.py`.
+  - Provide realtime visualization of executable results.
   - Provide one-click packaging and uploading, as well as one-click installation.
 
 view [version_history](./docs/version_history.md) for more details!

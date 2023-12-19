@@ -95,7 +95,11 @@ Tips:
 5. Train the api/non-api classification model.
 ```bash
 python models/chitchat_classification.py --LIB ${LIB}
+# or train a classification model on multicorpus of 12 bio-tools.
+# python models/chitchat_classification_multicorpus.py
 ```
+
+If you train a multicorpus one, please remember to copy the saved `.csv` and `.pkl` files under `data/standard_process/multicorpus/` and put under your lib's path.
 
 6. (Optional) Try the unpretrained bm25 retriever for a quick inference on your generated instructions.
 ```bash
