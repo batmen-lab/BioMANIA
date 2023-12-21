@@ -145,7 +145,7 @@ We also offer some demo chat, you can find them in [`./examples`](https://github
 This is compatible with Node.js version 19.
 ```bash
 # Under folder BioMANIA/chatbot_ui_biomania
-npm install
+npm install && npm run build
 ```
 
 ### Inference with pretrained models

@@ -2,22 +2,22 @@ import { useEffect, useContext, useState } from 'react';
 import HomeContext from '@/pages/api/home/home.context';
 
 export const libImages: { [key: string]: string } = {
-  'scanpy': '/apps/scanpy.jpg',
-  'squidpy': '/apps/squidpy.jpg',
-  'pyteomics': '/apps/pyteomics.jpg',
-  'qiime2': '/apps/qiime2.png',
-  'scikit-bio': '/apps/scikitbio.jpg',
+  'scanpy': '/apps/scanpy.webp',
+  'squidpy': '/apps/squidpy.webp',
+  'pyteomics': '/apps/pyteomics.webp',
+  'qiime2': '/apps/qiime2.webp',
+  'scikit-bio': '/apps/scikitbio.webp',
   'biopython': '/apps/biopython.png',
   'biotite': '/apps/biotite.png',
   'deap': '/apps/deap.png',
-  'eletoolkit': '/apps/eletoolkit.jpg',
-  'pyopenms': '/apps/pyopenms.jpg',
-  'scenicplus': '/apps/SCENIC.png',
-  'scvi-tools': '/apps/scvitools.svg',
-  'sonata': '/apps/SONATA.jpg',
-  'MIOSTONE': '/apps/MIOSTONE.jpg',
-  'ehrapy': '/apps/ehrapy.jpg',
-  //'custom': '/apps/customize.jpg',
+  'eletoolkit': '/apps/eletoolkit.webp',
+  'pyopenms': '/apps/pyopenms.webp',
+  'scenicplus': '/apps/SCENIC.webp',
+  'scvi-tools': '/apps/scvitools.webp',
+  'sonata': '/apps/SONATA.webp',
+  'MIOSTONE': '/apps/MIOSTONE.webp',
+  'ehrapy': '/apps/ehrapy.webp',
+  //'custom': '/apps/customize.webp',
 };
 
 export const LibCardSelect = () => {
@@ -188,22 +188,25 @@ export const LibCardSelect = () => {
           display: flex;
           flex-wrap: wrap;
           align-items: flex-start;
-          max-width: 2000px;
-          width: 600px;
-          justify-content: flex-start;
+          max-width: 800px;
+          gap: 10px;
         }
         .card {
           cursor: pointer;
-          width: 160px;
-          height: 150px;
-          padding: 10px;
+          width: calc(25% - 15px);
+          height: 130px;
+          margin-bottom: 10px;
           border: 1px solid gray;
-          margin: 10px;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
           position: relative;
+        }
+        .card img {
+          max-width: 100%;
+          max-height: 80%;
+          margin-bottom: 5px;
         }
         .card-selected {
           background-color: lightblue;
@@ -216,11 +219,6 @@ export const LibCardSelect = () => {
           width: 100%;
           padding: 5px;
           background-color: rgba(255, 255, 255, 0.8);
-        }
-        .card img {
-          max-width: 100%;
-          max-height: calc(100% - 5px); 
-          margin-bottom: -20px;
         }
         .custom-input-container div {
           display: flex;

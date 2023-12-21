@@ -46,11 +46,11 @@ const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageDat
   };
 
   return (
-    <Paper elevation={2} sx={{ width: '200', position: 'relative', padding: '16px', margin: '16px 0', backgroundColor: 'white', overflow: 'hidden' }}>
+    <Paper elevation={2} sx={{ width: '200', height: 'fit-content',position: 'relative', padding: '8px', margin: '8px 0', backgroundColor: 'white', overflow: 'hidden' }}>
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-        <Typography variant="caption" component="div" sx={{ fontFamily: 'monospace', fontSize: theme.typography.body1.fontSize }}>
-          <span style={{ color: titleColor }}>{title}</span>
-        </Typography>
+      <Typography variant="caption" component="div" sx={{ fontFamily: 'monospace', fontSize: '0.9rem', lineHeight: '1.2', marginBottom: '0px' }}>
+        <span style={{ color: titleColor }}>{title}</span>
+      </Typography>
         <Divider sx={{ my: 1 }} />
         {imageData && (
           <ImageProgressCard
@@ -61,9 +61,11 @@ const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageDat
         {tableData && tableData.trim() !== '' && <TableCard data={tableData} />}
         <Box sx={{ width: '200' }}>
           <Collapse in={!isCollapsed} timeout="auto" unmountOnExit sx={{ width: '200' }}>
-            <Typography variant="body1" sx={{ fontFamily: 'monospace', color: logColor }}>
+          <div style={{ margin: '-10px 0' }}>
+            <Typography variant="body1" sx={{ fontFamily: 'monospace', color: logColor, fontSize: '0.9rem', lineHeight: '1.2' }}>
               <ReactMarkdown>{formattedLogString}</ReactMarkdown>
             </Typography>
+          </div>
           </Collapse>
         </Box>
         <Button

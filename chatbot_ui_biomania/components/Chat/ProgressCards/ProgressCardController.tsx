@@ -315,12 +315,13 @@ const generateCards = (progressJson: any) => {
     }
     return (
       <Box sx={{
+        my: 0,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-start',
         width: "100%",
         '&:hover': {
-          backgroundColor: 'rgba(0, 0, 0, 0.2)',
+          backgroundColor: 'rgba(0, 0, 0, 0.1)',
           '& > *': {
             backgroundColor: 'transparent',
           },
@@ -375,11 +376,10 @@ const ProgressCardController = (props: ProgressCardControllerProps) => {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'flex-start',
-        minWidth: "600px",
-        width: "600px"
+        minWidth: "100%",
+        width: "100%"
       }}>
-        {toolRecommendations}
-        <Box sx={{ height: '16px' }}></Box>
+        <Box sx={{ height: '6px' }}></Box>
           {cards}
       </Box>
       <SnackbarError open={snackbarOpen} handleClose={handleSnackbarClose} content={snackbarContent} />
