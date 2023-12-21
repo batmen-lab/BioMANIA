@@ -169,5 +169,14 @@
         "READTHEDOC_LINK": null,
         "TUTORIAL_HTML_PATH": null,
         "TUTORIAL_GITHUB": null
+    },
+    "ehrapy": {
+        "LIB": "ehrapy",
+        "LIB_ALIAS": "ehrapy",
+        "API_HTML_PATH": "ehrapy.readthedocs.io/en/latest/usage/usage.html",
+        "GITHUB_LINK": null,
+        "READTHEDOC_LINK": null,
+        "TUTORIAL_HTML_PATH": null,
+        "TUTORIAL_GITHUB": null
     }
 }

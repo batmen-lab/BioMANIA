@@ -11,11 +11,12 @@ export const libImages: { [key: string]: string } = {
   'biotite': '/apps/biotite.png',
   'deap': '/apps/deap.png',
   'eletoolkit': '/apps/eletoolkit.jpg',
-  'pyopenms': '/apps/pyopenms.png',
+  'pyopenms': '/apps/pyopenms.jpg',
   'scenicplus': '/apps/SCENIC.png',
   'scvi-tools': '/apps/scvitools.svg',
-  'sonata': '/apps/SONATA.png',
+  'sonata': '/apps/SONATA.jpg',
   'MIOSTONE': '/apps/MIOSTONE.jpg',
+  'ehrapy': '/apps/ehrapy.jpg',
   //'custom': '/apps/customize.jpg',
 };
 
@@ -50,6 +51,7 @@ export const LibCardSelect = () => {
       { id: 'scvi-tools', name: 'scvi-tools' },
       { id: 'sonata', name: 'sonata' },
       { id: 'MIOSTONE', name: 'MIOSTONE' },
+      { id: 'ehrapy', name: 'ehrapy' },
       //{ id: 'custom', name: 'custom' },
     ];
   

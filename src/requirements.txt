@@ -6,6 +6,7 @@ bitsandbytes==0.41.1
 deap==1.4.1
 deepspeed==0.12.0
 docstring_parser==0.15
+ehrapy==0.6.0
 Flask==3.0.0
 flask_cors==4.0.0
 flask_socketio==5.3.6

@@ -5,6 +5,7 @@ import json
 import pandas as pd
 from datetime import datetime
 import torch
+#torch.cuda.set_per_process_memory_fraction(0.5)
 import torch.nn as nn
 from sentence_transformers import SentenceTransformer, models, InputExample, losses, LoggingHandler
 from torch.utils.data import DataLoader
