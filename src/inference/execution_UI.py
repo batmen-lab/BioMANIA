@@ -350,6 +350,7 @@ class CodeExecutor:
                 }
             # if the code can be executed but lead to error, it will not show in the exception
             if "Error" in captured_output_value:
+                self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'False', 'error': captured_output_value})
                 return captured_output_value
             self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'True', 'error':''})
             return captured_output_value

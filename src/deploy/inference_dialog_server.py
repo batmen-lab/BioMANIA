@@ -17,7 +17,14 @@ from sklearn.metrics.pairwise import cosine_similarity
 from typing import Any
 # device
 import torch
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+if torch.cuda.is_available():
+    #gpu_index = 2
+    #torch.cuda.set_device(gpu_index)
+    device = torch.device('cuda')
+else:
+    device = torch.device('cpu')
+print("Current GPU Index:", torch.cuda.current_device())
+
 # 
 import concurrent.futures
 from dotenv import load_dotenv
@@ -40,7 +47,7 @@ basic_types.extend(['_AvailShapes']) # extend for squidpy `shape` type
 
 def change_format(input_params, param_name_list):
     """
-    Transforms the format of input parameters based on a provided parameter name list.
+    Get a subset of input parameters dictionary
     """
     output_params = []
     for param_name, param_info in input_params.items():
@@ -67,7 +74,7 @@ def generate_api_calling(api_name, api_details, returned_content_str):
     parameters_info_list = []
     for param_name, param_details in parameters.items():
         # only include required parameters and optional parameters found from response, and a patch for color in scanpy/squidpy pl APIs
-        if (param_name in returned_content_dict) or (not param_details['optional']) or (param_name=='color' and (api_name.startswith('scanpy.pl') or api_name.startswith('squidpy.pl'))):
+        if (param_name in returned_content_dict) or (not param_details['optional']) or (param_name=='color' and (api_name.startswith('scanpy.pl') or api_name.startswith('squidpy.pl'))) or (param_name=='encodings' and (api_name.startswith('ehrapy.pp') or api_name.startswith('ehrapy.preprocessing'))) or (param_name=='encoded' and (api_name.startswith('ehrapy.'))):
             print(param_name, param_name in returned_content_dict, not param_details['optional'])
             param_type = param_details['type']
             if param_type in [None, 'None', 'NoneType']:
@@ -212,7 +219,6 @@ class Model:
             os.makedirs("./tmp/sessions/", exist_ok=True)
         self.image_file_list = []
         self.image_file_list = self.update_image_file_list()
-        self.buf = io.StringIO()
         with open(f'./data/standard_process/{self.LIB}/vectorizer.pkl', 'rb') as f:
             self.vectorizer = pickle.load(f)
         print('==>chitchat vectorizer loaded!')
@@ -270,12 +276,13 @@ class Model:
             print('loading model cost: ', time.time()-t1, 's')
             reset_result = "Success"
             self.LIB = lib_name
-        except:
+        except Exception as e:
             print('at least one data or model is not ready, please install lib first!')
+            print(f'Error: {e}')
             reset_result = "Fail"
             [callback.on_tool_start() for callback in self.callbacks]
             [callback.on_tool_end() for callback in self.callbacks]
-            [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="At least one data or model is not ready, please install lib first!",task_title="Setting error") for callback in self.callbacks]
+            [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=f"Something wrong with loading data and model! \n{e}",task_title="Setting error") for callback in self.callbacks]
             self.indexxxx+=1
         return reset_result
 
@@ -301,14 +308,8 @@ class Model:
         self.indexxxx+=1
         """if github_url:
             download_lib('git', self.LIB, github_url, lib_alias, GITHUB_PATH)"""
-        self.buf = io.StringIO()
-        sys.stdout = self.buf
-        sys.stderr = self.buf
         subprocess.run(['pip', 'install', f'{lib_alias}'])
         if doc_url and api_html:
-            sys.stdout = sys.__stdout__
-            sys.stderr = sys.__stderr__
-            content = self.buf.getvalue()
             download_readthedoc(doc_url, api_html)
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="preparing API_init.json ...",task_title="26") for callback in self.callbacks]
         self.indexxxx+=1
@@ -505,6 +506,17 @@ class Model:
                 response, _ = LLM_response(self.llm, self.tokenizer, user_input, history=[], kwargs={})  # llm
                 [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=response,task_title="Non API chitchat") for callback in self.callbacks]
                 self.indexxxx+=1
+                help_apis = [key for key, value in self.API_composite.items() if key.endswith(".help")]
+                self.hide_streams()
+                try:
+                    exec(help_apis[0]+"()")
+                    self.restore_streams()
+                    content = self.buf1.getvalue()
+                except:
+                    content = ""
+                if content:
+                    [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=f"Some tips for using our tools! \n {content}",task_title="Help") for callback in self.callbacks]
+                    self.indexxxx+=1
                 return
             else:
                 pass
@@ -675,9 +687,10 @@ class Model:
         # if the class API has already been initialized, then skip it
         for api in self.api_name_json:
             api_parts = api.split('.')
-            maybe_class_name = api_parts[-2]
+            maybe_class_name = api_parts[-1]
             maybe_instance_name = maybe_class_name.lower() + "_instance"
             if (maybe_instance_name in self.executor.variables) and (self.API_composite[api]['api_type']=='class'):
+                print(f'skip parameters for {maybe_instance_name}')
                 continue
             else:
                 pass
@@ -686,10 +699,19 @@ class Model:
         #parameters_name_list = [key for key, value in combined_params.items() if (not value['optional']) and (key not in ['path', "Path"])] # 
         print('parameters_name_list', parameters_name_list)
         api_parameters_information = change_format(combined_params, parameters_name_list)
+        # turn None to All
+        api_parameters_information = [
+            {
+                'name': param['name'],
+                'type': 'All' if param['type'] in [None, 'null', 'None', 'NoneType'] else param['type'],
+                'description': param['description'],
+                'default_value': param['default_value']
+            }
+            for param in api_parameters_information
+        ]
         #filter out special type parameters, do not infer them using gpt
         api_parameters_information = [param for param in api_parameters_information if any(basic_type in param['type'] for basic_type in basic_types)]
         parameters_name_list = [param_info['name'] for param_info in api_parameters_information]
-        print('api_parameters_information:', api_parameters_information)
         print('parameters_name_list:', parameters_name_list)
         apis_description = ""
         apis_name = ""
@@ -737,7 +759,17 @@ class Model:
             #assume_class_API = list(set(list(self.api_name_json.keys()))-set(relevant_api_list))[0]
             assume_class_API = '.'.join(self.predicted_api_name.split('.')[:-1])
             tmp_class_predicted_api_name, tmp_class_api_calling, tmp_class_parameters_info_list = generate_api_calling(assume_class_API, self.API_composite[assume_class_API], response)
-            self.parameters_info_list['parameters'].update(tmp_class_parameters_info_list['parameters'])
+            fix_update = True
+            for api in self.api_name_json:
+                api_parts = api.split('.')
+                maybe_class_name = api_parts[-1]
+                maybe_instance_name = maybe_class_name.lower() + "_instance"
+                if (maybe_instance_name in self.executor.variables) and (self.API_composite[api]['api_type']=='class'):
+                    fix_update = False
+                else:
+                    pass
+            if fix_update:
+                self.parameters_info_list['parameters'].update(tmp_class_parameters_info_list['parameters'])
         
         #print('After GPT predicting parameters, now the produced API calling is :', api_calling)
         ####### infer parameters
@@ -895,12 +927,22 @@ class Model:
                             break
             extracted_params.append(extracted)
         return extracted_params
+    def hide_streams(self):
+        self.stdout_orig = sys.stdout
+        self.stderr_orig = sys.stderr
+        self.buf1 = io.StringIO()
+        self.buf2 = io.StringIO()
+        sys.stdout = self.buf1
+        sys.stderr = self.buf2
+    def restore_streams(self):
+        sys.stdout = self.stdout_orig
+        sys.stderr = self.stderr_orig
     def extract_parameters(self, api_name_json, api_info):
         parameters_combined = []
         for api_name in api_name_json:
             details = api_info[api_name]
             parameters = details["Parameters"]
-            api_params = {param_name: {"type": param_details["type"]} for param_name, param_details in parameters.items() if (not param_details['optional']) or (param_name=="color" and (("scanpy.pl" in api_name) or ("squidpy.pl" in api_name)))} # TODO: currently not use optional parameters!!!
+            api_params = {param_name: {"type": param_details["type"]} for param_name, param_details in parameters.items() if (not param_details['optional']) or (param_name=="color" and (("scanpy.pl" in api_name) or ("squidpy.pl" in api_name))) or (param_name=='encodings' and (api_name.startswith('ehrapy.pp') or api_name.startswith('ehrapy.preprocessing'))) or (param_name=='encoded' and (api_name.startswith('ehrapy.')))} # TODO: currently not use optional parameters!!!
             api_params.update({})
             combined_params = {}
             for param_name, param_info in api_params.items():
@@ -973,38 +1015,43 @@ class Model:
         [callback.on_agent_action(block_id="code-"+str(self.indexxxx),task=execution_code,task_title="Executed code",) for callback in self.callbacks]
         self.indexxxx+=1
         execution_code_list = execution_code.split('\n')
-        error_list = []
+        output_list = []
         print('execute and obtain figures')
         self.plt_status = plt.get_fignums()
-        self.buf = io.StringIO()
-        sys.stdout = self.buf
-        sys.stderr = self.buf
+        #self.hide_streams()
         # execute and obtain figures
         for code in execution_code_list:
             #print(f'start executing code: {code}')
             ans = self.executor.execute_api_call(code, "code")
+            print(code, ans)
             if ans:
-                error_list.append(ans)
+                output_list.append(ans)
             if plt.get_fignums()!=self.plt_status:
-                error_list.append(self.executor.execute_api_call("from inference.utils import save_plot_with_timestamp", "import"))
-                error_list.append(self.executor.execute_api_call("save_plot_with_timestamp()", "code"))
+                output_list.append(self.executor.execute_api_call("from inference.utils import save_plot_with_timestamp", "import"))
+                output_list.append(self.executor.execute_api_call("save_plot_with_timestamp()", "code"))
                 self.plt_status = plt.get_fignums()
             else:
                 pass
+        #self.restore_streams()
+        #content = self.buf1.getvalue()
+        #print('content', content)
+        #content = self.buf2.getvalue()
+        #print('content', content)
         
         if len(execution_code_list)>0:
             self.last_execute_code = self.get_last_execute_code(code)
         else:
             self.last_execute_code = {"code":"", 'success':"False"}
             print('Something wrong with generating code with new API!')
-        sys.stdout = sys.__stdout__
-        sys.stderr = sys.__stderr__
         print('self.executor.variables:')
         print(list(self.executor.variables.keys()))
         print('self.executor.execute_code:')
         print(self.executor.execute_code)
-        content = self.buf.getvalue()
-        print('content', content) ###??? no output
+        
+        try:
+            content = '\n'.join(output_list)
+        except:
+            content = ""
         # print the new variable 
         if self.last_execute_code['success']=='True':
             # if execute, visualize value
@@ -1075,7 +1122,7 @@ class Model:
                 self.indexxxx+=1
         else:
             print(f'Execution Error: {content}')
-            [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="\n".join(list(set(error_list))),task_title="Executed results [Fail]",) for callback in self.callbacks] # Execution failed! 
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="\n".join(list(set(output_list))),task_title="Executed results [Fail]",) for callback in self.callbacks] # Execution failed! 
             self.indexxxx+=1
         file_name=f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
         self.executor.save_environment(file_name)
@@ -1106,7 +1153,7 @@ class Model:
                 return self.executor.execute_code[-i]
             else:
                 pass
-        print('Something wrong with getting execution status by code! Enter wrong code')
+        print(f'Something wrong with getting execution status by code! Enter wrong code {code}')
 
 from queue import Queue
 model = Model()

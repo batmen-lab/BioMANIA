@@ -6,6 +6,7 @@ bitsandbytes==0.41.1
 deap==1.4.1
 deepspeed==0.12.0
 docstring_parser==0.15
+ehrapy==0.6.0
 Flask==3.0.0
 flask_cors==4.0.0
 flask_socketio==5.3.6
@@ -42,7 +43,8 @@ seaborn==0.13.0
 sentence_transformers==2.2.2
 sentencepiece==0.1.99
 scanpy==1.9.5
-#squidpy==1.3.1
+scikit-learn-intelex
+squidpy==1.3.1
 tenacity==8.2.3
 tensorboard==2.15.1
 torch==2.1.0
