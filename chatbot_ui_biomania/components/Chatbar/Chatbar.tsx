@@ -1,28 +1,20 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
-
 import { useTranslation } from 'next-i18next';
-
 import { useCreateReducer } from '@/hooks/useCreateReducer';
-
 import { DEFAULT_TOP_K } from '@/utils/app/const';
 import { saveConversation, saveConversations } from '@/utils/app/conversation';
 import { saveFolders } from '@/utils/app/folders';
 import { exportData, importData } from '@/utils/app/importExport';
-
 import { Conversation } from '@/types/chat';
 import { LatestExportFormat, SupportedExportFormats } from '@/types/export';
 import { PluginKey } from '@/types/plugin';
-
 import HomeContext from '@/pages/api/home/home.context';
-
 import { ChatFolders } from './components/ChatFolders';
 import { ChatbarSettings } from './components/ChatbarSettings';
 import { Conversations } from './components/Conversations';
-
 import Sidebar from '../Sidebar';
 import ChatbarContext from './Chatbar.context';
 import { ChatbarInitialState, initialState } from './Chatbar.state';
-
 import { v4 as uuidv4 } from 'uuid';
 
 export const Chatbar = () => {
@@ -39,6 +31,14 @@ export const Chatbar = () => {
     handleNewConversation,
     handleUpdateConversation,
   } = useContext(HomeContext);
+
+
+  useEffect(() => {
+    if (conversations.length === 0) {
+      handleNewConversation();
+    }
+  }, [conversations, handleNewConversation]);
+
 
   const {
     state: { searchTerm, filteredConversations },

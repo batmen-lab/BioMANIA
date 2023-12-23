@@ -9,6 +9,7 @@ import ImageProgressCard from "./ImageProgressCard";
 import CodeCard from "./CodeCard";
 import TextCollapseCard  from "./TextCollapseCard";
 import LoggingCard from './LoggingCard';
+import OptionalCard from "./OptionalCard";
 import {InstallationProgressCard} from "./InstallationProgressCard";
 
 const generate_random_id = () => {
@@ -133,6 +134,14 @@ const processObjs = (progressJson: any): BaseUsage[] => {
           ongoing: true, 
           children: [],
       }
+    } else if (block_id.includes("optional")) {
+      obj_dict[block_id] = {
+          occurence: 1,  
+          block_id: block_id,
+          json: progress.task,  
+          ongoing: true, 
+          children: [],
+      }
     } else if (block_id.includes("textcollapse")) {
       obj_dict[block_id] = {
           occurence: 1,  
@@ -169,7 +178,6 @@ const processObjs = (progressJson: any): BaseUsage[] => {
   for (var i = 0; i < id_order.length; i++) {
     var block_id = id_order[i];
     ret.push(obj_dict[block_id]);
-
   }
   ret = ret.filter((x) => x !== undefined);
   return ret;
@@ -283,6 +291,13 @@ const generateCards = (progressJson: any) => {
           codeString={root.codeString}
           language={root.language}
           fullContent={root.fullContent}
+        />
+    ); 
+    } else if (root.block_id.includes("optional")) {
+      components.push(
+        <OptionalCard
+          key={generate_random_id()}
+          params={root.json}
         />
     );
     }  else if (root.block_id.includes("textcollapse")) {

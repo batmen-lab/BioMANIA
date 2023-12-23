@@ -27,6 +27,7 @@ import { ChatLoader } from './ChatLoader';
 import { LibCardSelect } from './LibCardSelect';
 import { SystemPrompt } from './SystemPrompt';
 import { MemoizedChatMessage } from './MemoizedChatMessage';
+import { ToolUsage } from '@/types/chat';
 interface Props {
   stopConversationRef: MutableRefObject<boolean>;
 }
@@ -56,10 +57,63 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const toolStart: ToolUsage = {
+    type: "tool",
+    block_id: "tool-1",
+    occurence: 1,
+    Parameters: "",
+    status: 0,
+    api_name: "",
+    api_description: "",
+    api_calling: "",
+    task: "",
+    task_title: "",
+    composite_code: "",
+    ongoing: false,
+    depth: 0,
+    children: [],
+    parent: null
+  };
+  const toolEnd: ToolUsage = {
+    type: "tool",
+    block_id: "tool-1",
+    occurence: 1,
+    Parameters: "",
+    status: 0,
+    api_name: "",
+    api_description: "",
+    api_calling: "",
+    task: "",
+    task_title: "",
+    composite_code: "",
+    ongoing: false,
+    depth: 0,
+    children: [],
+    parent: null
+  };
+  const agentAction: ToolUsage = {
+    type: "tool",
+    block_id: "log-1",
+    occurence: 1,
+    Parameters: "",
+    status: 0,
+    api_name: "",
+    api_description: "",
+    api_calling: "",
+    task: "[Would you like to see some examples to learn how to interact with the bot?](https://github.com/batmen-lab/BioMANIA/tree/35da76f7d5cd40b99980654e84000e25ff167cb2/examples)",
+    task_title: "Welcome to BioMANIA! How can I help?",
+    composite_code: "",
+    ongoing: false,
+    depth: 0,
+    children: [],
+    parent: null
+  };
+  
   const [welcomeMessage] = useState<Message>({
     role: 'assistant',
-    content: 'Welcome to BioMANIA! How can I help?',
-    tools: [],
+    content: '',
+    tools: [toolStart, toolEnd, agentAction],
     recommendations: [],
     files: [],
     session_id: selectedConversation?.id || 'default-session-id'
@@ -95,8 +149,8 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
               ? [
                   {
                     role: 'assistant',
-                    content: 'Welcome to BioMANIA! How can I help?',
-                    tools: [],
+                    content: '',
+                    tools: [toolStart, toolEnd, agentAction],
                     recommendations: [],
                     files: [],
                     session_id: selectedConversation.id 
@@ -395,46 +449,13 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
   function displayDefaultScreen(selectedConversation: Conversation) {
     return (
       <>
-        <div className="mx-auto flex flex-col space-y-5 md:space-y-10 px-3 pt-5 md:pt-12 sm:max-w-[600px]">
+        <div className="mx-auto flex flex-col space-y-5 md:space-y-10 px-3 pt-5 md:pt-12 sm:max-w-[600px] bg-white">
           <div className="text-center text-3xl font-semibold text-gray-800 dark:text-gray-100">
             BioMANIA UI
           </div>
-          {
-            // models.length > 0 &&
-            (
-              <div className="flex h-full flex-col space-y-4 rounded-lg border border-neutral-200 p-4 dark:border-neutral-600">
-                <LibCardSelect />
-                {/*<SystemPrompt
-                  conversation={selectedConversation}
-                  prompts={[]}
-                  // prompts}
-                  onChangePrompt={(prompt) =>
-                    handleUpdateConversation(selectedConversation, {
-                      key: 'prompt',
-                      value: prompt,
-                    })
-                  }
-                />*/}
-              </div>
-            )}
-        </div>
-      </>
-    )
-  }
-  const reportRef = useRef(null);
-  return (
-    <div className="relative flex-1 overflow-hidden bg-white dark:bg-[#343541]">
-      {
-          (
-        <>
-          <div
-            className="max-h-full overflow-x-hidden"
-            ref={chatContainerRef}
-            onScroll={handleScroll}
-          >
-            {selectedConversation?.messages.length === 0 ? (
-              <>
-              {displayDefaultScreen(selectedConversation)}
+          <div className="flex h-full flex-col space-y-4 rounded-lg border border-neutral-200 p-4 dark:border-neutral-600 overflow-auto bg-white">
+            <LibCardSelect />
+            <div className="welcome-message mt-4 bg-white">
               <MemoizedChatMessage
                 key="welcomeMessage"
                 message={welcomeMessage}
@@ -444,6 +465,35 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                   handleSend(editedMessage, selectedConversation?.messages.length);
                 }}
               />
+            </div>
+          </div>
+        </div>
+      </>
+    );
+}
+  const reportRef = useRef(null);
+  return (
+    <div className="relative flex-1 overflow-hidden bg-white dark:bg-[#343541]">
+      {
+          (
+        <>
+          <div
+            style={{ height: '85vh', overflowX: 'hidden' }}
+            ref={chatContainerRef}
+            onScroll={handleScroll}
+          >
+            {selectedConversation?.messages.length === 0 ? (
+              <>
+              {displayDefaultScreen(selectedConversation)}
+              {/*<MemoizedChatMessage
+                key="welcomeMessage"
+                message={welcomeMessage}
+                messageIndex={0}
+                onEdit={(editedMessage) => {
+                  setCurrentMessage(editedMessage);
+                  handleSend(editedMessage, selectedConversation?.messages.length);
+                }}
+              />*/}
             </>
             ) : (
               <>

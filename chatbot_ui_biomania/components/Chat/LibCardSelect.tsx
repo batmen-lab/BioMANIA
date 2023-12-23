@@ -17,7 +17,7 @@ export const libImages: { [key: string]: string } = {
   'sonata': '/apps/SONATA.webp',
   'MIOSTONE': '/apps/MIOSTONE.webp',
   'ehrapy': '/apps/ehrapy.webp',
-  //'custom': '/apps/customize.webp',
+  'custom': '/apps/customize.webp',
 };
 
 export const LibCardSelect = () => {
@@ -52,7 +52,7 @@ export const LibCardSelect = () => {
       { id: 'sonata', name: 'sonata' },
       { id: 'MIOSTONE', name: 'MIOSTONE' },
       { id: 'ehrapy', name: 'ehrapy' },
-      //{ id: 'custom', name: 'custom' },
+      { id: 'custom', name: 'custom' },
     ];
   
     const existingLibIds = methods.map(lib => lib.id);
@@ -121,55 +121,49 @@ export const LibCardSelect = () => {
       {showCustomInput && (
         <div className="custom-input-container">
           <div>
-            <label>GitHub URL: </label>
+            <label style={{ color: 'black' }}>LIB Name: </label>
             <input 
               type="text" 
-              placeholder="GitHub URL" 
-              style={{ color: 'black' }} 
-              onChange={(e) => setCustomGitHubURL(e.target.value)}
-            />
-          </div>
-          <div>
-            <label>ReadTheDocs URL: </label>
-            <input 
-              type="text" 
-              placeholder="ReadTheDocs URL" 
-              style={{ color: 'black' }} 
-              onChange={(e) => setCustomReadTheDocsURL(e.target.value)}
-            />
-          </div>
-          <div>
-            <label>Library Name: </label>
-            <input 
-              type="text" 
-              placeholder="Library Name" 
+              placeholder="(Required) e.g. biopython" 
               style={{ color: 'black' }} 
               onChange={(e) => setCustomLibName(e.target.value)} 
             />
           </div>
           <div>
-            <label>API HTML: </label>
+            <label style={{ color: 'black' }}>LIB ALIAS: </label>
             <input 
               type="text" 
-              placeholder="API HTML" 
-              style={{ color: 'black' }} 
-              onChange={(e) => setcustomAPIHTML(e.target.value)} 
-            />
-          </div>
-          <div>
-            <label>LIB ALIAS: </label>
-            <input 
-              type="text" 
-              placeholder="LIB ALIAS" 
+              placeholder="(Required) e.g. Bio" 
               style={{ color: 'black' }} 
               onChange={(e) => setcustomLIBALIAS(e.target.value)} 
             />
           </div>
           <div>
-            <label>LIB ALIAS: </label>
-            <span style={{ color: 'white', border: '1px solid gray', padding: '0px 0px' }}>
-              {}
-            </span>
+            <label style={{ color: 'black' }}>API HTML: </label>
+            <input 
+              type="text" 
+              placeholder="(Optional) e.g. biopython.org/docs/latest/api" 
+              style={{ color: 'black' }} 
+              onChange={(e) => setcustomAPIHTML(e.target.value)} 
+            />
+          </div>
+          <div>
+            <label style={{ color: 'black' }}>GitHub URL: </label>
+            <input 
+              type="text" 
+              placeholder="(Optional) e.g. https://github.com/biopython/biopython" 
+              style={{ color: 'black' }} 
+              onChange={(e) => setCustomGitHubURL(e.target.value)}
+            />
+          </div>
+          <div>
+            <label style={{ color: 'black' }}>ReadTheDocs URL: </label>
+            <input 
+              type="text" 
+              placeholder="(Optional) e.g. https://biopython.org/docs/latest/api" 
+              style={{ color: 'black' }} 
+              onChange={(e) => setCustomReadTheDocsURL(e.target.value)}
+            />
           </div>
         </div>
       )}

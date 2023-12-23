@@ -36,11 +36,11 @@
         "TUTORIAL_GITHUB": "https://github.com/aertslab/scenicplus_analyses"
     },
     "biopython": {
+        "LIB": "biopython",
+        "LIB_ALIAS": "Bio",
+        "API_HTML_PATH": "biopython.org/docs/latest/api",
         "GITHUB_LINK": "https://github.com/biopython/biopython",
         "READTHEDOC_LINK": "https://biopython.org/docs/latest/api",
-        "LIB": "biopython",
-        "API_HTML_PATH": "biopython.org/docs/latest/api",
-        "LIB_ALIAS": "Bio",
         "TUTORIAL_GITHUB":"https://github.com/biopython/biopython/tree/master/Doc/Tutorial",
         "TUTORIAL_HTML_PATH":"https://biopython.org/DIST/docs/tutorial/Tutorial.html"
     },

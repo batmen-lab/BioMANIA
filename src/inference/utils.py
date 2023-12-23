@@ -72,12 +72,45 @@ def find_similar_pairs(lib, require_same_depth=False):
 
 if not os.path.exists("./tmp/images"):
     os.makedirs("./tmp/images", exist_ok=True)
-def save_plot_with_timestamp(folder="./tmp/images", prefix="img", format="png", save_pdf=True):
+from PIL import Image
+#def compress_and_save_image(image_path, quality=85):
+#    with Image.open(image_path) as img:
+#        img.save(image_path, "PNG", optimize=True, quality=quality)
+"""def compress_and_save_image(image_path, output_path=None, optimize=True, scale_factor=0.5):
+    with Image.open(image_path) as img:
+        if scale_factor != 1:
+            new_size = (int(img.width * scale_factor), int(img.height * scale_factor))
+            img = img.resize(new_size, Image.ANTIALIAS)
+        img = img.convert("P", palette=Image.ADAPTIVE)
+        if not output_path:
+            output_path = image_path
+        img.save(output_path, "PNG", optimize=optimize)"""
+def compress_and_save_image(image_path, output_path=None):
+    if not output_path:
+        output_path = image_path
+    reader = png.Reader(image_path)
+    w, h, pixels, metadata = reader.asDirect()
+    output = open(output_path, 'wb')
+    writer = png.Writer(w, h, greyscale=metadata['greyscale'], alpha=metadata['alpha'], bitdepth=8)
+    writer.write_array(output, pixels)
+    output.close()
+def save_plot_with_timestamp(folder="./tmp/images", prefix="img", format="webp", save_pdf=False):
     current_time = datetime.datetime.now()
     timestamp = current_time.strftime("%Y%m%d%H%M%S")
-    file_name = f"{prefix}_{timestamp}.{format}"
-    save_path = os.path.join(folder, file_name)
-    plt.savefig(save_path)
+    # save 
+    temp_png_path = os.path.join(folder, f"{prefix}_{timestamp}.png")
+    plt.savefig(temp_png_path)
+    # compress
+    if format == 'webp':
+        webp_path = os.path.join(folder, f"{prefix}_{timestamp}.webp")
+        with Image.open(temp_png_path) as img:
+            img.save(webp_path, 'WEBP')
+        os.remove(temp_png_path)
+        save_path = webp_path
+    elif format == 'png':
+        compress_and_save_image(save_path)
+    else:
+        save_path = temp_png_path
     if save_pdf:
         file_name = f"{prefix}_{timestamp}.pdf"
         save_path = os.path.join(folder, file_name)

@@ -129,11 +129,26 @@ export const ChatInput = ({
       textareaRef.current.blur();
     }
   };
-  const handleStopConversation = () => {
+  const handleStopConversation = async () => {
     stopConversationRef.current = true;
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/stop_generation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ sessionId: selectedConversation?.id })
+      });
+      if (!response.ok) {
+        throw new Error('Failed to send stop signal to the server.');
+      }
+      console.log("Stop signal sent successfully.");
+    } catch (error) {
+      console.error("Error sending stop signal:", error);
+    } finally {
       stopConversationRef.current = false;
-    }, 1000);
+      homeDispatch({ field: 'messageIsStreaming', value: false });
+    }
   };
   const isMobile = () => {
     const userAgent =

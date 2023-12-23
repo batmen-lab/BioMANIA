@@ -1,5 +1,5 @@
 # Flask
-from flask import Flask, Response, stream_with_context, request, send_file
+from flask import Flask, Response, stream_with_context, request, send_file, jsonify
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS, cross_origin
 from deploy.ServerEventCallback import ServerEventCallback
@@ -15,15 +15,25 @@ from urllib.parse import urlparse
 import numpy as np, matplotlib.pyplot as plt
 from sklearn.metrics.pairwise import cosine_similarity
 from typing import Any
+
+import logging
+from datetime import datetime
+timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+log_filename = f"../BioMANIA_log_{timestamp}.log"
+logging.basicConfig(filename=log_filename, 
+                    level=logging.INFO, 
+                    format='%(asctime)s - %(levelname)s - %(message)s')
+logging.info("Logging setup complete.")
+
 # device
 import torch
 if torch.cuda.is_available():
-    #gpu_index = 2
-    #torch.cuda.set_device(gpu_index)
+    gpu_index = 2
+    torch.cuda.set_device(gpu_index)
     device = torch.device('cuda')
 else:
     device = torch.device('cpu')
-print("Current GPU Index:", torch.cuda.current_device())
+logging.info("Current GPU Index: %s", torch.cuda.current_device())
 
 # 
 import concurrent.futures
@@ -75,7 +85,7 @@ def generate_api_calling(api_name, api_details, returned_content_str):
     for param_name, param_details in parameters.items():
         # only include required parameters and optional parameters found from response, and a patch for color in scanpy/squidpy pl APIs
         if (param_name in returned_content_dict) or (not param_details['optional']) or (param_name=='color' and (api_name.startswith('scanpy.pl') or api_name.startswith('squidpy.pl'))) or (param_name=='encodings' and (api_name.startswith('ehrapy.pp') or api_name.startswith('ehrapy.preprocessing'))) or (param_name=='encoded' and (api_name.startswith('ehrapy.'))):
-            print(param_name, param_name in returned_content_dict, not param_details['optional'])
+            #logging.info(param_name, param_name in returned_content_dict, not param_details['optional'])
             param_type = param_details['type']
             if param_type in [None, 'None', 'NoneType']:
                 param_type = "Any"
@@ -150,9 +160,9 @@ def download_data(url, save_dir="tmp"):
         content_length = response.headers.get('Content-Length')
         if content_length:
             size = int(content_length)
-            print(f"Data size: {size} bytes!")
+            logging.info(f"Data size: {size} bytes!")
         else:
-            print("Can not estimate data size!")
+            logging.info("Can not estimate data size!")
         response = requests.get(url)
         if response.status_code == 200:
             timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -161,13 +171,13 @@ def download_data(url, save_dir="tmp"):
             save_path = f"{save_dir}/data_{timestamp}_{file_name}"
             with open(save_path, 'wb') as file:
                 file.write(response.content)
-            print("Data downloaded successfully!")
+            logging.info("Data downloaded successfully!")
             return save_path
         else:
-            print("Data downloaded failed!")
+            logging.info("Data downloaded failed!")
             return None
     else:
-        print("Data request failed!")
+        logging.info("Data request failed!")
         return None
 
 def save_decoded_file(raw_file):
@@ -183,13 +193,13 @@ def save_decoded_file(raw_file):
         try:
             filename = download_data(decoded_data)
         except:
-            print('==>Input URL Error!')
+            logging.info('==>Input URL Error!')
             pass
     return filename
 
 class Model:
     def __init__(self):
-        print("Initializing...")
+        logging.info("Initializing...")
         self.indexxxx = 1
         self.inuse = False
         self.get_args()
@@ -221,16 +231,16 @@ class Model:
         self.image_file_list = self.update_image_file_list()
         with open(f'./data/standard_process/{self.LIB}/vectorizer.pkl', 'rb') as f:
             self.vectorizer = pickle.load(f)
-        print('==>chitchat vectorizer loaded!')
+        logging.info('==>chitchat vectorizer loaded!')
         with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
             self.centroids = pickle.load(f)
-        print('==>chitchat vectorizer loaded!')
+        logging.info('==>chitchat vectorizer loaded!')
         self.retrieve_query_mode = "similar"
-        print("Server ready")
+        logging.info("Server ready")
     def reset_lib(self, lib_name):
         #lib_name = lib_name.strip()
-        print('================')
-        print(f'==>Start reset the Lib {lib_name}!')
+        logging.info('================')
+        logging.info('==>Start reset the Lib %s!', lib_name)
         # reset and reload all the LIB-related data/models
         # suppose that all data&model are prepared already in their path
         try:
@@ -238,13 +248,13 @@ class Model:
             self.ambiguous_pair = find_similar_two_pairs(lib_name)
             self.ambiguous_api = list(set(api for api_pair in self.ambiguous_pair for api in api_pair))
             self.load_data(f"./data/standard_process/{lib_name}/API_composite.json")
-            print('==>loaded API json done')
+            logging.info('==>loaded API json done')
             #self.load_composite_code(lib_name)
-            #print('==>loaded API composite done')
+            #logging.info('==>loaded API composite done')
             t1 = time.time()
-            print('==>Start loading model!')
+            logging.info('==>Start loading model!')
             self.load_llm_model()
-            print('loaded llm model!')
+            logging.info('loaded llm model!')
             retrieval_model_path = self.args.retrieval_model_path
             parts = retrieval_model_path.split('/')
             if len(parts)>=3: # only work for path containing LIB, otherwise, please reenter the path in script
@@ -253,9 +263,9 @@ class Model:
             parts[-2]= lib_name
             new_path = '/'.join(parts)
             retrieval_model_path = new_path
-            print('load retrieval_model_path in: ', retrieval_model_path)
+            logging.info('load retrieval_model_path in: %s', retrieval_model_path)
             self.retriever = ToolRetriever(LIB=lib_name,corpus_tsv_path=f"./data/standard_process/{lib_name}/retriever_train_data/corpus.tsv", model_path=retrieval_model_path)
-            print('loaded retriever!')
+            logging.info('loaded retriever!')
             #self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
             self.executor.execute_api_call(f"import {lib_name}", "import")
             # pyteomics tutorial needs these import libs
@@ -272,13 +282,13 @@ class Model:
             all_apis = {x: self.API_composite[x]['description'] for x in self.API_composite}
             all_apis = list(all_apis.items())
             self.description_json = {i[0]:i[1] for i in all_apis}
-            print('==>Successfully loading model!')
-            print('loading model cost: ', time.time()-t1, 's')
+            logging.info('==>Successfully loading model!')
+            logging.info('loading model cost: %s s', str(time.time()-t1))
             reset_result = "Success"
             self.LIB = lib_name
         except Exception as e:
-            print('at least one data or model is not ready, please install lib first!')
-            print(f'Error: {e}')
+            logging.info('at least one data or model is not ready, please install lib first!')
+            logging.info('Error: %s', e)
             reset_result = "Fail"
             [callback.on_tool_start() for callback in self.callbacks]
             [callback.on_tool_end() for callback in self.callbacks]
@@ -370,7 +380,7 @@ class Model:
         # TODO: need to add the new materials url into cheatsheet, avoid repeated entering
 
     def update_image_file_list(self):
-        image_file_list = [f for f in os.listdir(self.image_folder) if f.endswith(".png")]
+        image_file_list = [f for f in os.listdir(self.image_folder) if f.endswith(".webp")]
         return image_file_list
     def get_args(self):
         # Define the arguments here...
@@ -439,42 +449,43 @@ class Model:
             [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="uploading files finished!",task_title=str(int(100))) for callback in self.callbacks]
             self.indexxxx+=1
     def save_state(self):
-        file_name = f"./tmp/states/{self.session_id}_state.pkl"
+        a = str(self.session_id)
+        file_name = f"./tmp/states/{a}_state.pkl"
         state = {k: v for k, v in self.__dict__.copy().items() if self.executor.is_picklable(v) and k != 'executor'}
         with open(file_name, 'wb') as file:
             pickle.dump(state, file)
-        print("State saved to", file_name)
+        logging.info("State saved to %s", file_name)
     def load_state(self, session_id):
-        file_name = f"./tmp/states/{session_id}_state.pkl"
+        a = str(session_id)
+        file_name = f"./tmp/states/{a}_state.pkl"
         with open(file_name, 'rb') as file:
             state = pickle.load(file)
         self.__dict__.update(state)
-        print("State loaded from", file_name)
+        logging.info("State loaded from %s", file_name)
     def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True,session_id=""):
-        self.indexxxx = 1
+        self.indexxxx = 2
         #if session_id != self.session_id:
         if True:
             self.session_id = session_id
             try:
                 self.load_state(session_id)
-                file_name=f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
+                a = str(self.session_id)
+                file_name=f"./tmp/sessions/{a}_environment.pkl"
                 self.executor.load_environment(file_name)
             except:
-                print('no local session_id environment exist! start from scratch')
+                logging.info('no local session_id environment exist! start from scratch')
                 self.initialize_executor()
                 pass
         # only reset lib when changing lib
         if lib!=self.LIB:
             reset_result = self.reset_lib(lib)
             if reset_result=='Fail':
-                print('Reset lib fail! Exit the dialog!')
+                logging.info('Reset lib fail! Exit the dialog!')
                 return 
             self.LIB = lib
-        self.conversation_started=conversation_started
         # only clear namespace when starting new conversations
-        if self.conversation_started in ["True", True]:
-            print('==>new conversation_started!')
-            print('reset status!')
+        if conversation_started in ["True", True]:
+            logging.info('==>new conversation_started!')
             self.user_states="initial"
             self.initialize_executor()
             self.executor.variables={}
@@ -486,42 +497,30 @@ class Model:
                 if var_name.startswith('result_'):
                     del locals()[var_name]
         else:
-            print('==>old conversation_continued!')
+            logging.info('==>old conversation_continued!')
         if self.user_states == "initial":
-            print('start initial!')
+            logging.info('start initial!')
             while not self.queue.empty():
                 self.queue.get()
             self.loading_data(files)
-            #print('loading data finished!')
+            #logging.info('loading data finished!')
             self.query_id += 1
             temp_args = copy.deepcopy(self.args)
             temp_args.top_k = top_k
             self.user_query = user_input
             predicted_source = infer(self.user_query, self.vectorizer, self.centroids, ['chitchat-data', 'topical-chat', 'api-query'])
-            print(f'----query inferred as {predicted_source}----')
+            logging.info(f'----query inferred as %s----', predicted_source)
             if predicted_source!='api-query':
-                print('--classified as chitchat!--')
                 [callback.on_tool_start() for callback in self.callbacks]
                 [callback.on_tool_end() for callback in self.callbacks]
                 response, _ = LLM_response(self.llm, self.tokenizer, user_input, history=[], kwargs={})  # llm
                 [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=response,task_title="Non API chitchat") for callback in self.callbacks]
                 self.indexxxx+=1
-                help_apis = [key for key, value in self.API_composite.items() if key.endswith(".help")]
-                self.hide_streams()
-                try:
-                    exec(help_apis[0]+"()")
-                    self.restore_streams()
-                    content = self.buf1.getvalue()
-                except:
-                    content = ""
-                if content:
-                    [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=f"Some tips for using our tools! \n {content}",task_title="Help") for callback in self.callbacks]
-                    self.indexxxx+=1
                 return
             else:
                 pass
             retrieved_names = self.retrieve_names(user_input)
-            print("retrieved_names:", retrieved_names)
+            logging.info("retrieved_names: %s", retrieved_names)
             # produce prompt
             description_jsons = {}
             try:
@@ -535,7 +534,6 @@ class Model:
             else:
                 sampled_shuffled = random.sample(self.retriever.shuffled_data, 5)
                 instruction_shot_example = "".join(["\nInstruction: " + ex['query'] + "\nFunction: " + ex['gold'] for ex in sampled_shuffled])
-            print('start preparing api predict prompt')
             api_predict_prompt = f"""
             Task: choose one of the following APIs to use for the instruction. 
             {json.dumps(description_jsons)}
@@ -546,9 +544,8 @@ class Model:
             success = False
             for attempt in range(3):
                 try:
-                    print(f'==>Ask GPT: {api_predict_prompt}')
                     response, _ = LLM_response(self.llm, self.tokenizer, api_predict_prompt, history=[], kwargs={})  # llm
-                    print('==>GPT response:', response)
+                    logging.info(f'==>Ask GPT: %s\n==>GPT response: %s', api_predict_prompt, response)
                     # hack for if GPT answers this or that
                     response = response.split(',')[0].split("(")[0].split(' or ')[0]
                     response = response.replace('{','').replace('}','').replace('"','').replace("'",'')
@@ -558,20 +555,19 @@ class Model:
                     success = True
                     break
                 except Exception as e:
-                    print(f'Time {attempt}. GPT predict error: {e}')
+                    pass
                     #return 
             if not success:
                 [callback.on_tool_start() for callback in self.callbacks]
                 [callback.on_tool_end() for callback in self.callbacks]
-                [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task="GPT can not return valid API name prediction, please redesign your prompt.",task_title="GPT predict Error",) for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task=f"GPT can not return valid API name prediction, please redesign your prompt.",task_title="GPT predict Error",) for callback in self.callbacks]
                 self.indexxxx += 1
                 return
-            print(f'length of ambiguous api list: {len(self.ambiguous_api)}')
-            # if the predicted API is in ambiguous API list, then print those API and select one from them
+            logging.info(f'length of ambiguous api list: {len(self.ambiguous_api)}')
+            # if the predicted API is in ambiguous API list, then show those API and select one from them
             if self.predicted_api_name in self.ambiguous_api:
                 filtered_pairs = [api_pair for api_pair in self.ambiguous_pair if self.predicted_api_name in api_pair]
                 self.filtered_api = list(set(api for api_pair in filtered_pairs for api in api_pair))
-                print(f'the filtered api list is {self.filtered_api}')
                 [callback.on_tool_start() for callback in self.callbacks]
                 [callback.on_tool_end() for callback in self.callbacks]
                 next_str = ""
@@ -592,21 +588,23 @@ class Model:
                 self.last_user_states = self.user_states
                 self.user_states = "after_API_selection"
                 self.run_pipeline_after_fixing_API_selection(user_input)
+        elif self.user_states =="run_pipeline_after_doublechecking_API_selection":
+            self.run_pipeline_after_doublechecking_API_selection(user_input)
         elif self.user_states == "ambiguous_mode":
             ans = self.run_pipeline_after_ambiguous(user_input)
             if ans in ['break']:
                 return
             self.run_pipeline_after_fixing_API_selection(user_input)
-        elif self.user_states == "run_select_basic_params":
-            self.run_select_basic_params(user_input)
         elif self.user_states == "run_select_special_params":
             self.run_select_special_params(user_input)
-        elif self.user_states == "run_pipeline_after_entering_params":
-            self.run_pipeline_after_entering_params(user_input)
         elif self.user_states == "run_pipeline_after_select_special_params":
             self.run_pipeline_after_select_special_params(user_input)
+        elif self.user_states == "run_select_basic_params":
+            self.run_select_basic_params(user_input)
+        elif self.user_states == "run_pipeline_after_entering_params":
+            self.run_pipeline_after_entering_params(user_input)
     def run_pipeline_after_ambiguous(self,user_input):
-        print('==>run_pipeline_after_ambiguous')
+        logging.info('==>run_pipeline_after_ambiguous')
         user_input = user_input.strip()
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
@@ -666,10 +664,10 @@ class Model:
         return {api_name: content for item in updated_result for api_name, content in item.items()}
 
     def run_pipeline_after_fixing_API_selection(self,user_input):
-        print('==>run_pipeline_after_fixing_API_selection')
+        logging.info('==>run_pipeline_after_fixing_API_selection')
         # check if composite API/class method API, return the relevant APIs
-        relevant_api_list = self.process_api_info(self.API_composite, self.predicted_api_name) # only contains predicted API
-        self.api_name_json = self.check_and_insert_class_apis(self.API_composite, relevant_api_list)# also contains class API
+        self.relevant_api_list = self.process_api_info(self.API_composite, self.predicted_api_name) # only contains predicted API
+        self.api_name_json = self.check_and_insert_class_apis(self.API_composite, self.relevant_api_list)# also contains class API
         self.last_user_states = self.user_states
         self.user_states = "initial"
         api_description = self.API_composite[self.predicted_api_name]['description']
@@ -681,8 +679,39 @@ class Model:
         [callback.on_tool_end() for callback in self.callbacks]
         [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=response,task_title=f"Predicted API: {self.predicted_api_name}",) for callback in self.callbacks]
         self.indexxxx+=1
-
-        print("==>Need to collect all parameters for a composite API")
+        [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Could you confirm whether this API should be called? Please enter y/n.",task_title=f"Double Check",) for callback in self.callbacks]
+        self.indexxxx+=1
+        self.last_user_states = self.user_states
+        self.user_states = "run_pipeline_after_doublechecking_API_selection"
+        self.save_state()
+    
+    def run_pipeline_after_doublechecking_API_selection(self, user_input):
+        print('==>run_pipeline_after_doublechecking_API_selection')
+        user_input = str(user_input)
+        if user_input in ['y', 'n']:
+            if user_input == 'n':
+                print('input n')
+                self.last_user_states = self.user_states
+                self.user_states = "initial"
+                [callback.on_tool_start() for callback in self.callbacks]
+                [callback.on_tool_end() for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We will start another round. Could you re-enter your inquiry?",task_title=f"Start another round",) for callback in self.callbacks]
+                self.indexxxx+=1
+                self.save_state()
+                return
+            else:
+                print('input y')
+                pass
+        else:
+            print('input not y or n')
+            [callback.on_tool_start() for callback in self.callbacks]
+            [callback.on_tool_end() for callback in self.callbacks]
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="The input was not y or n, please enter the correct value.",task_title=f"Index Error",) for callback in self.callbacks]
+            self.indexxxx+=1
+            self.save_state()
+            # user_states didn't change
+            return
+        # logging.info("==>Need to collect all parameters for a composite API")
         combined_params = {}
         # if the class API has already been initialized, then skip it
         for api in self.api_name_json:
@@ -690,14 +719,13 @@ class Model:
             maybe_class_name = api_parts[-1]
             maybe_instance_name = maybe_class_name.lower() + "_instance"
             if (maybe_instance_name in self.executor.variables) and (self.API_composite[api]['api_type']=='class'):
-                print(f'skip parameters for {maybe_instance_name}')
+                # logging.info(f'skip parameters for {maybe_instance_name}')
                 continue
             else:
                 pass
             combined_params.update(self.API_composite[api]['Parameters'])
         parameters_name_list = [key for key, value in combined_params.items() if (key not in ['path', "Path"])] 
         #parameters_name_list = [key for key, value in combined_params.items() if (not value['optional']) and (key not in ['path', "Path"])] # 
-        print('parameters_name_list', parameters_name_list)
         api_parameters_information = change_format(combined_params, parameters_name_list)
         # turn None to All
         api_parameters_information = [
@@ -712,11 +740,10 @@ class Model:
         #filter out special type parameters, do not infer them using gpt
         api_parameters_information = [param for param in api_parameters_information if any(basic_type in param['type'] for basic_type in basic_types)]
         parameters_name_list = [param_info['name'] for param_info in api_parameters_information]
-        print('parameters_name_list:', parameters_name_list)
         apis_description = ""
         apis_name = ""
-        for idx,api_name_tmp_list in enumerate(relevant_api_list):
-            if len(relevant_api_list)>1:
+        for idx,api_name_tmp_list in enumerate(self.relevant_api_list):
+            if len(self.relevant_api_list)>1:
                 api_name_tmp = list(api_name_tmp_list.keys())[0]
                 apis_name+=f"{idx}:{api_name_tmp}"
                 apis_description+=f"{idx}:{self.API_composite[api_name_tmp]['description']}."
@@ -726,8 +753,6 @@ class Model:
                 apis_description+=f"{self.API_composite[api_name_tmp]['description']}."
         parameters_prompt = prepare_parameters_prompt(self.user_query, apis_description, apis_name, 
         json.dumps(api_parameters_information), json.dumps(parameters_name_list))  # prompt
-        #print('==>parameters_prompt: ', parameters_prompt)
-
         if len(parameters_name_list)==0:
             # if there is no required parameters, skip using gpt
             response = "[]"
@@ -736,27 +761,23 @@ class Model:
             for attempt in range(3):
                 try:
                     response, _ = LLM_response(self.llm, self.tokenizer, parameters_prompt, history=[], kwargs={})  
-                    print('==>GPT response:', response)
+                    logging.info(f'==>Asking GPT: %s, ==>GPT response: %s', parameters_prompt, response)
                     returned_content_str_new = response.replace('null', 'None').replace('None', '"None"')
                     returned_content = ast.literal_eval(returned_content_str_new)
                     success = True
                     break
                 except Exception as e:
-                    #[callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="GPT predict error: " + str(e),task_title="GPT predict Error",) for callback in self.callbacks]
-                    #self.indexxxx += 1
                     pass
                     #return # 231130 fix 
             if not success:
-                #[callback.on_agent_action(block_id="log-" + str(self.indexxxx),task=f"GPT can not return valid parameters prediction, please redesign prompt in backend if you want to predict parameters. We will skip parameters prediction currently",task_title="GPT predict Error",) for callback in self.callbacks]
-                #self.indexxxx += 1
+                [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task=f"GPT can not return valid parameters prediction, please redesign prompt in backend if you want to predict parameters. We will skip parameters prediction currently",task_title="GPT predict Error",) for callback in self.callbacks]
+                self.indexxxx += 1
                 response = "{}"
-                print("GPT can not return valid parameters prediction, please redesign prompt in backend if you want to predict parameters. We will skip parameters prediction currently")
-            #print('==>parameters_prompt: ', parameters_prompt)
+                logging.info("GPT can not return valid parameters prediction, please redesign prompt in backend if you want to predict parameters. We will skip parameters prediction currently")
         # generate api_calling
-        #print('==>Start generating api_calling')
         self.predicted_api_name, api_calling, self.parameters_info_list = generate_api_calling(self.predicted_api_name, self.API_composite[self.predicted_api_name], response)
-        if len(self.api_name_json)> len(relevant_api_list):
-            #assume_class_API = list(set(list(self.api_name_json.keys()))-set(relevant_api_list))[0]
+        if len(self.api_name_json)> len(self.relevant_api_list):
+            #assume_class_API = list(set(list(self.api_name_json.keys()))-set(self.relevant_api_list))[0]
             assume_class_API = '.'.join(self.predicted_api_name.split('.')[:-1])
             tmp_class_predicted_api_name, tmp_class_api_calling, tmp_class_parameters_info_list = generate_api_calling(assume_class_API, self.API_composite[assume_class_API], response)
             fix_update = True
@@ -770,15 +791,14 @@ class Model:
                     pass
             if fix_update:
                 self.parameters_info_list['parameters'].update(tmp_class_parameters_info_list['parameters'])
-        
-        #print('After GPT predicting parameters, now the produced API calling is :', api_calling)
+        #logging.info('After GPT predicting parameters, now the produced API calling is : %s', api_calling)
         ####### infer parameters
         # $ param
         self.selected_params = self.executor.select_parameters(self.parameters_info_list['parameters'])
-        print("Automatically selected params for $, after selection the parameters are: ", self.selected_params)
+        logging.info("Automatically selected params for $, after selection the parameters are: %s", json.dumps(self.selected_params))
         # $ param if not fulfilled
         none_dollar_value_params = [param_name for param_name, param_info in self.selected_params.items() if param_info["value"] in ['$']]
-        print(f'none_dollar_value_params: {none_dollar_value_params}')
+        logging.info(f'none_dollar_value_params: %s', json.dumps(none_dollar_value_params))
         if none_dollar_value_params:
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="However, there are still some parameters with special type undefined. Please start from uploading data, or input your query from preprocessing dataset.",task_title="Missing Parameters: special type") for callback in self.callbacks]
             self.indexxxx+=1
@@ -786,9 +806,8 @@ class Model:
         # $ param if multiple choice
         multiple_dollar_value_params = [param_name for param_name, param_info in self.selected_params.items() if ('list' in str(type(param_info["value"]))) and (len(param_info["value"])>1)]
         self.filtered_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (key in multiple_dollar_value_params)}
-        print(f'self.filtered_params: {self.filtered_params}')
         if multiple_dollar_value_params:
-            print('==>There exist multiple choice for a special type parameters, start selecting parameters')
+            logging.info('==>There exist multiple choice for a special type parameters, start selecting parameters')
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task=f"There are many variables match the expected type. Please determine which one to choose",task_title="Choosing Parameters: special type") for callback in self.callbacks]
             self.indexxxx+=1
             tmp_input_para = ""
@@ -811,15 +830,15 @@ class Model:
             if i['success']=='True' and val in i['code']:
                 return i['code']
         [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="Can not find the executed code corresponding to the expected parameters", task_title="Error Enter Parameters: special type",color="red") for callback in self.callbacks]
-        print('Can not find the executed code corresponding to the expected parameters')
+        logging.info('Can not find the executed code corresponding to the expected parameters')
         #raise ValueError
     def run_select_special_params(self, user_input):
-        print('==>run_select_special_params')
+        logging.info('==>run_select_special_params')
         if self.last_user_states == "run_select_special_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter_type_special(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
-        print(f'self.filtered_params:{self.filtered_params}')
+        logging.info(f'self.filtered_params: %s', json.dumps(self.filtered_params))
         if len(self.filtered_params)>1:
             self.last_param_name = list(self.filtered_params.keys())[0]
             candidate_text = ""
@@ -831,7 +850,7 @@ class Model:
             self.last_user_states = self.user_states
             self.user_states = "run_select_special_params"
             del self.filtered_params[self.last_param_name]
-            print(f'self.filtered_params:{self.filtered_params}')
+            logging.info(f'self.filtered_params: %s', json.dumps(self.filtered_params))
             self.save_state()
             return
         elif len(self.filtered_params)==1:
@@ -845,7 +864,7 @@ class Model:
             self.last_user_states = self.user_states
             self.user_states = "run_pipeline_after_select_special_params"
             del self.filtered_params[self.last_param_name]
-            print(f'self.filtered_params:{self.filtered_params}')
+            logging.info(f'self.filtered_params: %s', json.dumps(self.filtered_params))
             self.save_state()
         else:
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="The parameters candidate list is empty", task_title="Error Enter Parameters: basic type",color="red") for callback in self.callbacks]
@@ -856,7 +875,7 @@ class Model:
         if self.last_user_states == "run_select_special_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter_type_special(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         # @ param
-        print('starting entering basic params')
+        logging.info('starting entering basic params')
         none_at_value_params = [param_name for param_name, param_info in self.selected_params.items() if (param_info["value"] in ['@']) and (param_name not in ['path','Path'])]
         self.filtered_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (value["value"] in ['@']) and (key not in ['path','Path'])}
         self.filtered_pathlike_params = {}
@@ -864,8 +883,7 @@ class Model:
         # TODO: add condition later: if uploading data files, 
         # avoid asking Path params, assign it as './tmp'
         if none_at_value_params: # TODO: add type PathLike
-            print('if exist non path, basic type parameters, start selecting parameters')
-            print(none_at_value_params)
+            logging.info('if exist non path, basic type parameters, start selecting parameters')
             tmp_input_para = ""
             for idx, api in enumerate(self.filtered_params):
                 if idx!=0:
@@ -881,12 +899,12 @@ class Model:
         self.run_pipeline_after_entering_params(user_input)
     
     def run_select_basic_params(self, user_input):
-        print('==>run_select_basic_params')
+        logging.info('==>run_select_basic_params')
         if self.last_user_states == "run_select_basic_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
-        print(f'self.filtered_params:{self.filtered_params}')
+        logging.info('self.filtered_params: %s', json.dumps(self.filtered_params))
         if len(self.filtered_params)>1:
             self.last_param_name = list(self.filtered_params.keys())[0]
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="Which value do you think is appropriate for the parameters '"+self.last_param_name+"'?", task_title="Enter Parameters: basic type",color="red") for callback in self.callbacks]
@@ -954,7 +972,7 @@ class Model:
     def run_pipeline_after_entering_params(self, user_input):
         if self.last_user_states == "run_select_basic_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
-        print('==>run pipeline after entering parameters')
+        logging.info('==>run pipeline after entering parameters')
         self.last_user_states = self.user_states
         self.user_states = "initial"
         self.image_file_list = self.update_image_file_list()
@@ -968,19 +986,19 @@ class Model:
                     "valuefrom": 'userinput',
                     "optional": param_info["optional"],
                 }
-        print(f'self.selected_params: {self.selected_params}')
+        logging.info('self.selected_params: %s', json.dumps(self.selected_params))
         # split parameters according to multiple API, or class/method API
         parameters_list = self.extract_parameters(self.api_name_json, self.API_composite)
         extracted_params = self.split_params(self.selected_params, parameters_list)
-        print(f'==>self.api_name_json: {self.api_name_json}', f'parameters_list: {parameters_list}')
-        print(f'==>extracted_params: {extracted_params}')
+        logging.info('==>self.api_name_json: %s, parameters_list: %s', json.dumps(self.api_name_json), json.dumps(parameters_list))
+        logging.info('==>extracted_params: %s', json.dumps(extracted_params))
         extracted_params_dict = {api_name: extracted_param for api_name, extracted_param in zip(self.api_name_json, extracted_params)}
-        print('extracted_params_dict: ', extracted_params_dict)
+        logging.info('extracted_params_dict: ', json.dumps(extracted_params_dict))
         api_params_list = []
         for idx, api_name in enumerate(self.api_name_json):
             if True:
                 #if self.api_name_json[api_name]['type']=='class': # !
-                #print('==>assume not start with class API:', api_name)
+                #logging.info('==>assume not start with class API: %s', api_name)
                 class_selected_params = {}
                 fake_class_api = '.'.join(api_name.split('.')[:-1])
                 if fake_class_api in self.api_name_json:
@@ -1007,23 +1025,68 @@ class Model:
                                             "parameters":extracted_params[idx], 
                                             "return_type":self.API_composite[api_name]['Returns']['type'],
                                             "class_selected_params":class_selected_params})
-        print('==>api_params_list:', json.dumps(api_params_list))
+        logging.info('==>api_params_list: %s', json.dumps(api_params_list))
+        # add optional cards
+        optional_param = {key: value for key, value in self.API_composite[api_name]['Parameters'].items() if not value.get('optional', False)}
+        logging.info('==>optional_param: %s', json.dumps(optional_param))
+        if optional_param:
+            [callback.on_agent_action(block_id="optional-"+str(self.indexxxx),task=optional_param,task_title="Executed code",) for callback in self.callbacks]
+            self.indexxxx+=1
+        """if True:
+            [callback.on_agent_action(block_id="optional-"+str(self.indexxxx),task={
+                "obs": {
+                "type": "Optional[Union[str, Iterable[str]]]",
+                "default": "None",
+                "optional": True,
+                "description": "Labels' keys in `adata_ref.obs` which need to be mapped to `adata.obs`\n(inferred for observation of `adata`).",
+                "optional_value": False
+            },
+            "embedding_method": {
+                "type": "Union[str, Iterable[str]]",
+                "default": "('umap', 'pca')",
+                "optional": True,
+                "description": "Embeddings in `adata_ref` which need to be mapped to `adata`.\nThe only supported values are 'umap' and 'pca'.",
+                "optional_value": False
+            },
+            "labeling_method": {
+                "type": "str",
+                "default": "knn",
+                "optional": True,
+                "description": "The method to map labels in `adata_ref.obs` to `adata.obs`.\nThe only supported value is 'knn'.",
+                "optional_value": False
+            },
+            "neighbors_key": {
+                "type": "Optional[str]",
+                "default": "None",
+                "optional": True,
+                "description": "If not specified, ingest looks adata_ref.uns['neighbors']\nfor neighbors settings and adata_ref.obsp['distances'] for\ndistances (default storage places for pp.neighbors).\nIf specified, ingest looks adata_ref.uns[neighbors_key] for\nneighbors settings and\nadata_ref.obsp[adata_ref.uns[neighbors_key]['distances_key']] for distances.",
+                "optional_value": False
+            },
+            "inplace": {
+                "type": "bool",
+                "default": "True",
+                "optional": True,
+                "description": "Only works if `return_joint=False`.\nAdd labels and embeddings to the passed `adata` (if `True`)\nor return a copy of `adata` with mapped embeddings and labels.",
+                "optional_value": False
+            }
+            },task_title="Executed code",) for callback in self.callbacks]
+            self.indexxxx+=1"""
         execution_code = self.executor.generate_execution_code(api_params_list)
-        print('==>execution_code:',execution_code)
+        logging.info('==>execution_code: %s', execution_code)
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
         [callback.on_agent_action(block_id="code-"+str(self.indexxxx),task=execution_code,task_title="Executed code",) for callback in self.callbacks]
         self.indexxxx+=1
         execution_code_list = execution_code.split('\n')
         output_list = []
-        print('execute and obtain figures')
+        logging.info('execute and obtain figures')
         self.plt_status = plt.get_fignums()
         #self.hide_streams()
         # execute and obtain figures
         for code in execution_code_list:
-            #print(f'start executing code: {code}')
+            #logging.info(f'start executing code: {code}')
             ans = self.executor.execute_api_call(code, "code")
-            print(code, ans)
+            logging.info('%s, %s', str(code), str(ans))
             if ans:
                 output_list.append(ans)
             if plt.get_fignums()!=self.plt_status:
@@ -1034,31 +1097,31 @@ class Model:
                 pass
         #self.restore_streams()
         #content = self.buf1.getvalue()
-        #print('content', content)
+        #logging.info('content, %s', content)
         #content = self.buf2.getvalue()
-        #print('content', content)
+        #logging.info('content, %s', content)
         
         if len(execution_code_list)>0:
             self.last_execute_code = self.get_last_execute_code(code)
         else:
             self.last_execute_code = {"code":"", 'success':"False"}
-            print('Something wrong with generating code with new API!')
-        print('self.executor.variables:')
-        print(list(self.executor.variables.keys()))
-        print('self.executor.execute_code:')
-        print(self.executor.execute_code)
+            logging.info('Something wrong with generating code with new API!')
+        logging.info('self.executor.variables:')
+        logging.info(json.dumps(list(self.executor.variables.keys())))
+        logging.info('self.executor.execute_code:')
+        logging.info(json.dumps(self.executor.execute_code))
         
         try:
             content = '\n'.join(output_list)
         except:
             content = ""
-        # print the new variable 
+        # show the new variable 
         if self.last_execute_code['success']=='True':
             # if execute, visualize value
             code = self.last_execute_code['code']
             vari = [i.strip() for i in code.split('(')[0].split('=')]
-            print(f'-----code: {code}')
-            print(f'-----vari: {vari}')
+            logging.info('-----code: %s', code)
+            logging.info('-----vari: %s', vari)
             tips_for_execution_success = True
             if len(vari)>1:
                 #if self.executor.variables[vari[0]]['value'] is not None:
@@ -1066,16 +1129,16 @@ class Model:
                     print_val = vari[0]
                     print_value = self.executor.variables[print_val]['value']
                     print_type = self.executor.variables[print_val]['type']
-                    #print('if vari value is not None, return it')
+                    #logging.info('if vari value is not None, return it')
                     [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We obtain a new variable: " + str(print_value),task_title="Executed results [Success]",) for callback in self.callbacks]
                     self.indexxxx+=1
                     if print_type=='AnnData':
-                        print('if the new variable is of type AnnData, ')
+                        logging.info('if the new variable is of type AnnData, ')
                         visual_attr_list = [i_tmp for i_tmp in list(dir(print_value)) if not i_tmp.startswith('_')]
                         #if len(visual_attr_list)>0:
                         if 'obs' in visual_attr_list:
                             visual_attr = 'obs'#visual_attr_list[0]
-                            print(f'visualize {visual_attr} attribute')
+                            logging.info('visualize %s attribute', visual_attr)
                             output_table = getattr(self.executor.variables[vari[0]]['value'], "obs", None).head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
                             # if exist \n in the last index, remove it
                             last_newline_index = output_table.rfind('\n')
@@ -1088,7 +1151,7 @@ class Model:
                         else:
                             pass
                     try:
-                        print('if exist table, visualize it')
+                        logging.info('if exist table, visualize it')
                         output_table = self.executor.variables[vari[0]]['value'].head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
                         last_newline_index = output_table.rfind('\n')
                         if last_newline_index != -1:
@@ -1100,17 +1163,17 @@ class Model:
                     except:
                         pass
                 else:
-                    print('Something wrong with variables! success executed variables didnt contain targeted variable')
+                    logging.info('Something wrong with variables! success executed variables didnt contain targeted variable')
                 tips_for_execution_success = False
             else:
                 # 
                 pass
-            print('if generate image, visualize it')
+            logging.info('if generate image, visualize it')
             new_img_list = self.update_image_file_list()
             new_file_list = set(new_img_list)-set(self.image_file_list)
             if new_file_list:
                 for new_img in new_file_list:
-                    print('send image to frontend')
+                    logging.info('send image to frontend')
                     base64_image = convert_image_to_base64(os.path.join(self.image_folder,new_img))
                     if base64_image:
                         [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task="We visualize the obtained figure",task_title="Executed results [Success]",imageData=base64_image) for callback in self.callbacks]
@@ -1121,7 +1184,7 @@ class Model:
                 [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=str(content),task_title="Executed results [Success]",) for callback in self.callbacks]
                 self.indexxxx+=1
         else:
-            print(f'Execution Error: {content}')
+            logging.info(f'Execution Error: %s', content)
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="\n".join(list(set(output_list))),task_title="Executed results [Fail]",) for callback in self.callbacks] # Execution failed! 
             self.indexxxx+=1
         file_name=f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
@@ -1135,12 +1198,12 @@ class Model:
                 self.indexxxx+=1
                 [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Splitting the returned tuple variable into individual variables",task_title="Executed results [Success]",) for callback in self.callbacks]
                 self.indexxxx+=1
-        print("Show current variables in namespace:")
-        print(list(self.executor.variables.keys()))
+        logging.info("Show current variables in namespace:")
+        logging.info(json.dumps(list(self.executor.variables.keys())))
         new_str = []
         for i in self.executor.execute_code:
             new_str.append({"code":i['code'],"execution_results":i['success']})
-        print("Currently all executed code:", json.dumps(new_str))
+        logging.info("Currently all executed code: %s", json.dumps(new_str))
         filename = f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
         self.executor.save_environment(filename)
         self.save_state()
@@ -1153,21 +1216,29 @@ class Model:
                 return self.executor.execute_code[-i]
             else:
                 pass
-        print(f'Something wrong with getting execution status by code! Enter wrong code {code}')
+        logging.info(f'Something wrong with getting execution status by code! Enter wrong code %s', code)
 
 from queue import Queue
+import threading
 model = Model()
+should_stop = threading.Event()
+
+@app.route('/api/stop_generation', methods=['POST'])
+def stop_generation():
+    global should_stop
+    should_stop.set()
+    return Response(json.dumps({"status": "stopped"}), status=200, mimetype='application/json')
 
 @app.route('/stream', methods=['GET', 'POST'])
 @cross_origin()
 def stream():
     data = json.loads(request.data)
-    print('='*30)
-    print('get data:')
+    logging.info('='*30)
+    logging.info('get data:')
     for key, value in data.items():
         if key not in ['files']:
-            print(f'{key}: {value}')
-    print('='*30)
+            logging.info('%s: %s', key, value)
+    logging.info('='*30)
     #user_input = data["text"]
     #top_k = data["top_k"]
     #Lib = data["Lib"]
@@ -1188,11 +1259,11 @@ def stream():
 
     # process uploaded files
     if len(raw_files)>0:
-        print('length of files:',len(raw_files))
+        logging.info('length of files: %d',len(raw_files))
         for i in range(len(raw_files)):
             try:
-                print(raw_files[i]['data'].split(",")[0])
-                print(raw_files[i]['filename'])
+                logging.info(str(raw_files[i]['data'].split(",")[0]))
+                logging.info(str(raw_files[i]['filename']))
             except:
                 pass
         files = [save_decoded_file(raw_file) for raw_file in raw_files]
@@ -1202,7 +1273,8 @@ def stream():
     
     global model
     def generate(model):
-        print("Called generate")
+        global should_stop
+        logging.info("Called generate")
         if model.inuse:
             return Response(json.dumps({
                 "method_name": "error",
@@ -1211,16 +1283,23 @@ def stream():
             return
         model.inuse = True
         if new_lib_doc_url:
-            print('new_lib_doc_url is not none, start installing lib!')
+            logging.info('new_lib_doc_url is not none, start installing lib!')
             model.install_lib(new_lib_github_url, new_lib_doc_url, api_html, data["Lib"], lib_alias)
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            print('start running pipeline!')
+            logging.info('start running pipeline!')
             future = executor.submit(model.run_pipeline, data["text"], data["Lib"], data["top_k"], files, data["conversation_started"], data['session_id'])
             # keep waiting for the queue to be empty
             while True:
+                if should_stop.is_set():
+                    should_stop.clear()
+                    model.inuse = False
+                    executor.shutdown(wait=False)
+                    yield json.dumps({"method_name": "generation_stopped"})
+                    return
+                time.sleep(0.1)
                 if model.queue.empty():
                     if future.done():
-                        print("Finished with future")
+                        logging.info("Finished with future")
                         break
                     time.sleep(0.01)
                     continue
@@ -1234,13 +1313,13 @@ def stream():
                     yield json.dumps(obj) + "\n"
                 except Exception as e:
                     model.inuse = False
-                    print(obj)
-                    print(e)
+                    #logging.info(obj)
+                    #logging.info(e)
             try:
                 future.result()
             except Exception as e:
                 model.inuse = False
-                print(e)
+                #logging.info(e)
         model.inuse = False
         return
     return Response(stream_with_context(generate(model)))

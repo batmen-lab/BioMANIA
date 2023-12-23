@@ -46,28 +46,37 @@ const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageDat
   };
 
   return (
-    <Paper elevation={2} sx={{ width: '200', height: 'fit-content',position: 'relative', padding: '8px', margin: '8px 0', backgroundColor: 'white', overflow: 'hidden' }}>
+    <Paper elevation={2} sx={{ width: '200', height: 'auto', position: 'relative', padding: '8px', margin: '0', backgroundColor: 'white', overflow: 'hidden' }}>
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="caption" component="div" sx={{ fontFamily: 'monospace', fontSize: '0.9rem', lineHeight: '1.2', marginBottom: '0px' }}>
-        <span style={{ color: titleColor }}>{title}</span>
-      </Typography>
-        <Divider sx={{ my: 1 }} />
-        {imageData && (
-          <ImageProgressCard
-            key={generate_random_id()}
-            imageSrc={'data:image/png;base64,' + imageData}
-          />
-        )}
-        {tableData && tableData.trim() !== '' && <TableCard data={tableData} />}
-        <Box sx={{ width: '200' }}>
-          <Collapse in={!isCollapsed} timeout="auto" unmountOnExit sx={{ width: '200' }}>
-          <div style={{ margin: '-10px 0' }}>
-            <Typography variant="body1" sx={{ fontFamily: 'monospace', color: logColor, fontSize: '0.9rem', lineHeight: '1.2' }}>
-              <ReactMarkdown>{formattedLogString}</ReactMarkdown>
-            </Typography>
-          </div>
-          </Collapse>
-        </Box>
+        <Typography variant="caption" component="div" sx={{ fontFamily: 'monospace', fontSize: '0.9rem', lineHeight: '1.2', marginBottom: '0px' }}>
+          <span style={{ color: titleColor }}>{title}</span>
+        </Typography>
+        <Divider sx={{ my: 0.5 }} />
+        <Collapse in={!isCollapsed} timeout="auto" unmountOnExit>
+          {imageData && (
+            <ImageProgressCard
+              key={generate_random_id()}
+              imageSrc={'data:image/png;base64,' + imageData}
+            />
+          )}
+          {tableData && tableData.trim() !== '' && (
+            <TableCard data={tableData} />
+          )}
+          <Typography variant="body1" sx={{
+            fontFamily: 'monospace',
+            color: logColor,
+            fontSize: '0.9rem',
+            lineHeight: '1.2',
+            mt: 0,
+            mb: 0,
+            p: 0,
+            '& > p': {
+              margin: 0,
+            },
+          }}>
+            <ReactMarkdown>{formattedLogString}</ReactMarkdown>
+          </Typography>
+        </Collapse>
         <Button
           variant="text"
           onClick={toggleCollapse}
@@ -76,6 +85,7 @@ const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageDat
             top: 0,
             right: 0,
             fontSize: '0.8rem',
+            padding: '4px',
           }}
         >
           {isCollapsed ? "Show" : "Hide"}  {isCollapsed ? "↓" : "↑"}

@@ -1,10 +1,14 @@
 
 ## Version History
 - v1.1.9 (coming soon)
-  - Accelerate the retriever training.
   - Add Drive URL installation feature for convenient uploading of large files by users.
-  - Support retriever bm25 for `inference_dialog_server.py`.
+  - Accelerate the image transmission, accelerate the inference speed, accelerate the page loading.
+  - Add the 
+  
   - Provide one-click packaging and uploading, as well as one-click installation.
+  - Accelerate the retriever training.
+  - Support retriever bm25 for `inference_dialog_server.py`.
+  - Fix some issues.
 - v1.1.8 (2023-12-03)
   - Build Docker images for each library. Detailed tools list supported are available [here](https://hub.docker.com/repositories/chatbotuibiomania).
   - Implement session management to facilitate simultaneous use by multiple dialogs. 

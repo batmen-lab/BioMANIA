@@ -4,38 +4,34 @@ import { CodeBlock } from '@/components/Markdown/CodeBlock';
 import remarkGfm from 'remark-gfm';
 import Collapse from '@mui/material/Collapse';
 import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 
 interface CodeCardProps {
   codeString: string;
   language: string;
-  fullContent: string; // new prop
+  fullContent: string;
 }
 
 function CodeCard({ codeString, language, fullContent }: CodeCardProps) {
-  const [isCollapsed, setIsCollapsed] = useState(true);  // new state for collapse control
-
-  // const collapseStyle = {
-  //   maxHeight: isCollapsed ? '0' : '1000px',
-  //   overflow: 'hidden',
-  //   transition: 'max-height 0.3s ease-in-out',
-  // };
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const codeStyle = {
     whiteSpace: 'pre-wrap',
   };
 
   return (
-    <div style={{ width: '100%' }}>
-      <MemoizedReactMarkdown 
+    <div style={{ padding: 0 }}>
+      <MemoizedReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           code({ node, inline, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '');
             return !inline ? (
               <CodeBlock
-                style={{ width: '100%', ...codeStyle }}
+                style={{ width: '100%', ...codeStyle, margin: 0, padding: 0,'& > p': {
+                  margin: 0,
+                  padding: 0,
+                }, }}
                 language={language || (match && match[1]) || ''}
                 value={codeString || String(children).replace(/\n$/, '')}
                 {...props}
@@ -50,47 +46,46 @@ function CodeCard({ codeString, language, fullContent }: CodeCardProps) {
       >
         {`\`\`\`${language}\n${codeString}\n\`\`\``}
       </MemoizedReactMarkdown>
-      
+
       {fullContent && (
         <>
-          {/* <Paper elevation={3} style={{ backgroundColor: 'white', padding: '0px', borderRadius: '0px', marginTop: '-2px' , height: '30px'}}> */}
-            <Typography paragraph>
-              <Button
-                variant="text"
-                sx={{
-                  color: 'black',
-                  textTransform: 'none',
-                  fontSize: '0.8rem',
-                  fontWeight: 'normal',
-                  ml: 0,
-                  '&:hover': {
-                    backgroundColor: 'transparent',
-                    textDecoration: 'underline',
-                  }
-                }}
-                onClick={() => setIsCollapsed(!isCollapsed)}
-              >
-                {isCollapsed ? "Show Full Content" : "Hide Full Content"}  {isCollapsed ? "↓" : "↑"}
-              </Button>
-            </Typography>
-          {/* </Paper> */}
+          <Typography paragraph>
+            <Button
+              variant="text"
+              sx={{
+                color: 'black',
+                textTransform: 'none',
+                fontSize: '0.8rem',
+                fontWeight: 'normal',
+                '&:hover': {
+                  backgroundColor: 'transparent',
+                  textDecoration: 'underline',
+                },
+              }}
+              onClick={() => setIsCollapsed(!isCollapsed)}
+            >
+              {isCollapsed ? "Show ↓" : "Hide ↑"}
+            </Button>
+          </Typography>
 
-          {/* <Collapse in={!isCollapsed} timeout="auto" unmountOnExit style={collapseStyle}> */}
-          {/* <Collapse in={!isCollapsed} timeout="auto" unmountOnExit> */}
-            <MemoizedReactMarkdown 
+          <Collapse in={!isCollapsed} timeout="auto" unmountOnExit>
+            <MemoizedReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
                 code({ node, inline, className, children, ...props }) {
                   const match = /language-(\w+)/.exec(className || '');
                   return !inline ? (
                     <CodeBlock
-                      style={{ width: '100%' , ...codeStyle }}
+                      style={{ width: '100%', ...codeStyle, margin: 0, padding: 0,'& > p': {
+                        margin: 0,
+                        padding: 0,
+                      } }}
                       language={language || (match && match[1]) || ''}
                       value={fullContent || String(children).replace(/\n$/, '')}
                       {...props}
                     />
                   ) : (
-                    <code className={className} {...props} >
+                    <code className={className} {...props}>
                       {children}
                     </code>
                   );
@@ -99,7 +94,7 @@ function CodeCard({ codeString, language, fullContent }: CodeCardProps) {
             >
               {`\`\`\`${language}\n${fullContent}\n\`\`\``}
             </MemoizedReactMarkdown>
-          {/* </Collapse> */}
+          </Collapse>
         </>
       )}
     </div>
