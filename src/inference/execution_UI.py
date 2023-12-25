@@ -26,7 +26,9 @@ class CodeExecutor:
         except Exception:
             return False
     def filter_picklable_variables(self, ):
-        return {k: v for k, v in self.variables.items() if self.is_picklable(v)} #  if isinstance(v, (pd.DataFrame, pd.Series, int, float, str, bool))
+        return_var = {k: v for k, v in self.variables.items() if self.is_picklable(v)} #  if isinstance(v, (pd.DataFrame, pd.Series, int, float, str, bool))
+        print('return_var save :', list(return_var.keys()))
+        return return_var
     def save_environment(self,file_name) -> None:
         serializable_vars = self.filter_picklable_variables()
         data_to_save = {
@@ -44,6 +46,7 @@ class CodeExecutor:
             self.counter = loaded_data.get("counter", 1)
             tmp_variables = {k:self.variables[k]['value'] for k in self.variables}
             globals().update(tmp_variables)
+            locals().update(tmp_variables)
     def select_parameters(self, params):
         #print('Start selecting parameters for $!')
         matching_params = {}
@@ -320,7 +323,7 @@ class CodeExecutor:
                 pass
         return max_variable
     
-    def execute_api_call(self, api_call_code, code_type):
+    def execute_api_call(self, api_call_code, code_type, output_file=None):
         if code_type=='import':
             successful_imports = [item['code'] for item in self.execute_code if item['code_type'] == 'import' and item['success'] == 'True']
             if api_call_code in successful_imports: # if the new codeline is of import type and have been executed before
@@ -328,11 +331,21 @@ class CodeExecutor:
         try:
             globals_before = set(globals().keys())
             original_stdout = sys.stdout 
-            captured_output = io.StringIO()  
+            #captured_output = io.StringIO()  
+            if output_file:
+                captured_output = open(output_file, 'a')
+                is_file = True
+            else:
+                captured_output = io.StringIO()
+                is_file = False
             sys.stdout = captured_output
-            exec(api_call_code, globals())
+            exec(api_call_code, locals(), globals())
             sys.stdout = original_stdout
-            captured_output_value = captured_output.getvalue()
+            if is_file:
+                captured_output.close()
+                captured_output_value = ""
+            else:
+                captured_output_value = captured_output.getvalue()
             globals_after = set(globals().keys())
             new_vars = globals_after - globals_before
             #print('globals_before:',globals_before)
@@ -352,7 +365,9 @@ class CodeExecutor:
             if "Error" in captured_output_value:
                 self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'False', 'error': captured_output_value})
                 return captured_output_value
+            #print(f'why not append? {api_call_code}')
             self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'True', 'error':''})
+            #print('self.execute_code', self.execute_code)
             return captured_output_value
         except Exception as e:
             error = f"{e}"

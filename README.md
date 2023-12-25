@@ -204,10 +204,13 @@ Thank you for choosing BioMANIA. We hope this guide assists you in navigating th
 
 
 ## Version History
-- v1.1.9 (coming soon)
-  - Incorporate a Drive URL installation feature for the convenient upload of large files by users. More details are in [Q and A](./docs/Q&A.md)
-  - Provide realtime visualization of executable results.
+- v1.1.9 (2023-12-24)
+  - Add Drive URL installation feature for convenient uploading of large files by users.
+  - Real-time informative displays for API execution, and enable image zoom and download features.
+  - Add Optional Cards for inputing optional parameters.
+  - Accelerate program by image transmission, inference speed, and the page loading.
   - Provide one-click packaging and uploading, as well as one-click installation.
+  - Fix some issues.
 
 view [version_history](./docs/version_history.md) for more details!
 

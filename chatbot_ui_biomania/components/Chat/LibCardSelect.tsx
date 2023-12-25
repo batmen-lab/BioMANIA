@@ -17,7 +17,7 @@ export const libImages: { [key: string]: string } = {
   'sonata': '/apps/SONATA.webp',
   'MIOSTONE': '/apps/MIOSTONE.webp',
   'ehrapy': '/apps/ehrapy.webp',
-  'custom': '/apps/customize.webp',
+  //'custom': '/apps/customize.webp',
 };
 
 export const LibCardSelect = () => {
@@ -52,7 +52,7 @@ export const LibCardSelect = () => {
       { id: 'sonata', name: 'sonata' },
       { id: 'MIOSTONE', name: 'MIOSTONE' },
       { id: 'ehrapy', name: 'ehrapy' },
-      { id: 'custom', name: 'custom' },
+      //{ id: 'custom', name: 'custom' },
     ];
   
     const existingLibIds = methods.map(lib => lib.id);

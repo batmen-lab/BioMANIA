@@ -9,17 +9,20 @@ cors = CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 # standard lib
 import argparse, json, signal, time, copy, base64, requests, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess, re
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 from datetime import datetime
 from urllib.parse import urlparse
 # Computational
 import numpy as np, matplotlib.pyplot as plt
 from sklearn.metrics.pairwise import cosine_similarity
 from typing import Any
+import multiprocessing
 
 import logging
 from datetime import datetime
 timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-log_filename = f"../BioMANIA_log_{timestamp}.log"
+os.makedirs(f"../logs", exist_ok=True)
+log_filename = f"../logs/BioMANIA_log_{timestamp}.log"
 logging.basicConfig(filename=log_filename, 
                     level=logging.INFO, 
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -295,49 +298,141 @@ class Model:
             [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=f"Something wrong with loading data and model! \n{e}",task_title="Setting error") for callback in self.callbacks]
             self.indexxxx+=1
         return reset_result
+    def install_lib(self,lib_name, lib_alias, api_html=None, github_url=None, doc_url=None):
+        self.install_lib_simple(lib_name, lib_alias, github_url, doc_url, api_html)
+        #self.install_lib_full(lib_name, lib_alias, github_url, doc_url, api_html)
 
-    def install_lib(self,github_url, doc_url, api_html, lib_name, lib_alias):
-        '''github_url = "https://github.com/biocore/scikit-bio"
-        doc_url = "scikit-bio.org/docs/latest/"
-        api_html = "scikit-bio.org/docs/latest/index.html"
-        api_html = None 
-        lib_name = "scikit-bio"
-        lib_alias = "skbio"'''
+    def install_lib_simple(self,lib_name, lib_alias, api_html=None, github_url=None, doc_url=None):
+        #from configs.model_config import get_all_variable_from_cheatsheet
+        #info_json = get_all_variable_from_cheatsheet(lib_name)
+        #API_HTML, TUTORIAL_GITHUB = [info_json[key] for key in ['API_HTML', 'TUTORIAL_GITHUB']]
         self.LIB = lib_name
         from configs.model_config import GITHUB_PATH, ANALYSIS_PATH, READTHEDOC_PATH
-        from configs.model_config import LIB, LIB_ALIAS, GITHUB_LINK, API_HTML
+        #from configs.model_config import LIB, LIB_ALIAS, GITHUB_LINK, API_HTML
         from dataloader.utils.code_download_strategy import download_lib
         from dataloader.utils.other_download import download_readthedoc
         from dataloader.get_API_init_from_sourcecode import main_get_API_init
         from dataloader.get_API_full_from_unittest import merge_unittest_examples_into_API_init
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="start processing new lib...",task_title="0") for callback in self.callbacks]
-        self.indexxxx+=1
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Downloading lib...",task_title="0") for callback in self.callbacks]
         os.makedirs(f"./data/standard_process/{self.LIB}/", exist_ok=True)
-
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="downloading materials...",task_title="13") for callback in self.callbacks]
+        #[callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="downloading materials...",task_title="13") for callback in self.callbacks]
+        #self.indexxxx+=1
+        if github_url: # use git install
+            download_lib('git', self.LIB, github_url, lib_alias, GITHUB_PATH)
+        else: # use pip install
+            subprocess.run(['pip', 'install', f'{lib_alias}'])
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Lib downloaded...",task_title="0") for callback in self.callbacks]
         self.indexxxx+=1
-        """if github_url:
-            download_lib('git', self.LIB, github_url, lib_alias, GITHUB_PATH)"""
-        subprocess.run(['pip', 'install', f'{lib_alias}'])
+        
         if doc_url and api_html:
             download_readthedoc(doc_url, api_html)
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="preparing API_init.json ...",task_title="26") for callback in self.callbacks]
-        self.indexxxx+=1
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Preparing API_init.json ...",task_title="26") for callback in self.callbacks]
         if api_html:
             api_path = os.path.normpath(os.path.join(READTHEDOC_PATH, api_html))
         else:
             api_path = None
         main_get_API_init(self.LIB,lib_alias,ANALYSIS_PATH,api_path)
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="preparing API_composite.json ...",task_title="39") for callback in self.callbacks]
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Finished API_init.json ...",task_title="26") for callback in self.callbacks]
         self.indexxxx+=1
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Preparing API_composite.json ...",task_title="39") for callback in self.callbacks]
+        shutil.copy(f'./data/standard_process/{self.LIB}/API_init.json', f'./data/standard_process/{self.LIB}/API_composite.json')
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Finished API_composite.json ...",task_title="39") for callback in self.callbacks]
+        self.indexxxx+=1
+        
+        ###########
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Preparing instruction generation API_inquiry.json ...",task_title="52") for callback in self.callbacks]
+        self.indexxxx+=1
+        command = [
+            "python", "dataloader/preprocess_retriever_data.py",
+            "--LIB", self.LIB
+        ]
+        print("Running command:", command)
+        subprocess.Popen(command)
+        ###########
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Copying chitchat model from multicorpus pretrained chitchat model ...",task_title="65") for callback in self.callbacks]
+        shutil.copy(f'./data/standard_process/multicorpus/centroids.pkl', f'./data/standard_process/{self.LIB}/centroids.pkl')
+        shutil.copy(f'./data/standard_process/multicorpus/vectorizer.pkl', f'./data/standard_process/{self.LIB}/vectorizer.pkl')
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Done preparing chitchat model ...",task_title="65") for callback in self.callbacks]
+        self.indexxxx+=1
+        ###########
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Copying retriever from multicorpus pretrained retriever model...",task_title="78") for callback in self.callbacks]
+        self.indexxxx+=1
+        subprocess.run(["mkdir", f"./hugging_models/retriever_model_finetuned/{self.LIB}"])
+        shutil.copytree(f'./hugging_models/retriever_model_finetuned/multicorpus/assigned', f'./hugging_models/retriever_model_finetuned/{self.LIB}/assigned')
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Process done! Please restart the program for usage",task_title="100") for callback in self.callbacks]
+        self.indexxxx+=1
+        # TODO: need to add tutorial_github and tutorial_html_path
+        cheatsheet_path = './configs/Lib_cheatsheet.json'
+        with open(cheatsheet_path, 'r') as file:
+            cheatsheet_data = json.load(file)
+        new_lib_details = {self.LIB: 
+            {
+                "LIB": self.LIB, 
+                "LIB_ALIAS":lib_alias,
+                "API_HTML_PATH": api_html,
+                "GITHUB_LINK": github_url,
+                "READTHEDOC_LINK": doc_url,
+                "TUTORIAL_HTML_PATH":None,
+                "TUTORIAL_GITHUB":None
+            }
+        }
+        cheatsheet_data.update(new_lib_details)
+        with open(cheatsheet_path, 'w') as file:
+            json.dump(cheatsheet_data, file, indent=4)
+
+    def install_lib_full(self,lib_name, lib_alias, api_html=None, github_url=None, doc_url=None):
+        #from configs.model_config import get_all_variable_from_cheatsheet
+        #info_json = get_all_variable_from_cheatsheet(lib_name)
+        #API_HTML, TUTORIAL_GITHUB = [info_json[key] for key in ['API_HTML', 'TUTORIAL_GITHUB']]
+        
+        self.LIB = lib_name
+        from configs.model_config import GITHUB_PATH, ANALYSIS_PATH, READTHEDOC_PATH
+        #from configs.model_config import LIB, LIB_ALIAS, GITHUB_LINK, API_HTML
+        from dataloader.utils.code_download_strategy import download_lib
+        from dataloader.utils.other_download import download_readthedoc
+        from dataloader.get_API_init_from_sourcecode import main_get_API_init
+        from dataloader.get_API_full_from_unittest import merge_unittest_examples_into_API_init
+        
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Downloading lib...",task_title="0") for callback in self.callbacks]
+        os.makedirs(f"./data/standard_process/{self.LIB}/", exist_ok=True)
+        #[callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="downloading materials...",task_title="13") for callback in self.callbacks]
+        #self.indexxxx+=1
+        if github_url: # use git install
+            download_lib('git', self.LIB, github_url, lib_alias, GITHUB_PATH)
+        else: # use pip install
+            subprocess.run(['pip', 'install', f'{lib_alias}'])
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Lib downloaded...",task_title="0") for callback in self.callbacks]
+        self.indexxxx+=1
+        
+        if doc_url and api_html:
+            download_readthedoc(doc_url, api_html)
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Preparing API_init.json ...",task_title="26") for callback in self.callbacks]
+        if api_html:
+            api_path = os.path.normpath(os.path.join(READTHEDOC_PATH, api_html))
+        else:
+            api_path = None
+        main_get_API_init(self.LIB,lib_alias,ANALYSIS_PATH,api_path)
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Finished API_init.json ...",task_title="26") for callback in self.callbacks]
+        self.indexxxx+=1
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Preparing API_composite.json ...",task_title="39") for callback in self.callbacks]
         # TODO: add API_composite
         #merge_unittest_examples_into_API_init(self.LIB, ANALYSIS_PATH, GITHUB_PATH)
         #from dataloader.get_API_composite_from_tutorial import main_get_API_composite
         #main_get_API_composite(ANALYSIS_PATH, self.LIB)
-        shutil.copy(f'../../resources/json_analysis/{self.LIB}/API_init.json', f'./data/standard_process/{self.LIB}/API_composite.json')
-
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="training api/non-api classification model ...",task_title="52") for callback in self.callbacks]
+        shutil.copy(f'./data/standard_process/{self.LIB}/API_init.json', f'./data/standard_process/{self.LIB}/API_composite.json')
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Finished API_composite.json ...",task_title="39") for callback in self.callbacks]
         self.indexxxx+=1
+        
+        ###########
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Preparing instruction generation API_inquiry.json ...",task_title="52") for callback in self.callbacks]
+        self.indexxxx+=1
+        command = [
+            "python", "dataloader/preprocess_retriever_data.py",
+            "--LIB", self.LIB
+        ]
+        subprocess.run(command)
+        ###########
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Preparing chitchat model ...",task_title="65") for callback in self.callbacks]
         command = [
             "python",
             "models/chitchat_classification.py",
@@ -347,14 +442,10 @@ class Model:
         base64_image = convert_image_to_base64(f"./plot/{self.LIB}/chitchat_test_tsne_modified.png")
         [callback.on_agent_action(block_id="transfer_" + str(self.indexxxx),task=base64_image,task_title="chitchat_train_tsne_modified.png",) for callback in self.callbacks]
         self.indexxxx+=1
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="preparing retriever data API_inquiry.json ...",task_title="65") for callback in self.callbacks]
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Done chitchat model ...",task_title="65") for callback in self.callbacks]
         self.indexxxx+=1
-        command = [
-            "python", "dataloader/preprocess_retriever_data.py",
-            "--LIB", self.LIB
-        ]
-        subprocess.run(command)
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="training retriever...",task_title="78") for callback in self.callbacks]
+        ###########
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Preparing retriever...",task_title="78") for callback in self.callbacks]
         self.indexxxx+=1
         subprocess.run(["mkdir", f"./hugging_models/retriever_model_finetuned/{self.LIB}"])
         command = [
@@ -375,9 +466,26 @@ class Model:
         base64_image = convert_image_to_base64(f"./plot/{self.LIB}/retriever/ndcg_plot.png")
         [callback.on_agent_action(block_id="transfer_" + str(self.indexxxx),task=base64_image,task_title="ndcg_plot.png",) for callback in self.callbacks]
         self.indexxxx+=1
-        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Process done! Please restart the program for new usage",task_title="100") for callback in self.callbacks]
+        [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Process done! Please restart the program for usage",task_title="100") for callback in self.callbacks]
         self.indexxxx+=1
-        # TODO: need to add the new materials url into cheatsheet, avoid repeated entering
+        # TODO: need to add tutorial_github and tutorial_html_path
+        cheatsheet_path = './configs/Lib_cheatsheet.json'
+        with open(cheatsheet_path, 'r') as file:
+            cheatsheet_data = json.load(file)
+        new_lib_details = {self.LIB: 
+            {
+                "LIB": self.LIB, 
+                "LIB_ALIAS":lib_alias,
+                "API_HTML_PATH": api_html,
+                "GITHUB_LINK": github_url,
+                "READTHEDOC_LINK": doc_url,
+                "TUTORIAL_HTML_PATH":None,
+                "TUTORIAL_GITHUB":None
+            }
+        }
+        cheatsheet_data.update(new_lib_details)
+        with open(cheatsheet_path, 'w') as file:
+            json.dump(cheatsheet_data, file, indent=4)
 
     def update_image_file_list(self):
         image_file_list = [f for f in os.listdir(self.image_folder) if f.endswith(".webp")]
@@ -463,6 +571,7 @@ class Model:
         self.__dict__.update(state)
         logging.info("State loaded from %s", file_name)
     def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True,session_id=""):
+        
         self.indexxxx = 2
         #if session_id != self.session_id:
         if True:
@@ -514,7 +623,7 @@ class Model:
                 [callback.on_tool_start() for callback in self.callbacks]
                 [callback.on_tool_end() for callback in self.callbacks]
                 response, _ = LLM_response(self.llm, self.tokenizer, user_input, history=[], kwargs={})  # llm
-                [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=response,task_title="Non API chitchat") for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=response,task_title="Non API chitchat        ") for callback in self.callbacks]
                 self.indexxxx+=1
                 return
             else:
@@ -527,7 +636,7 @@ class Model:
                 for i in retrieved_names:
                     description_jsons[i] = self.description_json[i]
             except Exception as e:
-                [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=f"The retrieved names is not in API_composite, please double check",task_title="API json Error",) for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=f"The retrieved names is not in API_composite, please double check",task_title="API json Error        ",) for callback in self.callbacks]
                 self.indexxxx += 1
             if self.retrieve_query_mode=='similar':
                 instruction_shot_example = self.retriever.retrieve_similar_queries(user_input, shot_k=5)
@@ -560,7 +669,7 @@ class Model:
             if not success:
                 [callback.on_tool_start() for callback in self.callbacks]
                 [callback.on_tool_end() for callback in self.callbacks]
-                [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task=f"GPT can not return valid API name prediction, please redesign your prompt.",task_title="GPT predict Error",) for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task=f"GPT can not return valid API name prediction, please redesign your prompt.",task_title="GPT predict Error        ",) for callback in self.callbacks]
                 self.indexxxx += 1
                 return
             logging.info(f'length of ambiguous api list: {len(self.ambiguous_api)}')
@@ -581,7 +690,7 @@ class Model:
                     self.last_user_states = self.user_states
                     self.user_states = "ambiguous_mode"
                     idx_api+=1
-                [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=next_str,task_title=f"Can you confirm which of the following {len(self.filtered_api)} candidates") for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task=next_str,task_title=f"Can you confirm which of the following {len(self.filtered_api)} candidates        ") for callback in self.callbacks]
                 self.indexxxx += 1
                 self.save_state()
             else:
@@ -611,7 +720,7 @@ class Model:
         try:
             int(user_input)
         except:
-            [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="Error: the input is not a number.\nPlease re-enter the index", task_title="Index Error") for callback in self.callbacks]
+            [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="Error: the input is not a number.\nPlease re-enter the index", task_title="Index Error        ") for callback in self.callbacks]
             self.indexxxx += 1
             self.last_user_states = self.user_states
             self.user_states = "ambiguous_mode"
@@ -619,7 +728,7 @@ class Model:
         try:
             self.filtered_api[int(user_input)-1]
         except:
-            [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="Error: the input index exceed the maximum length of ambiguous API list\nPlease re-enter the index",task_title="Index Error") for callback in self.callbacks]
+            [callback.on_agent_action(block_id="log-" + str(self.indexxxx), task="Error: the input index exceed the maximum length of ambiguous API list\nPlease re-enter the index",task_title="Index Error        ") for callback in self.callbacks]
             self.indexxxx += 1
             self.last_user_states = self.user_states
             self.user_states = "ambiguous_mode"
@@ -677,9 +786,9 @@ class Model:
         
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
-        [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=response,task_title=f"Predicted API: {self.predicted_api_name}",) for callback in self.callbacks]
+        [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=response,task_title=f"Predicted API: {self.predicted_api_name}        ",) for callback in self.callbacks]
         self.indexxxx+=1
-        [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Could you confirm whether this API should be called? Please enter y/n.",task_title=f"Double Check",) for callback in self.callbacks]
+        [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Could you confirm whether this API should be called? Please enter y/n.",task_title=f"Double Check        ",) for callback in self.callbacks]
         self.indexxxx+=1
         self.last_user_states = self.user_states
         self.user_states = "run_pipeline_after_doublechecking_API_selection"
@@ -695,7 +804,7 @@ class Model:
                 self.user_states = "initial"
                 [callback.on_tool_start() for callback in self.callbacks]
                 [callback.on_tool_end() for callback in self.callbacks]
-                [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We will start another round. Could you re-enter your inquiry?",task_title=f"Start another round",) for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We will start another round. Could you re-enter your inquiry?",task_title=f"Start another round        ",) for callback in self.callbacks]
                 self.indexxxx+=1
                 self.save_state()
                 return
@@ -1078,28 +1187,36 @@ class Model:
         [callback.on_agent_action(block_id="code-"+str(self.indexxxx),task=execution_code,task_title="Executed code",) for callback in self.callbacks]
         self.indexxxx+=1
         execution_code_list = execution_code.split('\n')
-        output_list = []
         logging.info('execute and obtain figures')
         self.plt_status = plt.get_fignums()
         #self.hide_streams()
         # execute and obtain figures
-        for code in execution_code_list:
-            #logging.info(f'start executing code: {code}')
-            ans = self.executor.execute_api_call(code, "code")
-            logging.info('%s, %s', str(code), str(ans))
-            if ans:
-                output_list.append(ans)
-            if plt.get_fignums()!=self.plt_status:
-                output_list.append(self.executor.execute_api_call("from inference.utils import save_plot_with_timestamp", "import"))
-                output_list.append(self.executor.execute_api_call("save_plot_with_timestamp()", "code"))
-                self.plt_status = plt.get_fignums()
-            else:
-                pass
         #self.restore_streams()
         #content = self.buf1.getvalue()
         #logging.info('content, %s', content)
         #content = self.buf2.getvalue()
         #logging.info('content, %s', content)
+        temp_output_file = "./sub_process_execution.txt"
+        #open(temp_output_file, 'w').close()
+        process = multiprocessing.Process(target=self.run_pipeline_execution_code_list, args=(execution_code_list, temp_output_file))
+        process.start()
+        while process.is_alive():
+            print('process is alive!')
+            time.sleep(1)
+            with open(temp_output_file, 'r') as file:
+                accumulated_output = file.read() ######?
+                print('accumulated_output', accumulated_output)
+                [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=accumulated_output,task_title="Executing results",) for callback in self.callbacks]
+        self.indexxxx+=1
+        #os.remove(temp_output_file)
+        
+        with open("./tmp/tmp_output_run_pipeline_execution_code_list.txt", 'r') as file:
+            output_str = file.read()
+            result = json.loads(output_str)
+        code = result['code']
+        output_list = result['output_list']
+        self.executor.load_environment("./tmp/tmp_output_run_pipeline_execution_code_variables.pkl")
+        #print('check:', code, output_list, self.executor.execute_code, self.executor.variables)
         
         if len(execution_code_list)>0:
             self.last_execute_code = self.get_last_execute_code(code)
@@ -1110,7 +1227,6 @@ class Model:
         logging.info(json.dumps(list(self.executor.variables.keys())))
         logging.info('self.executor.execute_code:')
         logging.info(json.dumps(self.executor.execute_code))
-        
         try:
             content = '\n'.join(output_list)
         except:
@@ -1176,7 +1292,7 @@ class Model:
                     logging.info('send image to frontend')
                     base64_image = convert_image_to_base64(os.path.join(self.image_folder,new_img))
                     if base64_image:
-                        [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task="We visualize the obtained figure",task_title="Executed results [Success]",imageData=base64_image) for callback in self.callbacks]
+                        [callback.on_agent_action(block_id="log-" + str(self.indexxxx),task="We visualize the obtained figure. Try to zoom in or out the figure.",task_title="Executed results [Success]",imageData=base64_image) for callback in self.callbacks]
                         self.indexxxx += 1
                         tips_for_execution_success = False
             self.image_file_list = new_img_list
@@ -1207,6 +1323,31 @@ class Model:
         filename = f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
         self.executor.save_environment(filename)
         self.save_state()
+    def run_pipeline_execution_code_list(self, execution_code_list, output_file):
+        # initialize the text
+        with open(output_file, 'w') as test_file:
+            test_file.write("\n")
+        #sys.stdout = open(output_file, 'a')
+        output_list = []
+        for code in execution_code_list:
+            #logging.info(f'start executing code: {code}')
+            #ans = self.executor.execute_api_call(code, "code")
+            ans = self.executor.execute_api_call(code, "code", output_file=output_file)
+            logging.info('%s, %s', str(code), str(ans))
+            if ans:
+                output_list.append(ans)
+            if plt.get_fignums()!=self.plt_status:
+                output_list.append(self.executor.execute_api_call("from inference.utils import save_plot_with_timestamp", "import"))
+                output_list.append(self.executor.execute_api_call("save_plot_with_timestamp()", "code"))
+                self.plt_status = plt.get_fignums()
+            else:
+                pass
+        #sys.stdout.close()
+        result = json.dumps({'code': code, 'output_list': output_list})
+        self.executor.save_environment("./tmp/tmp_output_run_pipeline_execution_code_variables.pkl")
+        with open("./tmp/tmp_output_run_pipeline_execution_code_list.txt", 'w') as file:
+            file.write(result)
+    
     def get_queue(self):
         while not self.queue.empty():
             yield self.queue.get()
@@ -1282,9 +1423,11 @@ def stream():
             }), status=409, mimetype='application/json')
             return
         model.inuse = True
-        if new_lib_doc_url:
+        """if lib_alias:
+            print(lib_alias)
+            print('new_lib_doc_url is not none, start installing lib!')
             logging.info('new_lib_doc_url is not none, start installing lib!')
-            model.install_lib(new_lib_github_url, new_lib_doc_url, api_html, data["Lib"], lib_alias)
+            model.install_lib(data["Lib"], lib_alias, api_html, new_lib_github_url, new_lib_doc_url)"""
         with concurrent.futures.ThreadPoolExecutor() as executor:
             logging.info('start running pipeline!')
             future = executor.submit(model.run_pipeline, data["text"], data["Lib"], data["top_k"], files, data["conversation_started"], data['session_id'])
@@ -1344,7 +1487,4 @@ GITHUB_CLIENT_SECRET = os.environ.get('GITHUB_CLIENT_SECRET')
 signal.signal(signal.SIGINT, handle_keyboard_interrupt)
 
 if __name__ == '__main__':
-    #thread = Thread(target=handle_requests)
-    #thread.daemon = True
-    #thread.start()
     app.run(use_reloader=False, host="0.0.0.0", debug=True, port=5000)

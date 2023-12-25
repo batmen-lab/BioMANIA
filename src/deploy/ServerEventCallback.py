@@ -17,23 +17,6 @@ class ServerEventCallback():
         data.update(kwargs)
         self.queue.put(data)
 
-    def on_tool_retrieval_start(self):
-        # e.g. [callback.on_tool_retrieval_start() for callback in self.callbacks]
-        self.add_to_queue(
-            "on_tool_retrieval_start",
-            "recommendation-1",
-        )
-        print("on_tool_retrieval_start method called")
-
-    def on_tool_retrieval_end(self, tools):
-        # [callback.on_tool_retrieval_end(tools=[{'name':self.predicted_api_name, 'parameters':self.API_composite[self.predicted_api_name]['Parameters'],'description':json.dumps(self.API_composite[self.predicted_api_name],indent=4)}]) for callback in self.callbacks]
-        self.add_to_queue(
-            "on_tool_retrieval_end",
-            "recommendation-1",
-            recommendations=tools
-        )
-        print("on_tool_retrieval_end method called")
-    
     def on_agent_action(self, block_id, task, task_title="",composite_code="",depth=0,color="black",imageData="",tableData="") -> str:
         # e.g. [callback.on_agent_action(block_id="textcollapse-" + str(self.indexxxx),task=response,) for callback in self.callbacks]
         self.tool_block_id += 1
