@@ -53,7 +53,7 @@ from inference.utils import find_similar_two_pairs
 from inference.retriever_finetune_inference import ToolRetriever
 from deploy.utils import dataframe_to_markdown, convert_image_to_base64
 from prompt.parameters import prepare_parameters_prompt
-from prompt.summary import prepare_summary_prompt
+from prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
 
 basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'List', 'Dict']
 basic_types.extend(['_AvailShapes']) # extend for squidpy `shape` type
@@ -199,6 +199,35 @@ def save_decoded_file(raw_file):
             logging.info('==>Input URL Error!')
             pass
     return filename
+
+def correct_bool_values(optional_param):
+    """
+    Convert boolean values from lowercase (true, false) to uppercase (True, False).
+
+    :param optional_param: The dictionary containing the optional parameters.
+    :return: The modified dictionary with corrected boolean values.
+    """
+    for key, value in optional_param.items():
+        if 'optional' in value and isinstance(value['optional'], bool):
+            value['optional'] = str(value['optional'])
+        if 'optional_value' in value and isinstance(value['optional_value'], bool):
+            value['optional_value'] = str(value['optional_value'])
+    return optional_param
+
+def convert_bool_values(optional_param):
+    """
+    Convert 'true' and 'false' in the 'optional' and 'optional_value' fields 
+    to 'True' and 'False' respectively.
+
+    :param optional_param: The dictionary containing the optional parameters.
+    :return: The modified dictionary with converted boolean values.
+    """
+    for key, value in optional_param.items():
+        if 'optional' in value and isinstance(value['optional'], str):
+            value['optional'] = value['optional'].capitalize()
+        if 'optional_value' in value and isinstance(value['optional_value'], str):
+            value['optional_value'] = value['optional_value'].capitalize()
+    return optional_param
 
 class Model:
     def __init__(self):
@@ -712,6 +741,8 @@ class Model:
             self.run_select_basic_params(user_input)
         elif self.user_states == "run_pipeline_after_entering_params":
             self.run_pipeline_after_entering_params(user_input)
+        elif self.user_states == "run_pipeline_after_doublechecking_execution_code":
+            self.run_pipeline_after_doublechecking_execution_code(user_input)
     def run_pipeline_after_ambiguous(self,user_input):
         logging.info('==>run_pipeline_after_ambiguous')
         user_input = user_input.strip()
@@ -1136,68 +1167,68 @@ class Model:
                                             "class_selected_params":class_selected_params})
         logging.info('==>api_params_list: %s', json.dumps(api_params_list))
         # add optional cards
-        optional_param = {key: value for key, value in self.API_composite[api_name]['Parameters'].items() if not value.get('optional', False)}
+        optional_param = {key: value for key, value in self.API_composite[api_name]['Parameters'].items() if value['optional']}
         logging.info('==>optional_param: %s', json.dumps(optional_param))
-        if optional_param:
-            [callback.on_agent_action(block_id="optional-"+str(self.indexxxx),task=optional_param,task_title="Executed code",) for callback in self.callbacks]
-            self.indexxxx+=1
-        """if True:
-            [callback.on_agent_action(block_id="optional-"+str(self.indexxxx),task={
-                "obs": {
-                "type": "Optional[Union[str, Iterable[str]]]",
-                "default": "None",
-                "optional": True,
-                "description": "Labels' keys in `adata_ref.obs` which need to be mapped to `adata.obs`\n(inferred for observation of `adata`).",
-                "optional_value": False
-            },
-            "embedding_method": {
-                "type": "Union[str, Iterable[str]]",
-                "default": "('umap', 'pca')",
-                "optional": True,
-                "description": "Embeddings in `adata_ref` which need to be mapped to `adata`.\nThe only supported values are 'umap' and 'pca'.",
-                "optional_value": False
-            },
-            "labeling_method": {
-                "type": "str",
-                "default": "knn",
-                "optional": True,
-                "description": "The method to map labels in `adata_ref.obs` to `adata.obs`.\nThe only supported value is 'knn'.",
-                "optional_value": False
-            },
-            "neighbors_key": {
-                "type": "Optional[str]",
-                "default": "None",
-                "optional": True,
-                "description": "If not specified, ingest looks adata_ref.uns['neighbors']\nfor neighbors settings and adata_ref.obsp['distances'] for\ndistances (default storage places for pp.neighbors).\nIf specified, ingest looks adata_ref.uns[neighbors_key] for\nneighbors settings and\nadata_ref.obsp[adata_ref.uns[neighbors_key]['distances_key']] for distances.",
-                "optional_value": False
-            },
-            "inplace": {
-                "type": "bool",
-                "default": "True",
-                "optional": True,
-                "description": "Only works if `return_joint=False`.\nAdd labels and embeddings to the passed `adata` (if `True`)\nor return a copy of `adata` with mapped embeddings and labels.",
-                "optional_value": False
-            }
-            },task_title="Executed code",) for callback in self.callbacks]
-            self.indexxxx+=1"""
-        execution_code = self.executor.generate_execution_code(api_params_list)
-        logging.info('==>execution_code: %s', execution_code)
+        print('len(optional_param)', len(optional_param))
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
-        [callback.on_agent_action(block_id="code-"+str(self.indexxxx),task=execution_code,task_title="Executed code",) for callback in self.callbacks]
+        if False:
+            if len(optional_param)>0:
+                print('producing optional param card')
+                [callback.on_agent_action(block_id="optional-"+str(self.indexxxx),task=convert_bool_values(correct_bool_values(optional_param)),task_title="Executed code",) for callback in self.callbacks]
+                self.indexxxx+=1
+            else:
+                pass
+        # TODO: real time adjusting execution_code according to optionalcard
+        self.execution_code = self.executor.generate_execution_code(api_params_list)
+        logging.info('==>execution_code: %s', self.execution_code)
+        [callback.on_tool_start() for callback in self.callbacks]
+        [callback.on_tool_end() for callback in self.callbacks]
+        [callback.on_agent_action(block_id="code-"+str(self.indexxxx),task=self.execution_code,task_title="Executed code",) for callback in self.callbacks]
         self.indexxxx+=1
-        execution_code_list = execution_code.split('\n')
+        # LLM response
+        summary_prompt = prepare_summary_prompt_full(user_input, self.predicted_api_name, self.API_composite[self.predicted_api_name]['description'], self.API_composite[self.predicted_api_name]['Parameters'],self.API_composite[self.predicted_api_name]['Returns'], self.execution_code)
+        response, _ = LLM_response(self.llm, self.tokenizer, summary_prompt, history=[], kwargs={})  
+        [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=response,task_title=f"Task summary before execution",) for callback in self.callbacks]
+        self.indexxxx+=1
+        [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Could you confirm whether this task is what you aimed for, and the code should be executed? Please enter y/n.\nIf you press n, then we will re-direct to the parameter input step",task_title=f"Double Check        ",) for callback in self.callbacks]
+        self.indexxxx+=1
+        self.last_user_states = self.user_states
+        self.user_states = "run_pipeline_after_doublechecking_execution_code"
+        self.save_state()
+        
+    def run_pipeline_after_doublechecking_execution_code(self, user_input):
+        # if check, back to the last iteration and status
+        if user_input in ['y', 'n']:
+            if user_input == 'n':
+                print('input n')
+                self.last_user_states = self.user_states
+                #self.user_states = "initial"
+                self.user_states = "run_pipeline_after_doublechecking_API_selection" #TODO: check if exist issue
+                [callback.on_tool_start() for callback in self.callbacks]
+                [callback.on_tool_end() for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We will redirect to the parameters input",task_title=f"Re-enter the parameters",) for callback in self.callbacks]
+                self.indexxxx+=1
+                self.save_state()
+                self.run_pipeline_after_doublechecking_API_selection('y')
+                return
+            else:
+                print('input y')
+                pass
+        else:
+            print('input not y or n')
+            [callback.on_tool_start() for callback in self.callbacks]
+            [callback.on_tool_end() for callback in self.callbacks]
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="The input was not y or n, please enter the correct value.",task_title=f"Index Error",) for callback in self.callbacks]
+            self.indexxxx+=1
+            self.save_state()
+            # user_states didn't change
+            return
+        # else, continue
+        execution_code_list = self.execution_code.split('\n')
         logging.info('execute and obtain figures')
         self.plt_status = plt.get_fignums()
-        #self.hide_streams()
-        # execute and obtain figures
-        #self.restore_streams()
-        #content = self.buf1.getvalue()
-        #logging.info('content, %s', content)
-        #content = self.buf2.getvalue()
-        #logging.info('content, %s', content)
         temp_output_file = "./sub_process_execution.txt"
-        #open(temp_output_file, 'w').close()
         process = multiprocessing.Process(target=self.run_pipeline_execution_code_list, args=(execution_code_list, temp_output_file))
         process.start()
         while process.is_alive():
@@ -1208,7 +1239,6 @@ class Model:
                 print('accumulated_output', accumulated_output)
                 [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=accumulated_output,task_title="Executing results",) for callback in self.callbacks]
         self.indexxxx+=1
-        #os.remove(temp_output_file)
         
         with open("./tmp/tmp_output_run_pipeline_execution_code_list.txt", 'r') as file:
             output_str = file.read()
@@ -1314,6 +1344,10 @@ class Model:
                 self.indexxxx+=1
                 [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Splitting the returned tuple variable into individual variables",task_title="Executed results [Success]",) for callback in self.callbacks]
                 self.indexxxx+=1
+            else:
+                pass
+        else:
+            pass
         logging.info("Show current variables in namespace:")
         logging.info(json.dumps(list(self.executor.variables.keys())))
         new_str = []
@@ -1321,6 +1355,8 @@ class Model:
             new_str.append({"code":i['code'],"execution_results":i['success']})
         logging.info("Currently all executed code: %s", json.dumps(new_str))
         filename = f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
+        self.last_user_states = self.user_states
+        self.user_states = "initial"
         self.executor.save_environment(filename)
         self.save_state()
     def run_pipeline_execution_code_list(self, execution_code_list, output_file):
