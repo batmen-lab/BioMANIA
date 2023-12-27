@@ -1172,10 +1172,12 @@ class Model:
         print('len(optional_param)', len(optional_param))
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
-        if False:
+        if False: # TODO: if True, to debug the optional card showing
             if len(optional_param)>0:
                 print('producing optional param card')
-                [callback.on_agent_action(block_id="optional-"+str(self.indexxxx),task=convert_bool_values(correct_bool_values(optional_param)),task_title="Executed code",) for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Do you want to modify the optional parameters? You can leave it unchange if you don't want to modify the default value.",task_title="Optional cards",) for callback in self.callbacks]
+                self.indexxxx+=1
+                [callback.on_agent_action(block_id="optional-"+str(self.indexxxx),task=convert_bool_values(correct_bool_values(optional_param)),task_title="Optional cards",) for callback in self.callbacks]
                 self.indexxxx+=1
             else:
                 pass

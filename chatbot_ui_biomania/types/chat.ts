@@ -78,6 +78,7 @@ export interface ChatBody {
   lib_alias: string;
   conversation_started: boolean;
   session_id:string;
+  optionalParams:string;
 }
 export interface Conversation {
   id: string;

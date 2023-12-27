@@ -8,7 +8,7 @@ export const config = {
 };
 const handler = async (req: Request): Promise<Response> => {
   try {
-    const { top_k, method, messages, files, Lib, new_lib_github_url, new_lib_doc_url, conversation_started, api_html,lib_alias,session_id } = (await req.json()) as ChatBody;
+    const { top_k, method, messages, files, Lib, new_lib_github_url, new_lib_doc_url, conversation_started, api_html,lib_alias,session_id,optionalParams } = (await req.json()) as ChatBody;
 
     let messagesToSend: Message[] = [];
 
@@ -16,7 +16,7 @@ const handler = async (req: Request): Promise<Response> => {
       const message = messages[i];
       messagesToSend = [message, ...messagesToSend];
     }
-    const stream = await BioMANIAStream(method.method, messagesToSend, top_k, Lib, files, new_lib_github_url, new_lib_doc_url, api_html,lib_alias,conversation_started,session_id);
+    const stream = await BioMANIAStream(method.method, messagesToSend, top_k, Lib, files, new_lib_github_url, new_lib_doc_url, api_html,lib_alias,conversation_started,session_id,optionalParams);
 
     return new Response(stream);
   } catch (error) {

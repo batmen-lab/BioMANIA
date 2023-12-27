@@ -183,7 +183,7 @@ const processObjs = (progressJson: any): BaseUsage[] => {
   return ret;
 }
 
-const generateCards = (progressJson: any) => {
+const generateCards = (progressJson: any, setOptionalCardData: (data: Record<string, any>) => void) => {
   var progressObjs: BaseUsage[] = processObjs(progressJson);
   var lastdepth = 0;
   var reactNOdeBacktrack = [];
@@ -298,6 +298,9 @@ const generateCards = (progressJson: any) => {
         <OptionalCard
           key={generate_random_id()}
           params={root.json}
+          onParamsChange={(newParams) => {
+            setOptionalCardData(newParams);
+          }}
         />
     );
     }  else if (root.block_id.includes("textcollapse")) {
@@ -373,6 +376,9 @@ const ProgressCardController = (props: ProgressCardControllerProps) => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarContent, setSnackbarContent] = useState("");
   const [collapsed, setCollapsed] = useState(true);
+  const [optionalCardData, setOptionalCardData] = useState({});
+
+
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
   }
@@ -382,7 +388,7 @@ const ProgressCardController = (props: ProgressCardControllerProps) => {
   if (!props.progressJson || props.progressJson.length === 0) {
     return null;
   }
-  var temp = generateCards(props.progressJson);
+  var temp = generateCards(props.progressJson, setOptionalCardData);
   var cards = temp.cards;
   var toolRecommendations = temp.toolRecommendations;
   return (

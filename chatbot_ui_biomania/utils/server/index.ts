@@ -29,6 +29,7 @@ export const BioMANIAStream = async (
   lib_alias: string,
   conversation_started: boolean,
   session_id:string,
+  optionalParams:string,
 ) => {
   // streamed response
   const response = await fetch(streamUrl, {
@@ -44,7 +45,8 @@ export const BioMANIAStream = async (
       api_html: api_html,
       lib_alias: lib_alias,
       conversation_started: conversation_started,
-      session_id:session_id
+      session_id:session_id,
+      optionalParams:optionalParams,
     }),
     headers: {
       'Content-Type': 'application/json'

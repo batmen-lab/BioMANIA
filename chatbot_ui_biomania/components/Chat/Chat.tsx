@@ -33,6 +33,12 @@ interface Props {
 }
 export const Chat = memo(({ stopConversationRef }: Props) => {
   const { t } = useTranslation('chat');
+  const [optionalParams, setOptionalParams] = useState<string>('');
+  // From OptionalCard 
+  const handleOptionalParamsChange = (newParams: Record<string, any>) => {
+  const optionalParamsString = JSON.stringify(newParams);
+  setOptionalParams(optionalParamsString);
+};
   const {
     state: {
       selectedConversation,
@@ -179,6 +185,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           lib_alias: updatedConversation.lib_alias,
           conversation_started: isFirstMessageInConversation,
           session_id: updatedConversation.id,
+          optionalParams: optionalParams,
         };
         console.log("updatedConversation", updatedConversation)
         const endpoint = "api/chat";
@@ -346,6 +353,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
       stopConversationRef,
       attachedFiles,
       selectedConversation, 
+      optionalParams,
     ],
   );
   const handleFileUpload = useCallback(
