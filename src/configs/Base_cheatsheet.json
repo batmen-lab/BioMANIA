@@ -8,7 +8,7 @@
         "pandas.DataFrame.to_csv",
         "pandas.DataFrame",
         "pandas.concat",
-        "pandas.groupby"
+        "pandas.DataFrame.groupby"
     ],
     "matplotlib": [
         "matplotlib.pyplot.plot",
@@ -40,7 +40,6 @@
         "sklearn.decomposition.NMF.fit"
     ],
     "scipy": [
-        "scipy.sparse_matrix",
         "scipy.sparse.csr_matrix"
     ],
     "torch": [
@@ -54,7 +53,6 @@
         "statsmodels.formula.api.ols"
     ],
     "pynndescent": [
-        "pynndescent.NNDescent.fit",
         "pynndescent.NNDescent.query"
     ],
     "anndata": [

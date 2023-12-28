@@ -12,26 +12,53 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 class ToolRetriever:
-    def __init__(self, LIB, corpus_tsv_path = "", model_path=""):
+    def __init__(self, LIB, corpus_tsv_path = "", model_path="", base_corpus_tsv_path="./data/standard_process/base/retriever_train_data/corpus.tsv",add_base=False):
         #self.model_path = os.path.join(model_path,f"{LIB}","assigned")
         self.model_path = model_path
-        self.build_retrieval_corpus(corpus_tsv_path)
-        self.shuffled_data = self.build_shuffle_data(LIB)
+        self.corpus_tsv_path = corpus_tsv_path
+        self.base_corpus_tsv_path = base_corpus_tsv_path
+        #self.build_retrieval_corpus(corpus_tsv_path)
+        self.build_and_merge_corpus(add_base=add_base)
+        self.shuffled_data = self.build_shuffle_data(LIB, add_base=add_base)
         self.shuffled_queries = [item['query'] for item in self.shuffled_data]
         self.shuffled_query_embeddings = self.embedder.encode(self.shuffled_queries, convert_to_tensor=True)
-    def build_shuffle_data(self,LIB):
+    
+    def build_shuffle_data(self,LIB, add_base=True):
+        # add API_base, fix 231227
+        import json
         import random
-        with open(f'./data/standard_process/{LIB}/API_inquiry_annotate.json', 'r') as f:
-            data = json.load(f)
+        def process_data(path, files_ids):
+            with open(f'{path}/API_inquiry_annotate.json', 'r') as f:
+                data = json.load(f)
+            return [dict(query=row['query'], gold=row['api_name']) for row in data if row['query_id'] not in files_ids['val'] and row['query_id'] not in files_ids['test']]
         with open(f"./data/standard_process/{LIB}/API_instruction_testval_query_ids.json", 'r') as file:
-            files_ids = json.load(file)
-        shuffled = [dict(query=row['query'], gold=row['api_name']) for row in [i for i in data if i['query_id'] not in files_ids['val'] and i['query_id'] not in files_ids['test']]]
-        random.Random(0).shuffle(shuffled)
-        return shuffled
+            lib_files_ids = json.load(file)
+        lib_data = process_data(f'./data/standard_process/{LIB}', lib_files_ids)
+        with open(f"./data/standard_process/base/API_instruction_testval_query_ids.json", 'r') as base_file_ids:
+            base_files_ids = json.load(base_file_ids)
+        base_data = process_data('./data/standard_process/base', base_files_ids)
+        if add_base:
+            lib_data = lib_data + base_data
+        random.Random(0).shuffle(lib_data)
+        return lib_data
     def build_retrieval_corpus(self, corpus_tsv_path):
-        self.corpus_tsv_path = corpus_tsv_path
         documents_df = pd.read_csv(self.corpus_tsv_path, sep='\t')
         corpus, self.corpus2tool = process_retrieval_document_query_version(documents_df)
+        corpus_ids = list(corpus.keys())
+        corpus = [corpus[cid] for cid in corpus_ids]
+        self.corpus = corpus
+        self.embedder = SentenceTransformer(self.model_path, device=device)
+        self.corpus_embeddings = self.embedder.encode(self.corpus, convert_to_tensor=True)
+    def build_and_merge_corpus(self, add_base=True):
+        # based on build_retrieval_corpus, add API_base.json, fix 231227
+        original_corpus_df = pd.read_csv(self.corpus_tsv_path, sep='\t')
+        additional_corpus_df = pd.read_csv(self.base_corpus_tsv_path, sep='\t')
+        if add_base:
+            combined_corpus_df = pd.concat([original_corpus_df, additional_corpus_df], ignore_index=True)
+            combined_corpus_df.reset_index(drop=True, inplace=True)
+        else:
+            combined_corpus_df = original_corpus_df
+        corpus, self.corpus2tool = process_retrieval_document_query_version(combined_corpus_df)
         corpus_ids = list(corpus.keys())
         corpus = [corpus[cid] for cid in corpus_ids]
         self.corpus = corpus
@@ -113,7 +140,7 @@ if __name__ == "__main__":
     val_ids = index_data['val']
 
     # Step 2: Create a ToolRetriever instance
-    retriever = ToolRetriever(LIB = args.LIB, corpus_tsv_path=args.corpus_tsv_path, model_path=args.retrieval_model_path)
+    retriever = ToolRetriever(LIB = args.LIB, corpus_tsv_path=args.corpus_tsv_path, model_path=args.retrieval_model_path, add_base=False)
     print(retriever.corpus[0])
 
     total_queries = 0

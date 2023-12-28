@@ -518,7 +518,7 @@ def filter_optional_parameters(api_data):
 def generate_api_callings(results, basic_types=['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict']):
     updated_results = {}
     for api_name, api_info in results.items():
-        if api_info["api_type"] in ['function', 'method', 'class', 'functools.partial']:
+        if api_info["api_type"]: #  in ['function', 'method', 'class', 'functools.partial']
             # Update the optional_value key for each parameter
             for param_name, param_details in api_info["Parameters"].items():
                 param_type = param_details.get('type')
@@ -684,7 +684,8 @@ def main_get_API_init(lib_name,lib_alias,analysis_path,api_html_path=None,api_tx
 def main_get_API_basic(analysis_path,cheatsheet):
     # STEP1: get API from cheatsheet, save to basic_API.json
     #output_file = os.path.join(analysis_path,"API_base.json")
-    output_file = os.path.join('data','standard_process',"API_base.json")
+    os.makedirs(os.path.join('data','standard_process',"base"), exist_ok=True)
+    output_file = os.path.join('data','standard_process',"base", "API_init.json")
     result_list = []
     print('Start getting docparam from source')
     for api in cheatsheet:
@@ -696,6 +697,9 @@ def main_get_API_basic(analysis_path,cheatsheet):
         results = {r: results[r] for r in results if r in cheatsheet[api]}
         result_list.append(results)
     outputs = merge_jsons(result_list)
+    for api_name, api_info in outputs.items():
+        api_info['relevant APIs'] = []
+        api_info['type'] = 'singleAPI'
     with open(output_file, 'w') as file:
         file.write(json.dumps(outputs, indent=4))
 

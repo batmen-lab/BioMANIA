@@ -117,15 +117,21 @@ We provide a script for downloading models and datas from Google Drive for scanp
 sh download_data_model.sh
 ```
 
-Organize the downloaded files at `src/data` or `src/hugging_models` as follows:
+Organize the downloaded files at `src/data` or `src/hugging_models` as follows (`base` are necessary):
 ```
 data
 ├── conversations
 ├── others-data
 └── standard_process
+    ├── base
+    │   ├── API_composite.json
+    │   └── ...
+    ├── scanpy
+    │   ├── API_composite.json
+    │   └── ...
     ├── {LIB}
     │   ├── API_composite.json
-    ├── └── ...
+    │   └── ...
     └── ...
 
 hugging_models

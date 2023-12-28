@@ -296,7 +296,7 @@ class Model:
             new_path = '/'.join(parts)
             retrieval_model_path = new_path
             logging.info('load retrieval_model_path in: %s', retrieval_model_path)
-            self.retriever = ToolRetriever(LIB=lib_name,corpus_tsv_path=f"./data/standard_process/{lib_name}/retriever_train_data/corpus.tsv", model_path=retrieval_model_path)
+            self.retriever = ToolRetriever(LIB=lib_name,corpus_tsv_path=f"./data/standard_process/{lib_name}/retriever_train_data/corpus.tsv", model_path=retrieval_model_path, add_base=True)
             logging.info('loaded retriever!')
             #self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
             self.executor.execute_api_call(f"import {lib_name}", "import")
@@ -554,9 +554,13 @@ class Model:
     def load_llm_model(self):
         self.llm, self.tokenizer = LLM_model()
     def load_data(self, API_file):
+        # fix 231227, add API_base.json
         with open(API_file, 'r') as json_file:
             data = json.load(json_file)
+        with open("./data/standard_process/base/API_composite.json", 'r') as json_file:
+            base_data = json.load(json_file)
         self.API_composite = data
+        self.API_composite.update(base_data)
     def generate_file_loading_code(self, file_path, file_type):
         # Define the loading code for each file type
         file_loading_templates = {
