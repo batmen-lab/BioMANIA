@@ -198,6 +198,8 @@ class CodeExecutor:
         positional_args = []
         keyword_args = []
         for k, v in selected_params.items():
+            if v['type'] in [None]:
+                v['type'] = 'None'
             if v['optional']:
                 keyword_args.append(f"{k}={self.format_value(v['value'], v['type'])}")
             else:
@@ -212,15 +214,23 @@ class CodeExecutor:
             selected_params = api_info['parameters']
             return_type = api_info['return_type']
             class_selected_params = api_info['class_selected_params']
+            api_type = api_info['api_type']
             print(f'==>check individual apis now, api_name {api_name}, selected_params {selected_params}, class_selected_params {class_selected_params}')
-            code_for_one_api = self.generate_execution_code_for_one_api(api_name, selected_params, return_type, class_selected_params)
+            if len(api_params_list)==1:
+                if api_type=='class':
+                    code_for_one_api = self.generate_execution_code_for_one_api(api_name, selected_params, return_type, class_selected_params, single_class_API=True)
+                else:
+                    code_for_one_api = self.generate_execution_code_for_one_api(api_name, selected_params, return_type, class_selected_params, single_class_API=False)
+            else: # assume > 1
+                code_for_one_api = self.generate_execution_code_for_one_api(api_name, selected_params, return_type, class_selected_params, single_class_API=False)
             generated_code.append(code_for_one_api)
         return '\n'.join(generated_code)
     
-    def generate_execution_code_for_one_api(self, api_name, selected_params, return_type, class_selected_params={}):
+    def generate_execution_code_for_one_api(self, api_name, selected_params, return_type, class_selected_params={}, single_class_API=False):
+        print('api_name', api_name)
         import_code, type_api = self.get_import_code(api_name)
         print(f'==>import_code, type_api, {import_code, type_api}')
-        if import_code in [i['code'] for i in self.execute_code if i['code_type']=='import' and i['success']=='True']:
+        if import_code in [i['code'] for i in self.execute_code if i['success']=='True']:
             print('==>api already imported!')
             pass
         else:
@@ -230,32 +240,32 @@ class CodeExecutor:
                 print(f'==?Error during importing of api calling! {tmp_result}')
         api_parts = api_name.split('.')
         # Convert the parameters to the format 'param_name=param_value' or 'param_value' based on optionality
+        #print('selected_params', selected_params)
         params_formatted = self.format_arguments(selected_params)
         class_params_formatted = self.format_arguments(class_selected_params)
-        #print('class_params_formatted:', class_params_formatted)
-        """if class_selected_params:
-            print('class_selected_params:',class_selected_params)
-            #class_params_formatted = self.format_arguments(class_selected_params)
-        else:
-            print('no class_selected_params:')"""
         if type_api == "class":
             print('==>Class type API need to be initialized first, then used')
             # double check for API type
             if not class_selected_params:
                 print('==>?No class_selected_params')
                 #raise ValueError
-            final_api_name = api_parts[-1]
-            maybe_class_name = api_parts[-2]
-            maybe_instance_name = maybe_class_name.lower() + "_instance"
-            if maybe_instance_name in self.variables:
-                api_call = f"{maybe_instance_name}.{final_api_name}({params_formatted})"
+            if single_class_API:
+                final_api_name = ''
+                maybe_class_name = api_parts[-1]
             else:
-                api_call = f"{maybe_instance_name} = {maybe_class_name}({class_params_formatted})\n"
-                # Ensure that the method is called on the new instance
-                api_call += f"{maybe_instance_name}.{final_api_name}({params_formatted})"
+                final_api_name = api_parts[-1]
+                maybe_class_name = api_parts[-2]
+            print('final_api_name', final_api_name)
+            maybe_instance_name = maybe_class_name.lower() + "_instance"
+            if single_class_API:
+                api_call = f"{maybe_instance_name} = {maybe_class_name}({class_params_formatted})"
+            else:
+                if maybe_instance_name not in self.variables: # not initialized
+                    api_call = f"{maybe_instance_name} = {maybe_class_name}({class_params_formatted})"
+                api_call = f"{maybe_instance_name}.{final_api_name}({params_formatted})"
             class_API = maybe_instance_name
         else:
-            #print('==>no Class type API')
+            print('==>no Class type API')
             final_api_name = api_parts[-1]
             api_call = f"{final_api_name}({params_formatted})"
         # generate return information

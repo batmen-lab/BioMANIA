@@ -55,7 +55,7 @@ from deploy.utils import dataframe_to_markdown, convert_image_to_base64
 from prompt.parameters import prepare_parameters_prompt
 from prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
 
-basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'List', 'Dict']
+basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'List', 'Dict', 'Any', 'any']
 basic_types.extend(['_AvailShapes']) # extend for squidpy `shape` type
 
 def change_format(input_params, param_name_list):
@@ -633,10 +633,10 @@ class Model:
             self.executor.variables={}
             self.executor.execute_code=[]
             for var_name in list(globals()):
-                if var_name.startswith('result_'):
+                if var_name.startswith('result_') or (var_name.endswith('_instance')):
                     del globals()[var_name]
             for var_name in list(locals()):
-                if var_name.startswith('result_'):
+                if var_name.startswith('result_') or (var_name.endswith('_instance')):
                     del locals()[var_name]
         else:
             logging.info('==>old conversation_continued!')
@@ -811,7 +811,9 @@ class Model:
         logging.info('==>run_pipeline_after_fixing_API_selection')
         # check if composite API/class method API, return the relevant APIs
         self.relevant_api_list = self.process_api_info(self.API_composite, self.predicted_api_name) # only contains predicted API
+        print('self.relevant_api_list', self.relevant_api_list)
         self.api_name_json = self.check_and_insert_class_apis(self.API_composite, self.relevant_api_list)# also contains class API
+        print('self.api_name_json', self.api_name_json)
         self.last_user_states = self.user_states
         self.user_states = "initial"
         api_description = self.API_composite[self.predicted_api_name]['description']
@@ -944,8 +946,14 @@ class Model:
         none_dollar_value_params = [param_name for param_name, param_info in self.selected_params.items() if param_info["value"] in ['$']]
         logging.info(f'none_dollar_value_params: %s', json.dumps(none_dollar_value_params))
         if none_dollar_value_params:
+            print(self.user_states)
+            #[callback.on_tool_start() for callback in self.callbacks]
+            #[callback.on_tool_end() for callback in self.callbacks]
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="However, there are still some parameters with special type undefined. Please start from uploading data, or input your query from preprocessing dataset.",task_title="Missing Parameters: special type") for callback in self.callbacks]
             self.indexxxx+=1
+            self.last_user_states = self.user_states
+            self.user_states = "initial"
+            self.save_state()
             return
         # $ param if multiple choice
         multiple_dollar_value_params = [param_name for param_name, param_info in self.selected_params.items() if ('list' in str(type(param_info["value"]))) and (len(param_info["value"])>1)]
@@ -1134,10 +1142,10 @@ class Model:
         # split parameters according to multiple API, or class/method API
         parameters_list = self.extract_parameters(self.api_name_json, self.API_composite)
         extracted_params = self.split_params(self.selected_params, parameters_list)
-        logging.info('==>self.api_name_json: %s, parameters_list: %s', json.dumps(self.api_name_json), json.dumps(parameters_list))
-        logging.info('==>extracted_params: %s', json.dumps(extracted_params))
+        print(f'==>self.api_name_json: {self.api_name_json}, parameters_list: ', parameters_list)
+        print('==>extracted_params: %s', extracted_params)
         extracted_params_dict = {api_name: extracted_param for api_name, extracted_param in zip(self.api_name_json, extracted_params)}
-        logging.info('extracted_params_dict: ', json.dumps(extracted_params_dict))
+        print('extracted_params_dict: ', extracted_params_dict)
         api_params_list = []
         for idx, api_name in enumerate(self.api_name_json):
             if True:
@@ -1149,7 +1157,7 @@ class Model:
                     if self.api_name_json[fake_class_api]['type']=='class':
                         class_selected_params = extracted_params_dict[fake_class_api]
                 # two patches for pandas type data / squidpy parameters
-                if 'inplace' in self.API_composite[api_name]['Parameters']:
+                if ('inplace' in self.API_composite[api_name]['Parameters']) and (api_name.startswith('scanpy') or api_name.startswith('squidpy')):
                     extracted_params[idx]['inplace'] = {
                         "type": self.API_composite[api_name]['Parameters']['inplace']['type'],
                         "value": True,
@@ -1165,15 +1173,27 @@ class Model:
                     }
                 # don't include class API, just include class.attribute API
                 if self.API_composite[api_name]['api_type']!='class':
+                    # when using class.attribute API, only include the API's information.
                     api_params_list.append({"api_name":api_name, 
-                                            "parameters":extracted_params[idx], 
-                                            "return_type":self.API_composite[api_name]['Returns']['type'],
-                                            "class_selected_params":class_selected_params})
+                    "parameters":extracted_params[idx], 
+                    "return_type":self.API_composite[api_name]['Returns']['type'],
+                    "class_selected_params":class_selected_params,
+                    "api_type":self.API_composite[api_name]['api_type']})
+                else: # ==`class`
+                    if len(self.api_name_json)==1:
+                        # When using class API, only include class API's
+                        api_params_list.append({"api_name":api_name, 
+                        "parameters":extracted_params[idx], 
+                        "return_type":self.API_composite[api_name]['Returns']['type'],
+                        "class_selected_params":extracted_params[idx],
+                        "api_type":self.API_composite[api_name]['api_type']})
+                    else:
+                        pass
         logging.info('==>api_params_list: %s', json.dumps(api_params_list))
         # add optional cards
         optional_param = {key: value for key, value in self.API_composite[api_name]['Parameters'].items() if value['optional']}
         logging.info('==>optional_param: %s', json.dumps(optional_param))
-        print('len(optional_param)', len(optional_param))
+        logging.info('len(optional_param) %d', len(optional_param))
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
         if False: # TODO: if True, to debug the optional card showing
@@ -1186,6 +1206,7 @@ class Model:
             else:
                 pass
         # TODO: real time adjusting execution_code according to optionalcard
+        print('api_params_list:', api_params_list)
         self.execution_code = self.executor.generate_execution_code(api_params_list)
         logging.info('==>execution_code: %s', self.execution_code)
         [callback.on_tool_start() for callback in self.callbacks]
@@ -1204,6 +1225,8 @@ class Model:
         self.save_state()
         
     def run_pipeline_after_doublechecking_execution_code(self, user_input):
+        [callback.on_tool_start() for callback in self.callbacks]
+        [callback.on_tool_end() for callback in self.callbacks]
         # if check, back to the last iteration and status
         if user_input in ['y', 'n']:
             if user_input == 'n':
@@ -1211,8 +1234,6 @@ class Model:
                 self.last_user_states = self.user_states
                 #self.user_states = "initial"
                 self.user_states = "run_pipeline_after_doublechecking_API_selection" #TODO: check if exist issue
-                [callback.on_tool_start() for callback in self.callbacks]
-                [callback.on_tool_end() for callback in self.callbacks]
                 [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We will redirect to the parameters input",task_title=f"Re-enter the parameters",) for callback in self.callbacks]
                 self.indexxxx+=1
                 self.save_state()
@@ -1223,8 +1244,6 @@ class Model:
                 pass
         else:
             print('input not y or n')
-            [callback.on_tool_start() for callback in self.callbacks]
-            [callback.on_tool_end() for callback in self.callbacks]
             [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="The input was not y or n, please enter the correct value.",task_title=f"Index Error",) for callback in self.callbacks]
             self.indexxxx+=1
             self.save_state()
@@ -1245,7 +1264,6 @@ class Model:
                 print('accumulated_output', accumulated_output)
                 [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=accumulated_output,task_title="Executing results",) for callback in self.callbacks]
         self.indexxxx+=1
-        
         with open("./tmp/tmp_output_run_pipeline_execution_code_list.txt", 'r') as file:
             output_str = file.read()
             result = json.loads(output_str)
@@ -1277,7 +1295,7 @@ class Model:
             tips_for_execution_success = True
             if len(vari)>1:
                 #if self.executor.variables[vari[0]]['value'] is not None:
-                if (vari[0] in self.executor.variables) and (vari[0].startswith('result_')):
+                if (vari[0] in self.executor.variables) and ((vari[0].startswith('result_')) or (vari[0].endswith('_instance'))):
                     print_val = vari[0]
                     print_value = self.executor.variables[print_val]['value']
                     print_type = self.executor.variables[print_val]['type']
