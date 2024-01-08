@@ -87,6 +87,11 @@ If you skip this step, ensure that you contain a file of `./data/standard_proces
 python dataloader/preprocess_retriever_data.py --LIB ${LIB}
 ```
 
+(Optional) You can validate of your annotated API_inquiry_annotate.json with 
+```bash
+python dataloader/check_valid_API_annotate.py ${LIB}
+```
+
 Tips:
 - (Optional) The automatically generated API_inquiry_annotate.json do not have human annotated data here, you need to annotate the API_inquiry_annotate.json by yourself if you want to test performance on human annotate data.
 - If you skip the above step, please only refer to `train/val` performance instead of `test` performance.
