@@ -385,6 +385,10 @@ def get_docparam_from_source(web_APIs, lib_name, expand=None):
     print('==>Is api page html reliable: ', not expand, '!')
     for api_string in web_APIs:
         members = import_member(api_string, lib_name, expand)
+        """print((len(members)>1), expand)
+        if len(members)>1 and not expand:
+            print(members, api_string)
+        assert len(members)<=1 or expand"""
         if not members:
             print(f"Error import {api_string}: No members found!")
             failure_count += 1
@@ -602,10 +606,10 @@ def filter_specific_apis(data, lib_name):
             continue
         # These API is not our targeted API. We filter it because there are too many `method` type API in some libs.
         # TODO: We might include them in future for robustness.
-        if (not parameters) and (not Returns_type) and (not Returns_description):
-            filter_counts["empty_input_output"] += 1
-            filter_API["empty_input_output"].append(api)
-            continue
+        #if (not parameters) and (not Returns_type) and (not Returns_description):
+        #    filter_counts["empty_input_output"] += 1
+        #    filter_API["empty_input_output"].append(api)
+        #    continue
         # Remove API that imported from external lib 
         # (used for github repo 2 biomania app only)
         remove_extra_API = False
@@ -646,8 +650,10 @@ def main_get_API_init(lib_name,lib_alias,analysis_path,api_html_path=None,api_tx
         ori_content_keys = [i.strip() for i in ori_content_keys]
     elif api_html_path:  # if you provide API page
         if os.path.isdir(api_html_path):
+            print('processing API subset dir')
             content = ''
             for file_name in os.listdir(api_html_path):
+                print('sub API file: ', file_name)
                 if file_name.endswith('html'):
                     file_path = os.path.join(api_html_path, file_name)
                     content += process_html(file_path)
