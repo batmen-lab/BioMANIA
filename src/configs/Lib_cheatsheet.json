@@ -65,7 +65,7 @@
     "pyopenms": {
         "LIB": "pyopenms",
         "LIB_ALIAS": "pyopenms",
-        "API_HTML_PATH": "pyopenms.readthedocs.io/en/latest/apidocs/",
+        "API_HTML_PATH": "pyopenms.readthedocs.io/en/latest/genindex.html",
         "GITHUB_LINK": "https://github.com/OpenMS/OpenMS",
         "READTHEDOC_LINK": "https://pyopenms.readthedocs.io",
         "TUTORIAL_HTML_PATH":"pyopenms.readthedocs.io/en/latest/user_guide",
@@ -176,7 +176,16 @@
         "API_HTML_PATH": "ehrapy.readthedocs.io/en/latest/usage/usage.html",
         "GITHUB_LINK": null,
         "READTHEDOC_LINK": null,
-        "TUTORIAL_HTML_PATH": null,
+        "TUTORIAL_HTML_PATH": "https://ehrapy.readthedocs.io/en/latest/tutorials/index.html",
+        "TUTORIAL_GITHUB": null
+    },
+    "snapatac2": {
+        "LIB": "snapatac2",
+        "LIB_ALIAS": "snapatac2",
+        "API_HTML_PATH": "kzhang.org/SnapATAC2/api/index.html",
+        "GITHUB_LINK": null,
+        "READTHEDOC_LINK": null,
+        "TUTORIAL_HTML_PATH": "https://kzhang.org/SnapATAC2/tutorials/index.html",
         "TUTORIAL_GITHUB": null
     }
 }

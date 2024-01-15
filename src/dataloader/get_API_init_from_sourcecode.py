@@ -591,14 +591,15 @@ def filter_specific_apis(data, lib_name):
             filter_API["api_type_module_constant_property_getsetdescriptor"].append(api)
             continue
         # We filter out `cython` type API, because some are compiled functions.
-        if api_type in ["builtin", 'functools.partial', "rePattern", "cython"]:
+        """if api_type in ["builtin", 'functools.partial', "rePattern", "cython"]:
             filter_counts["api_type_unwant_func"] += 1
             filter_API["api_type_unwant_func"].append(api)
-            continue
-        if api_type in ["unknown"]:
+            continue"""
+        # We filter out the api_type that we can not parsed
+        """if api_type in ["unknown"]:
             filter_counts["api_type_unknown"] += 1
             filter_API["api_type_unknown"].append(api)
-            continue
+            continue"""
         # Filter by empty docstring
         if not docstring:
             filter_counts["empty_docstring"] += 1
@@ -606,10 +607,10 @@ def filter_specific_apis(data, lib_name):
             continue
         # These API is not our targeted API. We filter it because there are too many `method` type API in some libs.
         # TODO: We might include them in future for robustness.
-        #if (not parameters) and (not Returns_type) and (not Returns_description):
-        #    filter_counts["empty_input_output"] += 1
-        #    filter_API["empty_input_output"].append(api)
-        #    continue
+        """if (not parameters) and (not Returns_type) and (not Returns_description):
+            filter_counts["empty_input_output"] += 1
+            filter_API["empty_input_output"].append(api)
+            continue"""
         # Remove API that imported from external lib 
         # (used for github repo 2 biomania app only)
         remove_extra_API = False
@@ -628,7 +629,7 @@ def filter_specific_apis(data, lib_name):
         filtered_data[api] = details
     print('==>Filtering APIs!')
     print(json.dumps(filter_counts,indent=4))
-    #print(json.dumps(filter_API,indent=4))
+    print(json.dumps(filter_API,indent=4))
     assert sum(filter_counts.values())+len(filtered_data)==len(data)
     return filtered_data
 
