@@ -11,6 +11,8 @@ from docstring_parser import parser
 from configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet #tut, html_dict, code
 from dataloader.utils.tutorial_loader_strategy import main_convert_tutorial_to_py
 from dataloader.utils.code_analyzer import extract_io_variables
+from models.model import LLM_model, LLM_response
+from prompt.composite import build_prompt_for_composite_docstring, build_prompt_for_composite_name
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
@@ -342,33 +344,19 @@ def extract_api_calls(code_block, imports, lib_alias):
     except SyntaxError:
         return []
 
-def process_docstring_with_LLM(llm, API_description, func_inputs,func_outputs, description_text=""):
+def process_docstring_with_LLM(llm, tokenizer, API_description, func_inputs,func_outputs, description_text=""):
     # LLM for modifying docstring
-    prompt = f"""You are an expert in Python programming. Your task is to write the docstring for the given information of an invisible function. Interpret the assigned inputs and return variables in the docstring.
-The description of used APIs inside this code is: {API_description}
-The input and output parameter information is as below:
-- Parameters: {func_inputs}
-- Returns: {func_outputs}
-- The other description associated with the code is: {description_text}
-- Please extract the core information in 1-2 sentences and polish it. Docstring description should only use 1-2 sentences.
-Your Response format is detailed docstring. Please do not include other information except for response information, in reStructuredText format. Never include specific API information in description.
-"""
-    response = llm.predict(prompt)
+    prompt = build_prompt_for_composite_docstring(API_description, func_inputs, func_outputs, description_text)
+    response, history = LLM_response(llm,tokenizer,prompt,history=[],kwargs={})
     print(f'==>GPT docstring response: {response}')
     if 'def' in response.split('\n')[0]:
         return '\n'.join(response.split('\n')[1:])
     else:
         return response
 
-def process_name_with_LLM(llm,sub_API_names,llm_docstring):
-    prompt=f"""Your task is to suggest an appropriate name for the given invisible function:
-- Here are the sub API used together with function's docstring, please consider the API name to generate function name. sub API names: {sub_API_names}, 
-function docstring: ```{llm_docstring}```
-- Your name should consist of 4-5 keywords that combined with `_`, name should be recognizable and contain as much information as you can in keywords.
-Your Response format: {{'func_name': (your designed function name)}}
-Please do not include other information except for response format.
-"""
-    response = llm.predict(prompt)
+def process_name_with_LLM(llm,tokenizer,sub_API_names,llm_docstring):
+    prompt = build_prompt_for_composite_name(sub_API_names, llm_docstring)
+    response, history = LLM_response(llm,tokenizer,prompt,history=[],kwargs={})
     print(f'==>GPT name response: {response}')
     MAX_trial = 5
     count=0
@@ -381,7 +369,7 @@ Please do not include other information except for response format.
                 ans = ast.literal_eval(response)
                 return list(ans.keys())[0]
             except:
-                response = llm.predict(prompt)
+                response, history = LLM_response(llm,tokenizer,prompt,history=[],kwargs={})
                 print(f'==>retry GPT {count}: {response}')
         count+=1
     return "function"
@@ -412,7 +400,6 @@ def main_get_API_composite(LIB_ANALYSIS_PATH, output_folder_json):
     return unique_code_blocks
     
 def main_get_LLM_docstring(unique_code_blocks):
-    from models.model import LLM_model
     # LLM model
     llm, tokenizer = LLM_model()
     # load API_init.json
@@ -439,8 +426,9 @@ def main_get_LLM_docstring(unique_code_blocks):
         # drop duplicate
         func_inputs = list(set(func_inputs))
         # prompt
-        llm_docstring = process_docstring_with_LLM(llm, '\n'.join(API_description), json.dumps(func_inputs),json.dumps(func_outputs), description_text=code_blocks['text'])
-        new_name = process_name_with_LLM(llm,','.join(sub_API_names),llm_docstring)
+        print('llm: ', llm)
+        llm_docstring = process_docstring_with_LLM(llm, tokenizer, '\n'.join(API_description), json.dumps(func_inputs),json.dumps(func_outputs), description_text=code_blocks['text'])
+        new_name = process_name_with_LLM(llm, tokenizer, ','.join(sub_API_names),llm_docstring)
         if new_name=='function':
             new_name = f'function_{idxxxxx}'
             idxxxxx+=1
@@ -471,7 +459,7 @@ def main_get_LLM_docstring(unique_code_blocks):
 def generate_api_callings(results, basic_types=['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict']):
     updated_results = {}
     for api_name, api_info in results.items():
-        if api_info["api_type"] in ['function', 'method', 'class', 'functools.partial']:
+        if api_info["api_type"]: # in ['function', 'method', 'class', 'functools.partial']
             # Update the optional_value key for each parameter
             for param_name, param_details in api_info["Parameters"].items():
                 param_type = param_details.get('type')

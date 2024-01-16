@@ -31,9 +31,9 @@ def LLM_model(local=True):
         gpt_interface.setup_openai('', mode='openai')
         llm = None
         tokenizer = None
-    elif llm_model_dict[LLM_MODEL]['platform']=='OPENAI':# 231201 deprecate
-        llm = OpenAI(temperature=TEMPERATURE,model_name='gpt-3.5-turbo-16k')
-        tokenizer = None
+    #elif llm_model_dict[LLM_MODEL]['platform']=='OPENAI':# 231201 deprecate
+    #    llm = OpenAI(temperature=TEMPERATURE,model_name='gpt-3.5-turbo-16k')
+    #    tokenizer = None
     elif llm_model_dict[LLM_MODEL]['platform']=='GORILLA':
         from langchain.chat_models import ChatOpenAI
         openai.api_key = "EMPTY" # Key is ignored and does not matter

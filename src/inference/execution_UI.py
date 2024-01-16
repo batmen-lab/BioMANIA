@@ -170,13 +170,32 @@ class CodeExecutor:
                 continue
         print(f"==?# Error: Could not generate import code for {api_name}")
         return "", ""
+    def is_str_at_first_level(self, type_str):
+        print('change a stype for ensuring str type')
+        import re
+        # remove "Union[" and "]", to solve the internal type
+        def remove_outer_union(s):
+            if s.startswith("Union[") and s.endswith("]"):
+                return s[6:-1]
+            return s
+
+        # split top level types
+        def split_top_level_types(s):
+            return re.split(r',\s*(?![^[\]]*\])', s)
+
+        # check whether top level contains 'str'
+        s = remove_outer_union(type_str)
+        top_level_types = split_top_level_types(s)
+        return 'str' in top_level_types
+
     def format_value(self, value, value_type):
         try:
             if str(value).strip().startswith('result_'):
                 return str(value)
         except:
             pass
-        if "str" in value_type:
+        #if "str" in value_type:
+        if self.is_str_at_first_level(value_type):
             value = str(value).strip()
             if value.startswith("("): # if user input tuple parameters, return directly
                 return value # (('tuple' in value) or ('Tuple' in value)) and 

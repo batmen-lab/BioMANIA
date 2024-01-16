@@ -48,7 +48,7 @@ export LIB=scanpy
 # download materials according to your provided url links
 python dataloader/utils/other_download.py --LIB ${LIB}
 # generate codes for your downloaded tutorial files, support for either html, ipynb.
-python dataloader/utils/tutorial_loader_strategy.py --LIB ${LIB} --file_type 'html'
+python dataloader/utils/tutorial_loader_strategy.py --LIB ${LIB} --file_type 'ipynb'
 ```
 
 NOTE it requires API_HTML_PATH, READTHEDOC_PATH and TUTORIAL_GITHUB to run the above script!

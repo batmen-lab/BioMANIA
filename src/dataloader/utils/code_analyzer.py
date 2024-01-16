@@ -6,11 +6,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import seaborn as sns
-import cv2
 import math
 import sklearn.preprocessing
 import sklearn
-import scipy
 
 def is_variable_in_parentheses(var: str, code: str) -> bool:
     """

@@ -949,7 +949,7 @@ class Model:
             print(self.user_states)
             #[callback.on_tool_start() for callback in self.callbacks]
             #[callback.on_tool_end() for callback in self.callbacks]
-            [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="However, there are still some parameters with special type undefined. Please start from uploading data, or input your query from preprocessing dataset.",task_title="Missing Parameters: special type") for callback in self.callbacks]
+            [callback.on_agent_action(block_id="log-"+str(self.indexxxx), task="However, there are still some parameters with special type undefined. Please start from uploading data, or check your parameter type in json files.",task_title="Missing Parameters: special type") for callback in self.callbacks]
             self.indexxxx+=1
             self.last_user_states = self.user_states
             self.user_states = "initial"
@@ -1270,7 +1270,7 @@ class Model:
         code = result['code']
         output_list = result['output_list']
         self.executor.load_environment("./tmp/tmp_output_run_pipeline_execution_code_variables.pkl")
-        #print('check:', code, output_list, self.executor.execute_code, self.executor.variables)
+        print('check:', code, output_list, self.executor.execute_code, self.executor.variables)
         
         if len(execution_code_list)>0:
             self.last_execute_code = self.get_last_execute_code(code)
@@ -1372,12 +1372,12 @@ class Model:
                 pass
         else:
             pass
-        logging.info("Show current variables in namespace:")
-        logging.info(json.dumps(list(self.executor.variables.keys())))
+        print("Show current variables in namespace:")
+        print(json.dumps(list(self.executor.variables.keys())))
         new_str = []
         for i in self.executor.execute_code:
             new_str.append({"code":i['code'],"execution_results":i['success']})
-        logging.info("Currently all executed code: %s", json.dumps(new_str))
+        print("Currently all executed code: %s", json.dumps(new_str))
         filename = f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
         self.last_user_states = self.user_states
         self.user_states = "initial"
