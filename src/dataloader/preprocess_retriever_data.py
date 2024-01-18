@@ -11,9 +11,7 @@ import pandas as pd
 from sklearn.utils import shuffle
 from models.model import LLM_response, LLM_model
 #from configs.model_config import LIB
-from prompt.instruction import Task_Description_of_Singletool_oneapi_Instructions,  \
-Other_Requirements_singletool_oneapi, Task_Description_of_Singletool_oneapi_Instructions_simple, \
-Other_Requirements_singletool_oneapi_simple
+from prompt.instruction import Task_Description_of_Singletool_oneapi_Instructions_whole, Other_Requirements_singletool_oneapi_whole
 from inference.utils import process_retrieval_document, compress_api_str_from_list
 parser = argparse.ArgumentParser()
 parser.add_argument('--LIB', type=str, help='PyPI tool')
@@ -22,8 +20,7 @@ args = parser.parse_args()
 
 semaphore = asyncio.Semaphore(args.concurrency)
 
-prompt_oneapi = f"{Task_Description_of_Singletool_oneapi_Instructions}\n{Other_Requirements_singletool_oneapi}"
-prompt_oneapi_simple = f"{Task_Description_of_Singletool_oneapi_Instructions_simple}\n{Other_Requirements_singletool_oneapi_simple}"
+prompt_oneapi_whole = f"{Task_Description_of_Singletool_oneapi_Instructions_whole}\n{Other_Requirements_singletool_oneapi_whole}"
 
 def unify_response_format(response):
     list_pattern = re.compile(r'\[\{.*?\}\]', re.DOTALL)
@@ -85,12 +82,11 @@ async def preprocess_instruction_generation(API_composite, QUERY_FILE):
     #tasks = [process_api_async(api_name, ori_data[api_name], llm, tokenizer) for api_name in tqdm(ori_data)]
     all_tasks = []
     print('Start instruction generation ...')
-    print('Num. of Tasks is twice of the num. of APIs ...')
-    progress = tqdm_asyncio(total=len(ori_data) * 2)
+    print('Num. of Tasks is one times of the num. of APIs ...')
+    progress = tqdm_asyncio(total=len(ori_data))
     for api_name in tqdm_asyncio(ori_data):
         async with semaphore:
-            all_tasks.append(process_prompt_async(api_name, ori_data[api_name], llm, tokenizer, prompt_oneapi, progress))
-            all_tasks.append(process_prompt_async(api_name, ori_data[api_name], llm, tokenizer, prompt_oneapi_simple, progress))
+            all_tasks.append(process_prompt_async(api_name, ori_data[api_name], llm, tokenizer, prompt_oneapi_whole, progress))
     # Run the tasks and collect results
     results_from_tasks = await asyncio.gather(*(all_tasks))
     # close progres bar

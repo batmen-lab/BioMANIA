@@ -123,7 +123,8 @@ def compress_api_str_from_list_query_version(api):
     req_params = json.dumps(api['required_parameters'])
     opt_params = json.dumps(api['optional_parameters'])
     return_schema = json.dumps(api['Returns'])
-    compressed_str = f"{api_name}, {api_desc_truncated}, required_params: {req_params}, optional_params: {opt_params}, return_schema: {return_schema}"
+    #compressed_str = f"{api_name}, {api_desc_truncated}, required_params: {req_params}, optional_params: {opt_params}, return_schema: {return_schema}"
+    compressed_str = f"{api_name}, {api_desc_truncated}, required_params: {req_params}, optional_params: {opt_params}"
     return compressed_str
 
 def process_retrieval_document_query_version(documents_df):
@@ -160,7 +161,8 @@ def compress_api_str_from_list(api):
         req_params = json.dumps({})
         opt_params = json.dumps({})
     return_schema = json.dumps(api['Returns'])
-    compressed_str = f"{api_name}, {api_desc_truncated}, required_params: {req_params}, return_schema: {return_schema}" # optional_params: {opt_params},
+    #compressed_str = f"{api_name}, {api_desc_truncated}, required_params: {req_params}, return_schema: {return_schema}" # optional_params: {opt_params},
+    compressed_str = f"API description: {api_desc_truncated}, required_params: {req_params}" # optional_params: {opt_params},
     return compressed_str 
 
 def process_retrieval_document(documents_df):
@@ -210,4 +212,5 @@ img = sq.im.ImageContainer(arr, layer="img1")\n
     executor.load_variables_to_json()
     print(executor.variables)
     executor.execute_api_call('print(a)')
+
 

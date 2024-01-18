@@ -95,7 +95,8 @@ def LLM_response(llm,tokenizer,chat_prompt,history=[],kwargs={}):
     if llm_model_dict[LLM_MODEL]['platform'] in ['OPENAI']:
         from gpt import gpt_interface
         gpt_interface.setup_openai('', mode='openai')
-        response = gpt_interface.query_openai(chat_prompt, mode="openai", model="gpt-3.5-turbo-16k", max_tokens=MAX_NEW_TOKENS)
+        response = gpt_interface.query_openai(chat_prompt, mode="openai", model="gpt-3.5-turbo-1106", max_tokens=MAX_NEW_TOKENS)
+        # Modified 240117, changed to gpt-3.5-turbo-1106	
         #response = gpt_interface.query_openai(chat_prompt, mode="openai", model="gpt-4", max_tokens=MAX_NEW_TOKENS)
         history.append([chat_prompt, response])
     elif llm_model_dict[LLM_MODEL]['platform'] in ['OPENAI']: # 231201_deprecate

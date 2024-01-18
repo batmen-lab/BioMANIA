@@ -24,7 +24,6 @@ def setup_openai(fname, mode='azure'):
         openai.api_key = secrets['MS_KEY']
     return secrets
 
-
 @T.retry(stop=T.stop_after_attempt(5), wait=T.wait_fixed(60), after=lambda s: logging.error(repr(s)))
 def query_openai(prompt, mode='azure', model='gpt-35-turbo', **kwargs):
     if mode == 'openai':
