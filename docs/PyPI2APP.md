@@ -99,7 +99,7 @@ Tips:
 
 5. Train the api/non-api classification model.
 ```bash
-python models/chitchat_classification.py --LIB ${LIB}
+python models/chitchat_classification.py --LIB ${LIB} --ratio_1_to_3 1.0 --ratio_2_to_3 1.0 --embed_method st_trained
 # or train a classification model on multicorpus of 12 bio-tools.
 # python models/chitchat_classification_multicorpus.py
 ```
@@ -137,6 +137,7 @@ export HUGGINGPATH=./hugging_models
 CUDA_VISIBLE_DEVICES=0 # if you use gpu
 python inference/retriever_finetune_inference.py  \
     --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
+    --max_seq_length 256 \
     --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
     --input_query_file ./data/standard_process/${LIB}/API_inquiry_annotate.json \
     --idx_file ./data/standard_process/${LIB}/API_instruction_testval_query_ids.json \
