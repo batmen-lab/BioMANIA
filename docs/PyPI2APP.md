@@ -114,7 +114,6 @@ python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
 7. Fine-tune the retriever.
 You can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
 ```bash
-CUDA_VISIBLE_DEVICES=0 # if you use gpu
 mkdir ./hugging_models/retriever_model_finetuned/${LIB}
 python models/train_retriever.py \
     --data_path ./data/standard_process/${LIB}/retriever_train_data/ \
@@ -126,7 +125,8 @@ python models/train_retriever.py \
     --warmup_steps 500 \
     --max_seq_length 256 \
     --optimize_top_k 3 \
-    --plot_dir ./plot/${LIB}/retriever/
+    --plot_dir ./plot/${LIB}/retriever/ \
+    --gpu "1"
 ```
 
 You can check the training performance curve under `./src/plot/${LIB}/` to determine whether you need more number of epochs.
@@ -134,7 +134,6 @@ You can check the training performance curve under `./src/plot/${LIB}/` to deter
 8. Test the inference performance using:
 ```bash 
 export HUGGINGPATH=./hugging_models
-CUDA_VISIBLE_DEVICES=0 # if you use gpu
 python inference/retriever_finetune_inference.py  \
     --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
     --max_seq_length 256 \
@@ -161,7 +160,6 @@ Please refer to [lit-llama](https://github.com/Lightning-AI/lit-llama) for getti
 
 process data:
 ```bash
-CUDA_VISIBLE_DEVICES=0
 export TOKENIZERS_PARALLELISM=true
 python models/data_classification.py \
     --pretrained_path ./hugging_models/llama-2-finetuned/checkpoints/lite-llama2/lit-llama.pth \
@@ -184,7 +182,6 @@ python models/data_classification.py \
 
 Then, finetune model:
 ```bash
-CUDA_VISIBLE_DEVICES=0 \
 python models/train_classification.py \
     --data_dir ./data/standard_process/${LIB}/classification_train/ \
     --out_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
@@ -195,7 +192,6 @@ python models/train_classification.py \
 
 Finally, check the performance:
 ```bash
-CUDA_VISIBLE_DEVICES=0 \
 python models/inference_classification.py \
     --data_dir ./data/standard_process/${LIB}/classification_train/ \
     --checkpoint_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/combined_model_checkpoint.pth \

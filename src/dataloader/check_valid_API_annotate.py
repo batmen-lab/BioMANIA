@@ -54,6 +54,19 @@ def check_all_queries_unique(annotated_data):
     else:
         print("All queries are unique.")
 
+def check_api_presence_in_inquiry(composite_data, inquiry_data):
+    """
+    Check if all APIs in the composite dataset are present in the inquiry dataset.
+    """
+    composite_apis = set(item for item in composite_data)
+    inquiry_apis = set(item['api_calling'][0].split('(')[0] for item in inquiry_data)
+    print(f'length of composite/inquiry is {len(composite_apis)}, {len(inquiry_apis)}')
+    missing_apis = composite_apis - inquiry_apis
+    if missing_apis:
+        print(f"Missing APIs in inquiry dataset: {missing_apis}")
+    else:
+        print("All APIs in composite dataset are present in inquiry dataset.")
+
 def main():
     parser = argparse.ArgumentParser(description="Check data integrity for training and testing datasets.")
     parser.add_argument("lib", type=str, help="Library name for the JSON data.")
@@ -61,6 +74,7 @@ def main():
 
     inquiry_data = load_data(f'./data/standard_process/{args.lib}/API_inquiry.json')
     annotated_data = load_data(f'./data/standard_process/{args.lib}/API_inquiry_annotate.json')
+    composite_data = load_data(f'./data/standard_process/{args.lib}/API_composite.json')
 
     train_data, test_data = get_training_and_test_sets(inquiry_data, annotated_data)
 
@@ -69,6 +83,7 @@ def main():
     check_for_query_text_overlap(train_data, test_data)
     print("All checks passed successfully.")
     check_all_queries_unique(annotated_data)
+    check_api_presence_in_inquiry(composite_data, inquiry_data)
 
 if __name__ == "__main__":
     main()

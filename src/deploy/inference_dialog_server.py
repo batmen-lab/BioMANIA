@@ -909,9 +909,17 @@ class Model:
                     response, _ = LLM_response(self.llm, self.tokenizer, parameters_prompt, history=[], kwargs={})  
                     logging.info(f'==>Asking GPT: %s, ==>GPT response: %s', parameters_prompt, response)
                     returned_content_str_new = response.replace('null', 'None').replace('None', '"None"')
-                    returned_content = ast.literal_eval(returned_content_str_new)
-                    success = True
-                    break
+                    try:
+                        returned_content = ast.literal_eval(returned_content_str_new)
+                        success = True
+                        break
+                    except:
+                        try:
+                            returned_content = json.loads(returned_content_str_new)
+                            success = True
+                            break
+                        except:
+                            pass
                 except Exception as e:
                     pass
                     #return # 231130 fix 

@@ -23,13 +23,19 @@ semaphore = asyncio.Semaphore(args.concurrency)
 prompt_oneapi_whole = f"{Task_Description_of_Singletool_oneapi_Instructions_whole}\n{Other_Requirements_singletool_oneapi_whole}"
 
 def unify_response_format(response):
-    list_pattern = re.compile(r'\[\{.*?\}\]', re.DOTALL)
-    matched_lists = list_pattern.findall(response)
-    unified_response = []
-    for single_response in matched_lists:
-        response_list = ast.literal_eval(single_response)
-        unified_response.extend(response_list)
-    return unified_response
+    try:
+        return json.loads(response)
+    except json.JSONDecodeError:
+        list_pattern = re.compile(r'\[\{.*?\}\]', re.DOTALL)
+        matched_lists = list_pattern.findall(response)
+        unified_response = []
+        for single_response in matched_lists:
+            try:
+                response_list = ast.literal_eval(single_response)
+                unified_response.extend(response_list)
+            except (ValueError, SyntaxError):
+                pass
+        return unified_response
 
 async def async_LLM_response(llm, tokenizer, prompt, history=[], kwargs={}):
     loop = asyncio.get_event_loop()
@@ -53,7 +59,7 @@ async def process_prompt_async(api_name, api, llm, tokenizer, prompt_template, p
         except:
             pass
         retry_count += 1
-    #print('GPT response:', response)
+    print('GPT response:', response)
     if not valid_response:
         return []
     results = []

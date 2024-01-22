@@ -3,7 +3,7 @@ from xml.etree.ElementTree import QName
 from tqdm import tqdm
 import pandas as pd
 from configs.model_config import HUGGINGPATH
-from sentence_transformers import SentenceTransformer, util
+from sentence_transformers import SentenceTransformer, util, models, InputExample, losses, LoggingHandler
 from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version
 import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -47,7 +47,16 @@ class ToolRetriever:
         corpus_ids = list(corpus.keys())
         corpus = [corpus[cid] for cid in corpus_ids]
         self.corpus = corpus
-        self.embedder = SentenceTransformer(self.model_path, device=device)
+        print(f'modelpath: {self.model_path}')
+        if self.model_path=='bert-base-uncased':
+            print('using unpretrained model!!!')
+            word_embedding_model = models.Transformer(self.model_path, max_seq_length=args.max_seq_length)
+            pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension())
+            self.embedder = SentenceTransformer(modules=[word_embedding_model, pooling_model])
+        elif 'hugging_models' in self.model_path:
+            self.embedder = SentenceTransformer(self.model_path, device=device)
+        else:
+            raise ValueError
         self.corpus_embeddings = self.embedder.encode(self.corpus, convert_to_tensor=True)
     def build_and_merge_corpus(self, add_base=True):
         # based on build_retrieval_corpus, add API_base.json, fix 231227
@@ -62,7 +71,17 @@ class ToolRetriever:
         corpus_ids = list(corpus.keys())
         corpus = [corpus[cid] for cid in corpus_ids]
         self.corpus = corpus
-        self.embedder = SentenceTransformer(self.model_path, device=device)
+        if self.model_path=='bert-base-uncased':
+            print('using unpretrained model!!!')
+            word_embedding_model = models.Transformer(self.model_path, max_seq_length=args.max_seq_length)
+            pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension())
+            self.embedder = SentenceTransformer(modules=[word_embedding_model, pooling_model])
+        elif 'hugging_models/' in self.model_path:
+            print('using pretrained model!!!')
+            self.embedder = SentenceTransformer(self.model_path, device=device)
+        else:
+            raise ValueError
+        #self.embedder = SentenceTransformer(self.model_path, device=device)
         self.corpus_embeddings = self.embedder.encode(self.corpus, convert_to_tensor=True)
     def retrieving(self, query, top_k):
         query_embedding = self.embedder.encode(query, convert_to_tensor=True)
@@ -129,6 +148,7 @@ if __name__ == "__main__":
     parser.add_argument('--input_query_file', type=str, required=True, help='input path')
     parser.add_argument('--idx_file', type=str, required=True, help='idx path')
     parser.add_argument('--LIB', type=str, required=True, help='lib')
+    parser.add_argument("--max_seq_length", default=256, type=int, required=True,help="Max sequence length.")
     args = parser.parse_args()
 
     # Step 1: Load API data from the JSON file

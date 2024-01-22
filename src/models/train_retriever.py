@@ -1,15 +1,11 @@
-
-import logging
-import os
-import json
+import logging, os, json
 import pandas as pd
 from datetime import datetime
 import torch
-#torch.cuda.set_per_process_memory_fraction(0.5)
 import torch.nn as nn
-from sentence_transformers import SentenceTransformer, models, InputExample, losses, LoggingHandler
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
+#torch.cuda.set_per_process_memory_fraction(0.5)
+from sentence_transformers import SentenceTransformer, models, InputExample, losses, LoggingHandler
 from models.api_evaluator import APIEvaluator
 import argparse
 import os
@@ -57,8 +53,10 @@ def main():
     parser.add_argument("--max_seq_length", default=256, type=int, required=True,help="Max sequence length.")
     parser.add_argument("--optimize_top_k", default=3, type=int, required=True,help="The metric which to save best model")
     parser.add_argument("--plot_dir", default="./plot/retriever/", type=str, required=True,help="plot dir for saving")
+    parser.add_argument("--gpu", type=str, default="0", help="GPU to use")
     args = parser.parse_args()
 
+    torch.cuda.set_device(int(args.gpu))
     torch.manual_seed(42)
     torch.cuda.manual_seed(42)
 
