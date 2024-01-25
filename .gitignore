@@ -25,6 +25,8 @@ src/tmp/*
 src/plot/*
 src/plot_tmp/*
 src/plot_server/*
+src/bak/*
+src/ambiguous_results/*
 
 # Distribution / packaging
 .Python

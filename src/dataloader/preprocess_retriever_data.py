@@ -150,15 +150,15 @@ def preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX
     with open(INDEX_FILE, 'w') as f:
         json.dump(final_index_data, f, indent=4)
     query_train = [i for i in query_data if i['query_id'] not in test_index_set and i['query_id'] not in val_index_set]
-    query_test = [i for i in query_data if i['query_id'] in test_index_set]
     query_val = [i for i in query_data if i['query_id'] in val_index_set]
+    query_test = [i for i in query_data if i['query_id'] in test_index_set]
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     with open(f"{OUTPUT_DIR}/train.json", 'w') as f:
         json.dump(query_train, f, indent=4)
-    with open(f"{OUTPUT_DIR}/test.json", 'w') as f:
-        json.dump(query_test, f, indent=4)
     with open(f"{OUTPUT_DIR}/val.json", 'w') as f:
         json.dump(query_val, f, indent=4)
+    with open(f"{OUTPUT_DIR}/test.json", 'w') as f:
+        json.dump(query_test, f, indent=4)
     ### For dataset preprocess ###
     documents = []
     doc_id_map = {}  # Create a mapping from doc to doc_id

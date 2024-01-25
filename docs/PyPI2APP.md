@@ -133,6 +133,7 @@ You can check the training performance curve under `./src/plot/${LIB}/` to deter
 
 8. Test the inference performance using:
 ```bash 
+export LIB=ehrapy
 export HUGGINGPATH=./hugging_models
 python inference/retriever_finetune_inference.py  \
     --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
@@ -141,7 +142,8 @@ python inference/retriever_finetune_inference.py  \
     --input_query_file ./data/standard_process/${LIB}/API_inquiry_annotate.json \
     --idx_file ./data/standard_process/${LIB}/API_instruction_testval_query_ids.json \
     --retrieved_api_nums 3 \
-    --LIB ${LIB}
+    --LIB ${LIB} \
+    --filter_composite 
 ```
 
 You can refer to `src/plot/${LIB}/error_train.json` for detailed error case.

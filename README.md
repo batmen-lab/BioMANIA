@@ -40,7 +40,7 @@ Our demonstration showcases how to utilize a chatbot to simultaneously use scanp
 
 # Web access online demo
 
-We provide an [online demo](https://biomania.ngrok.io/en) hosted on our server! 
+We provide an [online demo](https://biomania.serveo.net/en) hosted on our server! 
 
 # Quick start
 

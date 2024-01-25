@@ -127,7 +127,68 @@ def compute_accuracy(retriever, data, args,name='train'):
         if len(hits[0]) > 4:
             scores_rank_5.append(hits[0][4]['score'])
     accuracy = correct_predictions / len(data) * 100
-    with open(f'./plot/{args.LIB}/error_{name}.json', 'w') as json_file:
+    with open(f'./plot/{args.LIB}/error_{name}_topk_{args.retrieved_api_nums}.json', 'w') as json_file:
+        json.dump(data_to_save, json_file, indent=4)
+    # Compute average scores for each rank
+    scores = {
+        "rank_1": scores_rank_1,
+        "rank_2": scores_rank_2,
+        "rank_3": scores_rank_3,
+        "rank_4": scores_rank_4,
+        "rank_5": scores_rank_5
+    }
+    return accuracy, scores
+def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train'):
+    # remove class type API, and composite API from the data
+    with open(f"./data/standard_process/{args.LIB}/API_composite.json", 'r') as file:
+        API_composite = json.load(file)
+    correct_predictions = 0
+    error_predictions = 0
+    data_to_save = []
+    scores_rank_1 = []
+    scores_rank_2 = []
+    scores_rank_3 = []
+    scores_rank_4 = []
+    scores_rank_5 = []
+    total_api_non_composite = 0
+    for query_data in tqdm(data):
+        retrieved_apis = retriever.retrieving(query_data['query'], top_k=args.retrieved_api_nums+10)
+        true_api = query_data['api_name']
+        if not true_api.startswith(args.LIB):
+            # remove composite API
+            continue
+        elif query_data['api_type']=='class':
+            # remove class API
+            continue
+        else:
+            total_api_non_composite+=1
+        retrieved_apis = [i for i in retrieved_apis if i.startswith(args.LIB) and API_composite[i]['api_type']!='class']
+        retrieved_apis = retrieved_apis[:args.retrieved_api_nums]
+        assert len(retrieved_apis)==args.retrieved_api_nums
+        if true_api in retrieved_apis:  # Checking for intersection between the two sets
+            correct_predictions += 1
+        else:
+            error_predictions +=1
+            data_to_save.append({
+                "query": query_data['query'],
+                "ground_truth": [true_api],
+                "retrieved_apis": retrieved_apis
+            })
+        query_embedding = retriever.embedder.encode(query_data['query'], convert_to_tensor=True)
+        hits = util.semantic_search(query_embedding, retriever.corpus_embeddings, top_k=5, score_function=util.cos_sim)
+        if len(hits[0]) > 0:
+            scores_rank_1.append(hits[0][0]['score'])
+        if len(hits[0]) > 1:
+            scores_rank_2.append(hits[0][1]['score'])
+        if len(hits[0]) > 2:
+            scores_rank_3.append(hits[0][2]['score'])
+        if len(hits[0]) > 3:
+            scores_rank_4.append(hits[0][3]['score'])
+        if len(hits[0]) > 4:
+            scores_rank_5.append(hits[0][4]['score'])
+    assert error_predictions+correct_predictions==total_api_non_composite
+    accuracy = correct_predictions / total_api_non_composite * 100
+    with open(f'./plot/{args.LIB}/error_{name}_topk_{args.retrieved_api_nums}.json', 'w') as json_file:
         json.dump(data_to_save, json_file, indent=4)
     # Compute average scores for each rank
     scores = {
@@ -149,6 +210,7 @@ if __name__ == "__main__":
     parser.add_argument('--idx_file', type=str, required=True, help='idx path')
     parser.add_argument('--LIB', type=str, required=True, help='lib')
     parser.add_argument("--max_seq_length", default=256, type=int, required=True,help="Max sequence length.")
+    parser.add_argument('--filter_composite', action='store_true', help='Use compute_accuracy_filter_compositeAPI instead of compute_accuracy')
     args = parser.parse_args()
 
     # Step 1: Load API data from the JSON file
@@ -173,9 +235,13 @@ if __name__ == "__main__":
 
     os.makedirs("./plot",exist_ok=True)
     os.makedirs(f"./plot/{args.LIB}",exist_ok=True)
-    train_accuracy, train_avg_scores = compute_accuracy(retriever, train_data, args, 'train')
-    val_accuracy, val_avg_scores = compute_accuracy(retriever, val_data, args, 'val')
-    test_accuracy, test_avg_scores = compute_accuracy(retriever, test_data, args, 'test')
+    if args.filter_composite:
+        compute_func = compute_accuracy_filter_compositeAPI
+    else:
+        compute_func = compute_accuracy
+    train_accuracy, train_avg_scores = compute_func(retriever, train_data, args, 'train')
+    val_accuracy, val_avg_scores = compute_func(retriever, val_data, args, 'val')
+    test_accuracy, test_avg_scores = compute_func(retriever, test_data, args, 'test')
     print(f"Training Accuracy: {train_accuracy:.2f}%, #samples {len(train_data)}")
     print(f"val Accuracy: {val_accuracy:.2f}%, #samples {len(val_data)}")
     print(f"test Accuracy: {test_accuracy:.2f}%, #samples {len(test_data)}")
