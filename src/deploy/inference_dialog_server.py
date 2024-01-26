@@ -122,19 +122,19 @@ def generate_api_calling(api_name, api_details, returned_content_str):
     return api_name, api_calling, output
 
 def predict_by_similarity(user_query_vector, centroids, labels):
-    similarities = [cosine_similarity(user_query_vector, centroid.reshape(1, -1)) for centroid in centroids]
+    similarities = [cosine_similarity(user_query_vector.reshape(1, -1), centroid.reshape(1, -1)) for centroid in centroids]
     return labels[np.argmax(similarities)]
 
 from tqdm import tqdm
 def infer(query, model, centroids, labels):
     # 240125 modified chitchat model
-    print('==>start inferring chitchat')
     user_query_vector = np.array(sentence_transformer_embed(model, query).cpu())
     if torch.is_tensor(user_query_vector):
         user_query_vector = user_query_vector.cpu().numpy()
-
-    predicted_label = predict_by_similarity(user_query_vector, centroids, labels)
-    print(f'==>{query} query inferred as {predicted_label}')
+    try:
+        predicted_label = predict_by_similarity(user_query_vector, centroids, labels)
+    except Exception as e:
+        print(e)
     return predicted_label
 
 if not os.path.exists('tmp'):

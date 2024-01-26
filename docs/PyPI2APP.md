@@ -133,7 +133,6 @@ You can check the training performance curve under `./src/plot/${LIB}/` to deter
 
 8. Test the inference performance using:
 ```bash 
-export LIB=scanpy
 export HUGGINGPATH=./hugging_models
 python inference/retriever_finetune_inference.py  \
     --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
