@@ -6,6 +6,7 @@ import numpy as np
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer, models
 from transformers import BertModel, BertTokenizer
+from inference.utils import sentence_transformer_embed, bert_embed
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f'using device: {device}')
 
@@ -14,9 +15,13 @@ parser = argparse.ArgumentParser(description="Process data with a specified libr
 parser.add_argument("--LIB", type=str, default="scanpy", required=True, help="Library to use for data processing.")
 parser.add_argument("--ratio_1_to_3", type=float, default=1.0, help="Ratio of data1 to data3.")
 parser.add_argument("--ratio_2_to_3", type=float, default=1.0, help="Ratio of data2 to data3.")
-parser.add_argument("--embed_method", type=str, choices=["st_untrained", "st_trained"], default="st_trained", help="The method for embeddings: st_untrained, or st_trained")
+parser.add_argument("--embed_method", type=str, choices=[ "original", "st_untrained", "st_trained"], default="st_trained", help="The method for embeddings: original, st_untrained, or st_trained")
 args = parser.parse_args()
 
+# load three models
+print('loading original bert models')
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+bert_trans_model = BertModel.from_pretrained('bert-base-uncased').to(device)
 # load unpretrained model
 word_embedding_model = models.Transformer('bert-base-uncased', max_seq_length=256)
 pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension())
@@ -24,13 +29,6 @@ unpretrained_model = SentenceTransformer(modules=[word_embedding_model, pooling_
 # load pretrained model
 pretrained_model = SentenceTransformer(f"./hugging_models/retriever_model_finetuned/{args.LIB}/assigned", device=device)
 
-def bert_embed(model,tokenizer,text):
-    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
-    outputs = model(**inputs)
-    return outputs.last_hidden_state.mean(1).squeeze().detach().cpu().numpy()
-def sentence_transformer_embed(model, texts):
-    embeddings = model.encode(texts, convert_to_tensor=True)
-    return embeddings
 def process_topicalchat():
     import json
     import pandas as pd
@@ -72,14 +70,11 @@ def sampledata_combine(data1, data2, data3, test_data3, train_count_data1=1000, 
                        test_count_data1=500, test_count_data2=500, test_count_data3=500):
     train_data1 = data1.sample(n=min(train_count_data1, len(data1)), random_state=42)
     train_data2 = data2.sample(n=min(train_count_data2, len(data2)), random_state=42)
-    #train_data3 = data3.sample(n=min(train_count_data3, len(data3)), random_state=42)
     train_data3 = data3
     remaining_data1 = data1.drop(train_data1.index)
     remaining_data2 = data2.drop(train_data2.index)
-    #remaining_data3 = data3.drop(train_data3.index)
     test_data1 = remaining_data1.sample(n=min(test_count_data1, len(remaining_data1)), random_state=1)
     test_data2 = remaining_data2.sample(n=min(test_count_data2, len(remaining_data2)), random_state=1)
-    #test_data3 = remaining_data3.sample(n=min(test_count_data3, len(remaining_data3)), random_state=1)
 
     train_data = pd.concat([train_data1, train_data2, train_data3], ignore_index=True)
     test_data = pd.concat([test_data1, test_data2, test_data3], ignore_index=True)
@@ -88,7 +83,10 @@ def sampledata_combine(data1, data2, data3, test_data3, train_count_data1=1000, 
     print("Train data and test data have been saved.")
 
 def calculate_centroid(data, embed_method):
-    if embed_method == "st_untrained":
+    if embed_method == "original":
+        embeddings = np.array([bert_embed(bert_trans_model, tokenizer,text, 
+        ) for text in tqdm(data, desc="Processing with original BERT")])
+    elif embed_method == "st_untrained":
         print('Using pretrained model!!!')
         embeddings = np.array([sentence_transformer_embed(unpretrained_model, text).cpu() for text in tqdm(data, desc="Processing with unpretrained sentencetransformer BERT")])
     elif embed_method == "st_trained":
@@ -166,9 +164,10 @@ def main():
     data1 = pd.read_csv('./data/others-data/dialogue_questions.csv')
     data2 = pd.read_csv('./data/others-data/combined_data.csv')
     data3 = pd.read_csv(f'./data/standard_process/{args.LIB}/api_data.csv')
-    
+
     min_length_train = len(data3)
     min_length_test = len(test_data3)
+    #train_ratio = 0.8 # no need to split now
     train_sample_num1 = int(min_length_train*args.ratio_1_to_3)
     train_sample_num2 = int(min_length_train*args.ratio_2_to_3)
     test_sample_num1 = int(min_length_test*args.ratio_1_to_3)
@@ -180,7 +179,7 @@ def main():
     train_data1 = train_data[train_data['Source'] == 'chitchat-data']
     train_data2 = train_data[train_data['Source'] == 'topical-chat']
     train_data3 = train_data[train_data['Source'] == 'api-query']
-    
+
     print('length of train_data1, train_data2, train_data3: ', len(train_data1), len(train_data2), len(train_data3))
     print('The real ratio for data1, data2 based on API data is: ', len(train_data1)/len(train_data3), len(train_data2)/len(train_data3))
     all_data = pd.concat([train_data1, train_data2, train_data3], ignore_index=True)
@@ -193,15 +192,12 @@ def main():
         correct_predictions = 0
         for index, row in test_data.iterrows():
             #user_query_vector = vectorizer.transform([row['Question']])
-            user_query_vector = bert_embed(bert_trans_model, tokenizer,row['Question']).reshape(1, -1)
+            user_query_vector = bert_embed(bert_trans_model, tokenizer,row['Question'],device=device).reshape(1, -1)
             predicted_label = predict_by_similarity(user_query_vector, centroids, labels)
             actual_label = row['Source']
             if predicted_label == actual_label:
                 correct_predictions += 1
         return correct_predictions / len(test_data) * 100 if len(test_data) > 0 else 0, correct_predictions, len(test_data)
-    test_data_api = test_data[test_data['Source'] == 'api-query']
-    test_data_chitchat = test_data[test_data['Source'] == 'chitchat-data']
-    test_data_topical = test_data[test_data['Source'] == 'topical-chat']
 
     c3_accuracy, correct_predictions_c3, total_predictions = calculate_accuracy(test_data, centroids, labels)
     print(f"Accuracy on test data on 3 clusters: {c3_accuracy:.2f}")
@@ -209,7 +205,7 @@ def main():
     correct_predictions = 0
     for index, row in test_data.iterrows():
         #user_query_vector = vectorizer.transform([row['Question']])
-        user_query_vector = bert_embed(bert_trans_model, tokenizer,row['Question']).reshape(1, -1)
+        user_query_vector = bert_embed(bert_trans_model, tokenizer,row['Question'],device=device).reshape(1, -1)
         predicted_label = predict_by_similarity(user_query_vector, centroids, labels)
         actual_label = row['Source']
         if (actual_label=='api-query' and predicted_label=='api-query') or (actual_label!='api-query' and predicted_label!='api-query'):
@@ -220,13 +216,13 @@ def main():
     import time
     start_time = time.time()
     import pickle
-    
+
     with open(f'./data/standard_process/{args.LIB}/centroids.pkl', 'wb') as f:
         pickle.dump(centroids, f)
     start_time = time.time()
     os.makedirs(f"./plot/{args.LIB}", exist_ok=True)
     print(f"Centroids saved. Time taken: {time.time() - start_time:.2f} seconds")
     start_time = time.time()
-    
+
 if __name__=='__main__':
     main()

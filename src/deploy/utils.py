@@ -18,3 +18,18 @@ def convert_image_to_base64(image_path):
     except Exception as e:
         print("Error converting image to Base64:", str(e))
         return None
+
+def change_format(input_params, param_name_list):
+    """
+    Get a subset of input parameters dictionary
+    """
+    output_params = []
+    for param_name, param_info in input_params.items():
+        if param_name in param_name_list:
+            output_params.append({
+                "name": param_name,
+                "type": param_info["type"],
+                "description": param_info["description"],
+                "default_value": param_info["default"]
+            })
+    return output_params

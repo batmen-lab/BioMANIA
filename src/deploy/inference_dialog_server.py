@@ -17,6 +17,9 @@ import numpy as np, matplotlib.pyplot as plt
 from sklearn.metrics.pairwise import cosine_similarity
 from typing import Any
 import multiprocessing
+from sentence_transformers import SentenceTransformer, models
+
+from deploy.utils import change_format
 
 import logging
 from datetime import datetime
@@ -49,7 +52,7 @@ warnings.filterwarnings("ignore")
 from models.model import LLM_response, LLM_model
 from configs.model_config import *
 from inference.execution_UI import CodeExecutor
-from inference.utils import find_similar_two_pairs
+from inference.utils import find_similar_two_pairs, sentence_transformer_embed
 from inference.retriever_finetune_inference import ToolRetriever
 from deploy.utils import dataframe_to_markdown, convert_image_to_base64
 from prompt.parameters import prepare_parameters_prompt
@@ -57,21 +60,6 @@ from prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
 
 basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'List', 'Dict', 'Any', 'any']
 basic_types.extend(['_AvailShapes']) # extend for squidpy `shape` type
-
-def change_format(input_params, param_name_list):
-    """
-    Get a subset of input parameters dictionary
-    """
-    output_params = []
-    for param_name, param_info in input_params.items():
-        if param_name in param_name_list:
-            output_params.append({
-                "name": param_name,
-                "type": param_info["type"],
-                "description": param_info["description"],
-                "default_value": param_info["default"]
-            })
-    return output_params
 
 def generate_api_calling(api_name, api_details, returned_content_str):
     """
@@ -137,9 +125,16 @@ def predict_by_similarity(user_query_vector, centroids, labels):
     similarities = [cosine_similarity(user_query_vector, centroid.reshape(1, -1)) for centroid in centroids]
     return labels[np.argmax(similarities)]
 
-def infer(query, vectorizer, centroids, labels):
-    user_query_vector = vectorizer.transform([query])
+from tqdm import tqdm
+def infer(query, model, centroids, labels):
+    # 240125 modified chitchat model
+    print('==>start inferring chitchat')
+    user_query_vector = np.array(sentence_transformer_embed(model, query).cpu())
+    if torch.is_tensor(user_query_vector):
+        user_query_vector = user_query_vector.cpu().numpy()
+
     predicted_label = predict_by_similarity(user_query_vector, centroids, labels)
+    print(f'==>{query} query inferred as {predicted_label}')
     return predicted_label
 
 if not os.path.exists('tmp'):
@@ -261,14 +256,24 @@ class Model:
             os.makedirs("./tmp/sessions/", exist_ok=True)
         self.image_file_list = []
         self.image_file_list = self.update_image_file_list()
-        with open(f'./data/standard_process/{self.LIB}/vectorizer.pkl', 'rb') as f:
-            self.vectorizer = pickle.load(f)
+        #with open(f'./data/standard_process/{self.LIB}/vectorizer.pkl', 'rb') as f:
+        #    self.vectorizer = pickle.load(f)
+        
         logging.info('==>chitchat vectorizer loaded!')
         with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
             self.centroids = pickle.load(f)
         logging.info('==>chitchat vectorizer loaded!')
         self.retrieve_query_mode = "similar"
         logging.info("Server ready")
+    def load_bert_model(self, load_mode='finetuned_bert'):
+        if load_mode=='unfinetuned_bert':
+            word_embedding_model = models.Transformer('bert-base-uncased', max_seq_length=256)
+            pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension())
+            self.bert_model = SentenceTransformer(modules=[word_embedding_model, pooling_model], device=device)
+        else:
+            # load pretrained model
+            self.bert_model = SentenceTransformer(f"./hugging_models/retriever_model_finetuned/{self.LIB}/assigned", device=device)
+
     def reset_lib(self, lib_name):
         #lib_name = lib_name.strip()
         logging.info('================')
@@ -281,6 +286,8 @@ class Model:
             self.ambiguous_api = list(set(api for api_pair in self.ambiguous_pair for api in api_pair))
             self.load_data(f"./data/standard_process/{lib_name}/API_composite.json")
             logging.info('==>loaded API json done')
+            self.load_bert_model()
+            logging.info('==>loaded finetuned bert for chitchat')
             #self.load_composite_code(lib_name)
             #logging.info('==>loaded API composite done')
             t1 = time.time()
@@ -585,6 +592,7 @@ class Model:
             self.executor.execute_api_call(loading_code, "code")
             if verbose:
                 [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="uploading files..."+str(ids+1)+'/'+str(len(files)),task_title=str(int((ids+1)/len(files)*100))) for callback in self.callbacks]
+        print('uploading files finished!')
         if verbose:
             self.indexxxx+=1
             [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="uploading files finished!",task_title=str(int(100))) for callback in self.callbacks]
@@ -650,7 +658,7 @@ class Model:
             temp_args = copy.deepcopy(self.args)
             temp_args.top_k = top_k
             self.user_query = user_input
-            predicted_source = infer(self.user_query, self.vectorizer, self.centroids, ['chitchat-data', 'topical-chat', 'api-query'])
+            predicted_source = infer(self.user_query, self.bert_model, self.centroids, ['chitchat-data', 'topical-chat', 'api-query'])
             logging.info(f'----query inferred as %s----', predicted_source)
             if predicted_source!='api-query':
                 [callback.on_tool_start() for callback in self.callbacks]

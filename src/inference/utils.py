@@ -197,6 +197,15 @@ def fast_get_environment(pre_code):
     executor.save_variables_to_json()
     return executor
 
+def sentence_transformer_embed(model, texts):
+    embeddings = model.encode(texts, convert_to_tensor=True)
+    return embeddings
+
+def bert_embed(model,tokenizer,text, device='cpu'):
+    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=512).to(device)
+    outputs = model(**inputs)
+    return outputs.last_hidden_state.mean(1).squeeze().detach().cpu().numpy()
+
 if __name__=='__main__':
     pre_code = """
 import squidpy as sq\n
@@ -212,5 +221,3 @@ img = sq.im.ImageContainer(arr, layer="img1")\n
     executor.load_variables_to_json()
     print(executor.variables)
     executor.execute_api_call('print(a)')
-
-
