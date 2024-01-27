@@ -21,11 +21,6 @@ def create_peft_config(model):
     return model, peft_config
 
 def LLM_model(local=True):
-    """
-    https://python.langchain.com/docs/modules/model_io/models/llms/integrations/openai
-    https://python.langchain.com/docs/modules/model_io/models/llms/integrations/huggingface_hub
-    https://huggingface.co/models?pipeline_tag=text-generation&sort=downloads
-    """
     if llm_model_dict[LLM_MODEL]['platform']=='OPENAI':
         from gpt import gpt_interface
         gpt_interface.setup_openai('', mode='openai')
@@ -121,8 +116,8 @@ def embedding_model():
     return embeddings
 
 if __name__=='__main__':
-   llm, tokenizer =LLM_model()
-   prompt = "hello"
-   response, history = LLM_response(llm,tokenizer,prompt)
-   print(f'User: {prompt}')
-   print(f'LLM: {response}')
+    llm, tokenizer =LLM_model()
+    prompt = "hello"
+    response, history = LLM_response(llm,tokenizer,prompt)
+    print(f'User: {prompt}')
+    print(f'LLM: {response}')

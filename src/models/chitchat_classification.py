@@ -85,7 +85,7 @@ def sampledata_combine(data1, data2, data3, test_data3, train_count_data1=1000, 
 def calculate_centroid(data, embed_method):
     if embed_method == "original":
         embeddings = np.array([bert_embed(bert_trans_model, tokenizer,text, 
-        ) for text in tqdm(data, desc="Processing with original BERT")])
+        ).cpu() for text in tqdm(data, desc="Processing with original BERT")])
     elif embed_method == "st_untrained":
         print('Using pretrained model!!!')
         embeddings = np.array([sentence_transformer_embed(unpretrained_model, text).cpu() for text in tqdm(data, desc="Processing with unpretrained sentencetransformer BERT")])
@@ -101,13 +101,14 @@ def predict_by_similarity(user_query_vector, centroids, labels):
     similarities = [cosine_similarity(user_query_vector, centroid.reshape(1, -1)) for centroid in centroids]
     return labels[np.argmax(similarities)]
 
-def plot_tsne_distribution_modified(lib_name, train_data, test_data, vectorizer, labels, c2_accuracy):
+def plot_tsne_distribution_modified(lib_name, train_data, test_data, model, labels, c2_accuracy,embed_method):
     import matplotlib.pyplot as plt
     from sklearn.manifold import TSNE
     
     # Combine train and test data for t-SNE
     combined_data = pd.concat([train_data['Question'], test_data['Question']], ignore_index=True)
-    tfidf_matrix_combined = vectorizer.transform(combined_data)
+    #tfidf_matrix_combined = vectorizer.transform(combined_data)
+    tfidf_matrix_combined = sentence_transformer_embed(model, combined_data).cpu()
     
     tsne = TSNE(n_components=2, random_state=40, init='random')
     reduced_data_combined = tsne.fit_transform(tfidf_matrix_combined)  # Fit and transform combined data
@@ -132,7 +133,7 @@ def plot_tsne_distribution_modified(lib_name, train_data, test_data, vectorizer,
     formatted_accuracy = "{:.2f}".format(c2_accuracy)
     plt.title(f't-SNE visualization of train data with test accuracy for api/non-api {formatted_accuracy}%')
     plt.legend()
-    plt.savefig(f'./plot/{lib_name}/chitchat_train_tsne_modified.png')
+    plt.savefig(f'./plot/{lib_name}/chitchat_train_tsne_modified_{embed_method}.pdf')
     plt.clf()  # Clear the current figure
     
     # Create a figure for test data
@@ -146,7 +147,7 @@ def plot_tsne_distribution_modified(lib_name, train_data, test_data, vectorizer,
     
     plt.title('t-SNE visualization of test data')
     plt.legend()
-    plt.savefig(f'./plot/{lib_name}/chitchat_test_tsne_modified.png')
+    plt.savefig(f'./plot/{lib_name}/chitchat_test_tsne_modified_{embed_method}.pdf')
 
 def main():
     process_topicalchat()
@@ -192,7 +193,17 @@ def main():
         correct_predictions = 0
         for index, row in test_data.iterrows():
             #user_query_vector = vectorizer.transform([row['Question']])
-            user_query_vector = bert_embed(bert_trans_model, tokenizer,row['Question'],device=device).reshape(1, -1)
+            if args.embed_method == "original":
+                print('using original')
+                user_query_vector = np.array([bert_embed(bert_trans_model, tokenizer,[row['Question']], )])
+            elif args.embed_method == "st_untrained":
+                print('Using pretrained model!!!')
+                user_query_vector = np.array([sentence_transformer_embed(unpretrained_model, [row['Question']]).cpu()])
+            elif args.embed_method == "st_trained":
+                print('using finetuned model')
+                user_query_vector = np.array([sentence_transformer_embed(pretrained_model, [row['Question']]).cpu()])
+            
+            user_query_vector = user_query_vector.flatten().reshape(1,-1)
             predicted_label = predict_by_similarity(user_query_vector, centroids, labels)
             actual_label = row['Source']
             if predicted_label == actual_label:
@@ -205,7 +216,16 @@ def main():
     correct_predictions = 0
     for index, row in test_data.iterrows():
         #user_query_vector = vectorizer.transform([row['Question']])
-        user_query_vector = bert_embed(bert_trans_model, tokenizer,row['Question'],device=device).reshape(1, -1)
+        #user_query_vector = bert_embed(bert_trans_model, tokenizer,row['Question'],device=device).reshape(1, -1)
+        if args.embed_method == "original":
+            user_query_vector = np.array(bert_embed(bert_trans_model, tokenizer,[row['Question']], ))
+        elif args.embed_method == "st_untrained":
+            print('Using pretrained model!!!')
+            user_query_vector = np.array(sentence_transformer_embed(unpretrained_model, [row['Question']]).cpu())
+        elif args.embed_method == "st_trained":
+            user_query_vector = np.array(sentence_transformer_embed(pretrained_model, [row['Question']]).cpu())
+        user_query_vector = user_query_vector.flatten().reshape(1,-1)
+        
         predicted_label = predict_by_similarity(user_query_vector, centroids, labels)
         actual_label = row['Source']
         if (actual_label=='api-query' and predicted_label=='api-query') or (actual_label!='api-query' and predicted_label!='api-query'):
@@ -223,6 +243,12 @@ def main():
     os.makedirs(f"./plot/{args.LIB}", exist_ok=True)
     print(f"Centroids saved. Time taken: {time.time() - start_time:.2f} seconds")
     start_time = time.time()
+    if args.embed_method == "original":
+        plot_tsne_distribution_modified(args.LIB, train_data, test_data, bert_trans_model, labels, c2_accuracy,args.embed_method)
+    elif args.embed_method == "st_untrained":
+        plot_tsne_distribution_modified(args.LIB, train_data, test_data, unpretrained_model, labels, c2_accuracy,args.embed_method)
+    elif args.embed_method == "st_trained":
+        plot_tsne_distribution_modified(args.LIB, train_data, test_data, pretrained_model, labels, c2_accuracy,args.embed_method)
 
 if __name__=='__main__':
     main()

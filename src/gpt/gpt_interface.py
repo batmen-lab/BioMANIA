@@ -26,16 +26,16 @@ def setup_openai(fname, mode='azure'):
 
 @T.retry(stop=T.stop_after_attempt(5), wait=T.wait_fixed(60), after=lambda s: logging.error(repr(s)))
 def query_openai(prompt, mode='azure', model='gpt-35-turbo', **kwargs):
+    # 240127: update openai version
     if mode == 'openai':
-        response = openai.ChatCompletion.create(
-            model=model,
-            messages=[{'role': 'user', 'content': prompt}],
-            **kwargs
-        )
+        response = openai.chat.completions.create(model=model,
+                                             messages=[{'role': 'user', 'content': prompt}],
+                                             **kwargs
+                                             )
     else:
-        response = openai.ChatCompletion.create(
+        response = openai.chat.completions.create(
             deployment_id=model,
             messages=[{'role': 'user', 'content': prompt}],
             **kwargs,
         )
-    return response['choices'][0]['message']['content']
+    return response.choices[0].message.content

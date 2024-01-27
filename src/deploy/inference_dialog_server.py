@@ -265,7 +265,7 @@ class Model:
         logging.info('==>chitchat vectorizer loaded!')
         self.retrieve_query_mode = "similar"
         logging.info("Server ready")
-    def load_bert_model(self, load_mode='finetuned_bert'):
+    def load_bert_model(self, load_mode='unfinetuned_bert'):
         if load_mode=='unfinetuned_bert':
             word_embedding_model = models.Transformer('bert-base-uncased', max_seq_length=256)
             pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension())
