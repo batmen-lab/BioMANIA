@@ -1,0 +1,1478 @@
+{
+    "integrating-data-using-ingest": [
+        {
+            "text": "The following tutorial describes a simple PCA-based method for integrating data we call [ingest](https://scanpy.readthedocs.io/en/latest/api/scanpy.tl.ingest.html) and compares it with [BBKNN](https://github.com/Teichlab/bbknn) [[Polanski19]](https://doi.org/10.1093/bioinformatics/btz625). BBKNN integrates well with the Scanpy workflow and is accessible through the [bbknn](https://scanpy.readthedocs.io/en/stable/external/scanpy.external.pp.bbknn.html) function.\n    \nThe [ingest](https://scanpy.readthedocs.io/en/latest/api/scanpy.tl.ingest.html) function assumes an annotated reference dataset that captures the biological variability of interest. The rational is to fit a model on the reference data and use it to project new data. For the time being, this model is a PCA combined with a neighbor lookup search tree, for which we use UMAP's implementation [[McInnes18]](https://arxiv.org/abs/1802.03426). Similar PCA-based integrations have been used before, for instance, in [[Weinreb18]](https://doi.org/10.1101/467886).\n\n* As [ingest](https://scanpy.readthedocs.io/en/latest/api/scanpy.tl.ingest.html) is simple and the procedure clear, the workflow is transparent and fast.\n* Like BBKNN, [ingest](https://scanpy.readthedocs.io/en/latest/api/scanpy.tl.ingest.html) leaves the data matrix itself invariant.\n* Unlike BBKNN, [ingest](https://scanpy.readthedocs.io/en/latest/api/scanpy.tl.ingest.html) solves the label mapping problem (like scmap) and maintains an embedding that might have desired properties like specific clusters or trajectories.\n\nWe refer to this *asymmetric* dataset integration as *ingesting* annotations from an annotated reference `adata_ref` into an `adata` that still lacks this annotation. It is different from learning a joint representation that integrates datasets in a symmetric way as [BBKNN](https://github.com/Teichlab/bbknn), Scanorma, Conos, CCA (e.g. in Seurat) or a conditional VAE (e.g. in scVI, trVAE) would do, but comparable to the initiall MNN implementation in scran. Take a look at tools in the [external API](https://scanpy.readthedocs.io/en/latest/external/#data-integration) or at the [ecoystem page](https://scanpy.readthedocs.io/en/latest/ecosystem/#data-integration) to get a start with other tools.\n\nWe consider an annotated reference dataset `adata_ref` and a dataset for which you want to query labels and embeddings `adata`.",
+            "code": "import scanpy as sc\nimport pandas as pd\nimport seaborn as sns\nsc.settings.verbosity = 1             # verbosity: errors (0), warnings (1), info (2), hints (3)\nsc.logging.print_versions()\nsc.settings.set_figure_params(dpi=80, frameon=False, figsize=(3, 3), facecolor='white')\nadata_ref = sc.datasets.pbmc3k_processed()  # this is an earlier version of the dataset from the pbmc3k tutorial\nadata = sc.datasets.pbmc68k_reduced()",
+            "relevant_API": [
+                "scanpy.logging.print_versions",
+                "scanpy.settings.set_figure_params",
+                "scanpy.datasets.pbmc3k_processed",
+                "scanpy.datasets.pbmc68k_reduced"
+            ]
+        },
+        {
+            "text": "To use `sc.tl.ingest`, the datasets need to be defined on the same variables.\n\nThe model and graph (here PCA, neighbors, UMAP) trained on the reference data will explain the biological variation observed within it.\n\nThe manifold still looks essentially the same as in the [clustering tutorial](https://scanpy-tutorials.readthedocs.io/en/latest/pbmc3k.html).",
+            "code": "var_names = adata_ref.var_names.intersection(adata.var_names)\nadata_ref = adata_ref[:, var_names]\nadata = adata[:, var_names]\nsc.pp.pca(adata_ref)\nsc.pp.neighbors(adata_ref)\nsc.tl.umap(adata_ref)\nsc.pl.umap(adata_ref, color='louvain')",
+            "relevant_API": [
+                "scanpy.pp.pca",
+                "scanpy.pp.neighbors",
+                "scanpy.tl.umap",
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "Let's map labels and embeddings from `adata_ref` to `adata` based on a chosen representation. Here, we use `adata_ref.obsm['X_pca']` to map cluster labels and the UMAP coordinates.",
+            "code": "sc.tl.ingest(adata, adata_ref, obs='louvain')\nadata.uns['louvain_colors'] = adata_ref.uns['louvain_colors']  # fix colors\nsc.pl.umap(adata, color=['louvain', 'bulk_labels'], wspace=0.5)",
+            "relevant_API": [
+                "scanpy.tl.ingest",
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "By comparing the 'bulk_labels' annotation with 'louvain', we see that the data has been reasonably mapped, only the annotation of dendritic cells seems ambiguous and might have been ambiiguous in `adata` already.",
+            "code": "adata_concat = adata_ref.concatenate(adata, batch_categories=['ref', 'new'])\nadata_concat.obs.louvain = adata_concat.obs.louvain.astype('category')\nadata_concat.obs.louvain.cat.reorder_categories(adata_ref.obs.louvain.cat.categories, inplace=True)  # fix category ordering\nadata_concat.uns['louvain_colors'] = adata_ref.uns['louvain_colors']  # fix category colors\nsc.pl.umap(adata_concat, color=['batch', 'louvain'])",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "### Using BBKNN",
+            "code": "sc.tl.pca(adata_concat)\n# %%time\nsc.external.pp.bbknn(adata_concat, batch_key='batch')  # running bbknn 1.3.6\nsc.tl.umap(adata_concat)",
+            "relevant_API": [
+                "scanpy.tl.pca",
+                "scanpy.external.pp.bbknn",
+                "scanpy.tl.umap"
+            ]
+        },
+        {
+            "text": "The following data has been used in the scGen paper [[Lotfollahi19]](https://doi.org/10.1038/s41592-019-0494-8), has been used [here](https://nbviewer.jupyter.org/github/M0hammadL/scGen_notebooks/blob/master/notebooks/scgen_batch_removal.ipynb), was curated [here](https://nbviewer.jupyter.org/github/Teichlab/bbknn/blob/master/examples/pancreas.ipynb) and can be downloaded from [here (the BBKNN paper)](ftp://ngs.sanger.ac.uk/production/teichmann/BBKNN/objects-pancreas.zip).\n\nIt contains data for human pancreas from 4 different studies (Segerstolpe16, Baron16, Wang16, Muraro16), which have been used in the seminal papers on single-cell dataset integration (Butler18, Haghverdi18) and many times ever since.",
+            "code": "sc.pl.umap(adata_concat, color=['batch', 'louvain'])\n# note that this collection of batches is already intersected on the genes\nadata_all = sc.read('data/pancreas.h5ad', backup_url='https://www.dropbox.com/s/qj1jlm9w10wmt0u/pancreas.h5ad?dl=1')\nadata_all.shape",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "Inspect the cell types observed in these studies.\n\nTo simplify visualization, let's remove the 5 minority classes.\n\n### Seeing the batch effect",
+            "code": "counts = adata_all.obs.celltype.value_counts()\ncounts\nminority_classes = counts.index[-5:].tolist()        # get the minority classes\nadata_all = adata_all[                               # actually subset\n    ~adata_all.obs.celltype.isin(minority_classes)]\nadata_all.obs.celltype.cat.reorder_categories(       # reorder according to abundance \n    counts.index[:-5].tolist(), inplace=True)  \nsc.pp.pca(adata_all)\nsc.pp.neighbors(adata_all)\nsc.tl.umap(adata_all)",
+            "relevant_API": [
+                "scanpy.pp.pca",
+                "scanpy.pp.neighbors",
+                "scanpy.tl.umap"
+            ]
+        },
+        {
+            "text": "We observe a batch effect.\n\nIt can be well-resolved using [BBKNN](https://github.com/Teichlab/bbknn) [[Polanski19]](https://doi.org/10.1093/bioinformatics/btz625).",
+            "code": "sc.pl.umap(adata_all, color=['batch', 'celltype'], palette=sc.pl.palettes.vega_20_scanpy)\n# %%time\nsc.external.pp.bbknn(adata_all, batch_key='batch')\nsc.tl.umap(adata_all)",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.external.pp.bbknn",
+                "scanpy.tl.umap"
+            ]
+        },
+        {
+            "text": "Choose one reference batch for training the model and setting up the neighborhood graph (here, a PCA) and separate out all other batches.\n\nAs before, the model trained on the reference batch will explain the biological variation observed within it.\n\nCompute the PCA, neighbors and UMAP on the reference data.",
+            "code": "sc.pl.umap(adata_all, color=['batch', 'celltype'])\nadata_ref = adata_all[adata_all.obs.batch == '0']\nsc.pp.pca(adata_ref)\nsc.pp.neighbors(adata_ref)\nsc.tl.umap(adata_ref)",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.pp.pca",
+                "scanpy.pp.neighbors",
+                "scanpy.tl.umap"
+            ]
+        },
+        {
+            "text": "The reference batch contains 12 of the 19 cell types across all batches.\n\nIteratively map labels (such as 'celltype') and embeddings (such as 'X_pca' and 'X_umap') from the reference data onto the query batches.",
+            "code": "sc.pl.umap(adata_ref, color='celltype')\nadatas = [adata_all[adata_all.obs.batch == i].copy() for i in ['1', '2', '3']]\nsc.settings.verbosity = 2  # a bit more logging\nfor iadata, adata in enumerate(adatas):\n    print(f'... integrating batch {iadata+1}')\n    adata.obs['celltype_orig'] = adata.obs.celltype  # save the original cell type\n    sc.tl.ingest(adata, adata_ref, obs='celltype')",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.tl.ingest"
+            ]
+        },
+        {
+            "text": "Each of the query batches now carries annotation that has been contextualized with `adata_ref`. By concatenating, we can view it together.",
+            "code": "adata_concat = adata_ref.concatenate(adatas)\nadata_concat.obs.celltype = adata_concat.obs.celltype.astype('category')\nadata_concat.obs.celltype.cat.reorder_categories(adata_ref.obs.celltype.cat.categories, inplace=True)  # fix category ordering\nadata_concat.uns['celltype_colors'] = adata_ref.uns['celltype_colors']  # fix category coloring\nsc.pl.umap(adata_concat, color=['batch', 'celltype'])",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "Let us subset the data to the query batches.\n\nThe following plot is a bit hard to read, hence, move on to confusion matrices below.\n\nLet us first focus on cell types that are conserved with the reference, to simplify reading of the confusion matrix.",
+            "code": "adata_query = adata_concat[adata_concat.obs.batch.isin(['1', '2', '3'])]\nsc.pl.umap(\n    adata_query, color=['batch', 'celltype', 'celltype_orig'], wspace=0.4)\nobs_query = adata_query.obs\nconserved_categories = obs_query.celltype.cat.categories.intersection(obs_query.celltype_orig.cat.categories)  # intersected categories\nobs_query_conserved = obs_query.loc[obs_query.celltype.isin(conserved_categories) & obs_query.celltype_orig.isin(conserved_categories)]  # intersect categories\nobs_query_conserved.celltype.cat.remove_unused_categories(inplace=True)  # remove unused categoriyes\nobs_query_conserved.celltype_orig.cat.remove_unused_categories(inplace=True)  # remove unused categoriyes\nobs_query_conserved.celltype_orig.cat.reorder_categories(obs_query_conserved.celltype.cat.categories, inplace=True)  # fix category ordering",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "Let us now move on to look at all cell types.\n\n#### Density plot",
+            "code": "pd.crosstab(obs_query_conserved.celltype, obs_query_conserved.celltype_orig)\npd.crosstab(adata_query.obs.celltype, adata_query.obs.celltype_orig)\nsc.tl.embedding_density(adata_concat, groupby='batch')",
+            "relevant_API": [
+                "scanpy.tl.embedding_density"
+            ]
+        },
+        {
+            "text": "#### Partial visualizaton of a subset of groups in embedding",
+            "code": "sc.pl.embedding_density(adata_concat, groupby='batch')\nfor batch in ['1', '2', '3']:\n    sc.pl.umap(adata_concat, color='batch', groups=[batch])",
+            "relevant_API": [
+                "scanpy.pl.embedding_density",
+                "scanpy.pl.umap"
+            ]
+        }
+    ],
+    "paga-paul15": [
+        {
+            "text": "Reconstructing myeloid and erythroid differentiation for data of [Paul et al. (2015)](http://doi.org/10.1016/j.cell.2015.11.013).",
+            "code": "import numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as pl\nfrom matplotlib import rcParams\nimport scanpy as sc\nsc.settings.verbosity = 3  # verbosity: errors (0), warnings (1), info (2), hints (3)\nsc.logging.print_versions()\nresults_file = './write/paul15.h5ad'\nsc.settings.set_figure_params(dpi=80, frameon=False, figsize=(3, 3), facecolor='white')  # low dpi (dots per inch) yields small inline figures\nadata = sc.datasets.paul15()",
+            "relevant_API": [
+                "scanpy.logging.print_versions",
+                "scanpy.settings.set_figure_params",
+                "scanpy.datasets.paul15"
+            ]
+        },
+        {
+            "text": "Let us work with a higher precision than the default 'float32' to ensure _exactly_ the same results across different computational platforms.\n\nApply a simple [preprocessing recipe](https://scanpy.readthedocs.io/en/latest/api/scanpy.api.pp.recipe_zheng17.html).",
+            "code": "adata\nadata.X = adata.X.astype('float64')  # this is not required and results will be comparable without it\nsc.pp.recipe_zheng17(adata)",
+            "relevant_API": [
+                "scanpy.pp.recipe_zheng17"
+            ]
+        },
+        {
+            "text": "To denoise the graph, we represent it in diffusion map space (and not in PCA space). Computing distances within a few diffusion components amounts to denoising the graph - we just take a few of the first spectral components. It's very similar to denoising a data matrix using PCA. The approach has been used in a couple of papers, see e.g. [Schiebinger et al. (2017)](https://doi.org/10.1101/191056) or [Tabaka et al. (2018)](https://doi.org/10.1101/512582). It's also related to the principles behind MAGIC [Dijk et al. (2018)](https://doi.org/10.1016/j.cell.2018.05.061).\n\n:::{note}\nThis is *not* a necessary step, neither for PAGA, nor clustering, nor pseudotime estimation. You might just as well go ahead with a non-denoised graph. In many situations (also here), this will give you very decent results.\n:::",
+            "code": "sc.tl.diffmap(adata)\nsc.pp.neighbors(adata, n_neighbors=10, use_rep='X_diffmap')\nsc.tl.draw_graph(adata)\nsc.pl.draw_graph(adata, color='paul15_clusters', legend_loc='on data')",
+            "relevant_API": [
+                "scanpy.tl.diffmap",
+                "scanpy.pp.neighbors",
+                "scanpy.tl.draw_graph",
+                "scanpy.pl.draw_graph"
+            ]
+        },
+        {
+            "text": ":::{note}\nNote that today, we'd use `sc.tl.leiden` - here, we use `sc.tl.louvain` the sake of reproducing the paper results.\n:::\n\nFor simple, coarse-grained visualization, compute the PAGA graph, a coarse-grained and simplified (abstracted) graph. Non-significant edges in the coarse- grained graph are thresholded away.",
+            "code": "sc.tl.louvain(adata, resolution=1.0)\nsc.tl.paga(adata, groups='louvain')\nsc.pl.paga(adata, color=['louvain', 'Hba-a2', 'Elane', 'Irf8'])",
+            "relevant_API": [
+                "scanpy.tl.louvain",
+                "scanpy.tl.paga",
+                "scanpy.pl.paga"
+            ]
+        },
+        {
+            "text": "Actually annotate the clusters --- note that *Cma1* is a Mast cell marker and only appears in a small fraction of the cells in the progenitor/stem cell cluster 8, see the single-cell resolved plot below.",
+            "code": "sc.pl.paga(adata, color=['louvain', 'Itga2b', 'Prss34', 'Cma1'])\nadata.obs['louvain'].cat.categories\nadata.obs['louvain_anno'] = adata.obs['louvain']",
+            "relevant_API": [
+                "scanpy.pl.paga"
+            ]
+        },
+        {
+            "text": "Let's use the annotated clusters for PAGA.",
+            "code": "adata.obs['louvain_anno'].cat.categories = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10/Ery', '11', '12',\n       '13', '14', '15', '16/Stem', '17', '18', '19/Neu', '20/Mk', '21', '22/Baso', '23', '24/Mo']\nsc.tl.paga(adata, groups='louvain_anno')\nsc.pl.paga(adata, threshold=0.03, show=False)",
+            "relevant_API": [
+                "scanpy.tl.paga",
+                "scanpy.pl.paga"
+            ]
+        },
+        {
+            "text": "The following is just as well possible for a UMAP.\n\nNow we can see all marker genes also at single-cell resolution in a meaningful layout.\n\nChoose the colors of the clusters a bit more consistently.",
+            "code": "sc.tl.draw_graph(adata, init_pos='paga')\nsc.pl.draw_graph(adata, color=['louvain_anno', 'Itga2b', 'Prss34', 'Cma1'], legend_loc='on data')\npl.figure(figsize=(8, 2))\nfor i in range(28):\n    pl.scatter(i, 1, c=sc.pl.palettes.zeileis_28[i], s=200)\npl.show()",
+            "relevant_API": [
+                "scanpy.tl.draw_graph",
+                "scanpy.pl.draw_graph"
+            ]
+        },
+        {
+            "text": "And add some white space to some cluster names. The layout shown here differs from the one in the paper, which can be found [here](https://github.com/theislab/paga/blob/f53fcdf4a861b7d3410f8096ffc13a07f1d225c0/blood/paul15/paul15.ipynb). These differences, however, are only cosmetic. We had to change the layout as we moved from a randomized PCA and float32 to float64 precision.\n\nChoose a root cell for diffusion pseudotime.",
+            "code": "sc.pl.paga_compare(\n    adata, threshold=0.03, title='', right_margin=0.2, size=10, edge_width_scale=0.5,\n    legend_fontsize=12, fontsize=12, frameon=False, edges=True, save=True)\nadata.uns['iroot'] = np.flatnonzero(adata.obs['louvain_anno']  == '16/Stem')[0]\nsc.tl.dpt(adata)",
+            "relevant_API": [
+                "scanpy.pl.paga_compare",
+                "scanpy.tl.dpt"
+            ]
+        },
+        {
+            "text": "Select some of the marker gene names.\n\nUse the full raw data for visualization.",
+            "code": "gene_names = ['Gata2', 'Gata1', 'Klf1', 'Epor', 'Hba-a2',  # erythroid\n              'Elane', 'Cebpe', 'Gfi1',                    # neutrophil\n              'Irf8', 'Csf1r', 'Ctsg']                     # monocyte\nadata_raw = sc.datasets.paul15()\nsc.pp.log1p(adata_raw)\nsc.pp.scale(adata_raw)\nadata.raw = adata_raw\nsc.pl.draw_graph(adata, color=['louvain_anno', 'dpt_pseudotime'], legend_loc='on data')",
+            "relevant_API": [
+                "scanpy.datasets.paul15",
+                "scanpy.pp.log1p",
+                "scanpy.pp.scale",
+                "scanpy.pl.draw_graph"
+            ]
+        }
+    ],
+    "pbmc3k": [
+        {
+            "text": "In May 2017, this started out as a demonstration that Scanpy would allow to reproduce most of Seurat's [guided clustering tutorial](http://satijalab.org/seurat/pbmc3k_tutorial.html) ([Satija et al., 2015](https://doi.org/10.1038/nbt.3192)).\n\nWe gratefully acknowledge Seurat's authors for the tutorial! In the meanwhile, we have added and removed a few pieces.\n\nThe data consist of *3k PBMCs from a Healthy Donor* and are freely available from 10x Genomics ([here](http://cf.10xgenomics.com/samples/cell-exp/1.1.0/pbmc3k/pbmc3k_filtered_gene_bc_matrices.tar.gz) from this [webpage](https://support.10xgenomics.com/single-cell-gene-expression/datasets/1.1.0/pbmc3k)). On a unix system, you can uncomment and run the following to download and unpack the data. The last line creates a directory for writing processed data.\n\n:::{note}\nIn Jupyter notebooks and lab, you can see the documentation for a python function by hitting ``SHIFT + TAB``. Hit it twice to expand the view.\n:::",
+            "code": "# !mkdir data\n# !wget http://cf.10xgenomics.com/samples/cell-exp/1.1.0/pbmc3k/pbmc3k_filtered_gene_bc_matrices.tar.gz -O data/pbmc3k_filtered_gene_bc_matrices.tar.gz\n# !cd data; tar -xzf pbmc3k_filtered_gene_bc_matrices.tar.gz\n# !mkdir write\nimport numpy as np\nimport pandas as pd\nimport scanpy as sc\nsc.settings.verbosity = 3             # verbosity: errors (0), warnings (1), info (2), hints (3)\nsc.logging.print_header()\nsc.settings.set_figure_params(dpi=80, facecolor='white')",
+            "relevant_API": [
+                "scanpy.logging.print_header",
+                "scanpy.settings.set_figure_params"
+            ]
+        },
+        {
+            "text": "Read in the count matrix into an [AnnData](https://anndata.readthedocs.io/en/latest/anndata.AnnData.html) object, which holds many slots for annotations and different representations of the data. It also comes with its own HDF5-based file format: `.h5ad`.\n\n:::{note}\nSee [anndata-tutorials/getting-started](https://anndata-tutorials.readthedocs.io/en/latest/getting-started.html) for a more comprehensive introduction to `AnnData`.\n:::",
+            "code": "results_file = 'write/pbmc3k.h5ad'  # the file that will store the analysis results\nadata = sc.read_10x_mtx(\n    'data/filtered_gene_bc_matrices/hg19/',  # the directory with the `.mtx` file\n    var_names='gene_symbols',                # use gene symbols for the variable names (variables-axis index)\n    cache=True)                              # write a cache file for faster subsequent reading\nadata.var_names_make_unique()  # this is unnecessary if using `var_names='gene_ids'` in `sc.read_10x_mtx`",
+            "relevant_API": [
+                "scanpy.read_10x_mtx"
+            ]
+        },
+        {
+            "text": "Show those genes that yield the highest fraction of counts in each single cell, across all cells.\n\nBasic filtering:",
+            "code": "adata\nsc.pl.highest_expr_genes(adata, n_top=20, )\nsc.pp.filter_cells(adata, min_genes=200)\nsc.pp.filter_genes(adata, min_cells=3)",
+            "relevant_API": [
+                "scanpy.pl.highest_expr_genes",
+                "scanpy.pp.filter_cells",
+                "scanpy.pp.filter_genes"
+            ]
+        },
+        {
+            "text": "With `pp.calculate_qc_metrics`, we can compute many metrics very efficiently.\n\nA violin plot of some of the computed quality measures:\n\n* the number of genes expressed in the count matrix\n* the total counts per cell\n* the percentage of counts in mitochondrial genes\n\nRemove cells that have too many mitochondrial genes expressed or too many total counts:",
+            "code": "adata.var['mt'] = adata.var_names.str.startswith('MT-')  # annotate the group of mitochondrial genes as 'mt'\nsc.pp.calculate_qc_metrics(adata, qc_vars=['mt'], percent_top=None, log1p=False, inplace=True)\nsc.pl.violin(adata, ['n_genes_by_counts', 'total_counts', 'pct_counts_mt'],\n             jitter=0.4, multi_panel=True)\nsc.pl.scatter(adata, x='total_counts', y='pct_counts_mt')\nsc.pl.scatter(adata, x='total_counts', y='n_genes_by_counts')",
+            "relevant_API": [
+                "scanpy.pp.calculate_qc_metrics",
+                "scanpy.pl.violin",
+                "scanpy.pl.scatter"
+            ]
+        },
+        {
+            "text": "Actually do the filtering by slicing the `AnnData` object.\n\nTotal-count normalize (library-size correct) the data matrix $\\mathbf{X}$ to 10,000 reads per cell, so that counts become comparable among cells.\n\nLogarithmize the data:",
+            "code": "adata = adata[adata.obs.n_genes_by_counts < 2500, :]\nadata = adata[adata.obs.pct_counts_mt < 5, :]\nsc.pp.normalize_total(adata, target_sum=1e4)\nsc.pp.log1p(adata)",
+            "relevant_API": [
+                "scanpy.pp.normalize_total",
+                "scanpy.pp.log1p"
+            ]
+        },
+        {
+            "text": "Identify highly-variable genes.\n\n:::{note}\nYou can get back an `AnnData` of the object in `.raw` by calling `.raw.to_adata()`.\n:::",
+            "code": "sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)\nsc.pl.highly_variable_genes(adata)\nadata.raw = adata",
+            "relevant_API": [
+                "scanpy.pp.highly_variable_genes",
+                "scanpy.pl.highly_variable_genes"
+            ]
+        },
+        {
+            "text": "Actually do the filtering\n\nRegress out effects of total counts per cell and the percentage of mitochondrial genes expressed. Scale the data to unit variance.\n\nScale each gene to unit variance. Clip values exceeding standard deviation 10. ",
+            "code": "adata = adata[:, adata.var.highly_variable]\nsc.pp.regress_out(adata, ['total_counts', 'pct_counts_mt'])\nsc.pp.scale(adata, max_value=10)",
+            "relevant_API": [
+                "scanpy.pp.regress_out",
+                "scanpy.pp.scale"
+            ]
+        },
+        {
+            "text": "Reduce the dimensionality of the data by running principal component analysis (PCA), which reveals the main axes of variation and denoises the data.\n\nWe can make a scatter plot in the PCA coordinates, but we will not use that later on.\n\nLet us inspect the contribution of single PCs to the total variance in the data. This gives us information about how many PCs we should consider in order to compute the neighborhood relations of cells, e.g. used in the clustering function  `sc.tl.louvain()` or tSNE `sc.tl.tsne()`. In our experience, often a rough estimate of the number of PCs does fine.",
+            "code": "sc.tl.pca(adata, svd_solver='arpack')\nsc.pl.pca(adata, color='CST3')\nsc.pl.pca_variance_ratio(adata, log=True)",
+            "relevant_API": [
+                "scanpy.tl.pca",
+                "scanpy.pl.pca",
+                "scanpy.pl.pca_variance_ratio"
+            ]
+        },
+        {
+            "text": "Save the result.\n\nLet us compute the neighborhood graph of cells using the PCA representation of the data matrix. You might simply use default values here. For the sake of reproducing Seurat's results, let's take the following values.",
+            "code": "adata.write(results_file)\nadata\nsc.pp.neighbors(adata, n_neighbors=10, n_pcs=40)",
+            "relevant_API": [
+                "scanpy.pp.neighbors"
+            ]
+        },
+        {
+            "text": "We suggest embedding the graph in two dimensions using UMAP ([McInnes et al., 2018](https://arxiv.org/abs/1802.03426)), see below. It is potentially more faithful to the global connectivity of the manifold than tSNE, i.e., it better preserves trajectories. In some ocassions, you might still observe disconnected clusters and similar connectivity violations. They can usually be remedied by running:\n\n```Python\nsc.tl.paga(adata)\nsc.pl.paga(adata, plot=False)  # remove `plot=False` if you want to see the coarse-grained graph\nsc.tl.umap(adata, init_pos='paga')\n```\n\nAs we set the `.raw` attribute of `adata`, the previous plots showed the \"raw\" (normalized, logarithmized, but uncorrected) gene expression. You can also plot the scaled and corrected gene expression by explicitly stating that you don't want to use `.raw`.",
+            "code": "sc.tl.umap(adata)\nsc.pl.umap(adata, color=['CST3', 'NKG7', 'PPBP'])\nsc.pl.umap(adata, color=['CST3', 'NKG7', 'PPBP'], use_raw=False)",
+            "relevant_API": [
+                "scanpy.tl.umap",
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "As with Seurat and many other frameworks, we recommend the Leiden graph-clustering method (community detection based on optimizing modularity) by [Traag *et al.* (2018)](https://scanpy.readthedocs.io/en/latest/references.html#traag18). Note that Leiden clustering directly clusters the neighborhood graph of cells, which we already computed in the previous section.\n\nPlot the clusters, which agree quite well with the result of Seurat.\n\nSave the result.",
+            "code": "sc.tl.leiden(adata)\nsc.pl.umap(adata, color=['leiden', 'CST3', 'NKG7'])\nadata.write(results_file)",
+            "relevant_API": [
+                "scanpy.tl.leiden",
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "Let us compute a ranking for the highly differential genes in each cluster. For this, by default, the `.raw` attribute of AnnData is used in case it has been initialized before. The simplest and fastest method to do so is the t-test.\n\nThe result of a [Wilcoxon rank-sum (Mann-Whitney-U)](https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test) test is very similar. We recommend using the latter in publications, see e.g., [Sonison & Robinson (2018)](https://doi.org/10.1038/nmeth.4612). You might also consider much more powerful differential testing packages like MAST, limma, DESeq2 and, for python, the recent diffxpy.",
+            "code": "sc.tl.rank_genes_groups(adata, 'leiden', method='t-test')\nsc.pl.rank_genes_groups(adata, n_genes=25, sharey=False)\nsc.settings.verbosity = 2  # reduce the verbosity\nsc.tl.rank_genes_groups(adata, 'leiden', method='wilcoxon')\nsc.pl.rank_genes_groups(adata, n_genes=25, sharey=False)",
+            "relevant_API": [
+                "scanpy.tl.rank_genes_groups",
+                "scanpy.pl.rank_genes_groups"
+            ]
+        },
+        {
+            "text": "Save the result.\n\nAs an alternative, let us rank genes using logistic regression. For instance, this has been suggested by [Natranos et al. (2018)](https://doi.org/10.1101/258566). The essential difference is that here, we use a multi-variate appraoch whereas conventional differential tests are uni-variate. [Clark et al. (2014)](https://doi.org/10.1186/1471-2105-15-79) has more details.\n\nLet us also define a list of marker genes for later reference.",
+            "code": "adata.write(results_file)\nsc.tl.rank_genes_groups(adata, 'leiden', method='logreg')\nsc.pl.rank_genes_groups(adata, n_genes=25, sharey=False)\nmarker_genes = ['IL7R', 'CD79A', 'MS4A1', 'CD8A', 'CD8B', 'LYZ', 'CD14',\n                'LGALS3', 'S100A8', 'GNLY', 'NKG7', 'KLRB1',  \n                'FCGR3A', 'MS4A7', 'FCER1A', 'CST3', 'PPBP']",
+            "relevant_API": [
+                "scanpy.tl.rank_genes_groups",
+                "scanpy.pl.rank_genes_groups"
+            ]
+        },
+        {
+            "text": "Reload the object that has been save with the Wilcoxon Rank-Sum test result.\n\nShow the 10 top ranked genes per cluster 0, 1, ..., 7 in a dataframe.\n\nGet a table with the scores and groups.",
+            "code": "adata = sc.read(results_file)\npd.DataFrame(adata.uns['rank_genes_groups']['names']).head(5)\nresult = adata.uns['rank_genes_groups']\ngroups = result['names'].dtype.names\npd.DataFrame(\n    {group + '_' + key[:1]: result[key][group]\n    for group in groups for key in ['names', 'pvals']}).head(5)",
+            "relevant_API": [
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "Compare to a single cluster: \n\nIf we want a more detailed view for a certain group, use `sc.pl.rank_genes_groups_violin`.\n\nReload the object with the computed differential expression (i.e. DE via a comparison with the rest of the groups):",
+            "code": "sc.tl.rank_genes_groups(adata, 'leiden', groups=['0'], reference='1', method='wilcoxon')\nsc.pl.rank_genes_groups(adata, groups=['0'], n_genes=20)\nsc.pl.rank_genes_groups_violin(adata, groups='0', n_genes=8)\nadata = sc.read(results_file)",
+            "relevant_API": [
+                "scanpy.tl.rank_genes_groups",
+                "scanpy.pl.rank_genes_groups",
+                "scanpy.pl.rank_genes_groups_violin",
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "If you want to compare a certain gene across groups, use the following.\n\nActually mark the cell types.",
+            "code": "sc.pl.rank_genes_groups_violin(adata, groups='0', n_genes=8)\nsc.pl.violin(adata, ['CST3', 'NKG7', 'PPBP'], groupby='leiden')\nnew_cluster_names = [\n    'CD4 T', 'CD14 Monocytes',\n    'B', 'CD8 T', \n    'NK', 'FCGR3A Monocytes',\n    'Dendritic', 'Megakaryocytes']\nadata.rename_categories('leiden', new_cluster_names)",
+            "relevant_API": [
+                "scanpy.pl.rank_genes_groups_violin",
+                "scanpy.pl.violin"
+            ]
+        },
+        {
+            "text": "Now that we annotated the cell types, let us visualize the marker genes.\n\nThere is also a very compact violin plot.",
+            "code": "sc.pl.umap(adata, color='leiden', legend_loc='on data', title='', frameon=False, save='.pdf')\nsc.pl.dotplot(adata, marker_genes, groupby='leiden');\nsc.pl.stacked_violin(adata, marker_genes, groupby='leiden', rotation=90);",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.pl.dotplot",
+                "scanpy.pl.stacked_violin"
+            ]
+        }
+    ],
+    "tutorial_pearson_residuals": [
+        {
+            "text": "#### Preparations\n\nInstall `leidenalg` dependency if needed:\n\n#### Download data\nThis tutorial uses two 10X datasets that are processed in parallel:\n\n- the [3k PBMC (v1 chemistry)](https://support.10xgenomics.com/single-cell-gene-expression/datasets/1.1.0/pbmc3k) dataset\n- the [10k PBMC (v3 chemistry)](https://support.10xgenomics.com/single-cell-gene-expression/datasets/3.0.0/pbmc_10k_v3?) dataset\n\nUncomment this cell to create directories, download and unpack the data:",
+            "code": "import numpy as np\nimport pandas as pd\nimport matplotlib.pyplot as plt\nimport scanpy as sc\nsc.settings.verbosity = 3  # verbosity: errors (0), warnings (1), info (2), hints (3)\nsc.logging.print_header()\nsc.settings.set_figure_params(dpi=80, facecolor=\"white\")\n#!pip3 install leidenalg\n# !mkdir tutorial_data\n# !mkdir tutorial_data/pbmc3k_v1\n# !mkdir tutorial_data/pbmc10k_v3\n# !wget http://cf.10xgenomics.com/samples/cell-exp/1.1.0/pbmc3k/pbmc3k_filtered_gene_bc_matrices.tar.gz -O tutorial_data/pbmc3k_v1.tar.gz\n# !cd tutorial_data; tar -xzf pbmc3k_v1.tar.gz -C pbmc3k_v1 --strip-components 2\n# !wget https://cf.10xgenomics.com/samples/cell-exp/3.0.0/pbmc_10k_v3/pbmc_10k_v3_filtered_feature_bc_matrix.tar.gz -O tutorial_data/pbmc10k_v3.tar.gz\n# !cd tutorial_data; tar -xzf pbmc10k_v3.tar.gz -C pbmc10k_v3 --strip-components 1",
+            "relevant_API": [
+                "scanpy.logging.print_header",
+                "scanpy.settings.set_figure_params"
+            ]
+        },
+        {
+            "text": "#### Load data\nHere we load the two downloaded datasets from disk and create `AnnData` objects for them.\n\nTo demonstrate that Pearson residuals select meaningful genes on these PBMC datasets, we will compare the gene selection to a set of marker genes that were identified in the [PBMC3k tutorial](https://scanpy-tutorials.readthedocs.io/en/latest/pbmc3k.html). They map to PBMC cell types as follows:\n```\n['IL7R',            # CD4 T cells\n 'LYZ', 'CD14',     # CD14+ Monocytes\n 'MS4A1',           # B cells\n 'CD8A',            # CD8 T cells\n 'GNLY', 'NKG7',    # NK cells\n 'FCGR3A', 'MS4A7', # FCGR3A+ Monocytes\n 'FCER1A', 'CST3',  # Dendritic Cells\n 'PPBP']            # Megakaryocytes\n\n```\n\nA good gene selection should include these differentially expressed genes.\n\n#### Basic filtering",
+            "code": "adata_pbmc3k = sc.read_10x_mtx(\"tutorial_data/pbmc3k_v1/\", cache=True)\nadata_pbmc10k = sc.read_10x_mtx(\"tutorial_data/pbmc10k_v3/\", cache=True)\nadata_pbmc3k.uns[\"name\"] = \"PBMC 3k (v1)\"\nadata_pbmc10k.uns[\"name\"] = \"PBMC 10k (v3)\"\n# marker genes from table in pbmc3k tutorial\nmarkers = [\n    \"IL7R\",\n    \"LYZ\",\n    \"CD14\",\n    \"MS4A1\",\n    \"CD8A\",\n    \"GNLY\",\n    \"NKG7\",\n    \"FCGR3A\",\n    \"MS4A7\",\n    \"FCER1A\",\n    \"CST3\",\n    \"PPBP\",\n]\nfor adata in [adata_pbmc3k, adata_pbmc10k]:\n    adata.var_names_make_unique()\n    print(adata.uns[\"name\"], \": data shape:\", adata.shape)\n    sc.pp.filter_cells(adata, min_genes=200)\n    sc.pp.filter_genes(adata, min_cells=3)",
+            "relevant_API": [
+                "scanpy.read_10x_mtx",
+                "scanpy.pp.filter_cells",
+                "scanpy.pp.filter_genes"
+            ]
+        },
+        {
+            "text": "#### Compute quality control metrics\nWe compute number of deteced genes per cell, total counts per cell and percentage of mitochondrial genes per cell.\n\nWe plot all metrics and observe that both datasets have some outlier cells.\n\nBased on these metrics, we define outlier cells and remove them. Afterwards, we make sure that all genes are at least detected once in the remaining cells.",
+            "code": "for adata in [adata_pbmc3k, adata_pbmc10k]:\n    adata.var[\"mt\"] = adata.var_names.str.startswith(\"MT-\")\n    sc.pp.calculate_qc_metrics(\n        adata, qc_vars=[\"mt\"], percent_top=None, log1p=False, inplace=True\n    )\nfor adata in [adata_pbmc3k, adata_pbmc10k]:\n    print(adata.uns[\"name\"], \":\")\n    sc.pl.violin(\n        adata,\n        [\"n_genes_by_counts\", \"total_counts\", \"pct_counts_mt\"],\n        jitter=0.4,\n        multi_panel=True,\n    )\n# define outliers and do the filtering for the 3k dataset\nadata_pbmc3k.obs['outlier_mt'] = adata_pbmc3k.obs.pct_counts_mt > 5\nadata_pbmc3k.obs['outlier_total'] = adata_pbmc3k.obs.total_counts > 5000\nadata_pbmc3k.obs['outlier_ngenes'] = adata_pbmc3k.obs.n_genes_by_counts > 2500\nprint('%u cells with high %% of mitochondrial genes' % (sum(adata_pbmc3k.obs['outlier_mt'])))\nprint('%u cells with large total counts' % (sum(adata_pbmc3k.obs['outlier_total'])))\nprint('%u cells with large number of genes' % (sum(adata_pbmc3k.obs['outlier_ngenes'])))\nadata_pbmc3k = adata_pbmc3k[~adata_pbmc3k.obs['outlier_mt'], :]\nadata_pbmc3k = adata_pbmc3k[~adata_pbmc3k.obs['outlier_total'], :]\nadata_pbmc3k = adata_pbmc3k[~adata_pbmc3k.obs['outlier_ngenes'], :]\nsc.pp.filter_genes(adata_pbmc3k, min_cells=1)",
+            "relevant_API": [
+                "scanpy.pp.calculate_qc_metrics",
+                "scanpy.pl.violin",
+                "scanpy.pp.filter_genes"
+            ]
+        },
+        {
+            "text": "This will create the field `highly_variable`, indicating the 2000 genes that have the most variable Pearson residuals.\n\nTo illustrate the selection procedure, we plot mean and residual variance of each gene, highlighting the selected genes (red). On top, we plot the known marker genes defined in the beginning (black). We can see that all of them are selected, as desired.",
+            "code": "# define outliers and do the filtering for the 10k dataset\nadata_pbmc10k.obs['outlier_mt'] = adata_pbmc10k.obs.pct_counts_mt > 20\nadata_pbmc10k.obs['outlier_total'] = adata_pbmc10k.obs.total_counts > 25000\nadata_pbmc10k.obs['outlier_ngenes'] = adata_pbmc10k.obs.n_genes_by_counts > 6000\nprint('%u cells with high %% of mitochondrial genes' % (sum(adata_pbmc10k.obs['outlier_mt'])))\nprint('%u cells with large total counts' % (sum(adata_pbmc10k.obs['outlier_total'])))\nprint('%u cells with large number of genes' % (sum(adata_pbmc10k.obs['outlier_ngenes'])))\nadata_pbmc10k = adata_pbmc10k[~adata_pbmc10k.obs['outlier_mt'], :]\nadata_pbmc10k = adata_pbmc10k[~adata_pbmc10k.obs['outlier_total'], :]\nadata_pbmc10k = adata_pbmc10k[~adata_pbmc10k.obs['outlier_ngenes'], :]\nsc.pp.filter_genes(adata_pbmc10k, min_cells=1)\nfor adata in [adata_pbmc3k, adata_pbmc10k]:\n    sc.experimental.pp.highly_variable_genes(\n        adata, flavor=\"pearson_residuals\", n_top_genes=2000\n    )\nfig, axes = plt.subplots(1, 2, figsize=(12, 6))\nfor ax, adata in zip(axes, [adata_pbmc3k, adata_pbmc10k]):\n    hvgs = adata.var[\"highly_variable\"]\n    ax.scatter(\n        adata.var[\"mean_counts\"], adata.var[\"residual_variances\"], s=3, edgecolor=\"none\"\n    )\n    ax.scatter(\n        adata.var[\"mean_counts\"][hvgs],\n        adata.var[\"residual_variances\"][hvgs],\n        c=\"tab:red\",\n        label=\"selected genes\",\n        s=3,\n        edgecolor=\"none\",\n    )\n    ax.scatter(\n        adata.var[\"mean_counts\"][np.isin(adata.var_names, markers)],\n        adata.var[\"residual_variances\"][np.isin(adata.var_names, markers)],\n        c=\"k\",\n        label=\"known marker genes\",\n        s=10,\n        edgecolor=\"none\",\n    )\n    ax.set_xscale(\"log\")\n    ax.set_xlabel(\"mean expression\")\n    ax.set_yscale(\"log\")\n    ax.set_ylabel(\"residual variance\")\n    ax.set_title(adata.uns[\"name\"])\n    ax.spines[\"right\"].set_visible(False)\n    ax.spines[\"top\"].set_visible(False)\n    ax.yaxis.set_ticks_position(\"left\")\n    ax.xaxis.set_ticks_position(\"bottom\")\nplt.legend()",
+            "relevant_API": [
+                "scanpy.pp.filter_genes",
+                "scanpy.experimental.pp.highly_variable_genes"
+            ]
+        },
+        {
+            "text": "Because we will transform the raw data in `adata.X` to residuals in the next step, we first save a copy of the raw counts to `adata.layers['raw']`. Also, we save a depth-normalized and square-root transformed version of the data to `adata.layers['sqrt_norm']`, so we can use them for plotting normalized counts later. Further background on why to use the square-root transform here can be found in [Wagner (2020)](https://www.biorxiv.org/content/10.1101/770388v3.full).\n\n#### Compute Pearson residuals\nThis will transform the sparse raw counts in `adata.X` to a dense matrix of Pearson residuals\n\n#### Compute PCA and t-SNE\nWe now reduce the dimensionality of the data by running PCA on the Pearson residuals. On top, we run t-SNE for vizualisation.",
+            "code": "#keep raw and depth-normalized counts for later\nadata_pbmc3k.layers[\"raw\"] = adata_pbmc3k.X.copy()\nadata_pbmc3k.layers[\"sqrt_norm\"] = np.sqrt(\n    sc.pp.normalize_total(adata_pbmc3k, inplace=False)[\"X\"]\n)\nadata_pbmc10k.layers[\"raw\"] = adata_pbmc10k.X.copy()\nadata_pbmc10k.layers[\"sqrt_norm\"] = np.sqrt(\n    sc.pp.normalize_total(adata_pbmc10k, inplace=False)[\"X\"]\n)\nfor adata in [adata_pbmc3k, adata_pbmc10k]:\n    sc.experimental.pp.normalize_pearson_residuals(adata)\nfor adata in [adata_pbmc3k, adata_pbmc10k]:\n    sc.pp.pca(adata, n_comps=50)\n    n_cells = len(adata)\n    sc.tl.tsne(adata, use_rep=\"X_pca\")",
+            "relevant_API": [
+                "scanpy.pp.normalize_total",
+                "scanpy.experimental.pp.normalize_pearson_residuals",
+                "scanpy.pp.pca",
+                "scanpy.tl.tsne"
+            ]
+        },
+        {
+            "text": "Based on the PCA of Pearson resisuals, we also run a clustering.\n\nNow, we show the clustering results on top of the t-SNE. Finally, we also show the normalized counts of each marker gene on the same t-SNE. This demonstrates that the clusters found in the Pearson residuals + PCA data representation coincides with 'islands' of known markers.\n\n## References / See also\n\nHafemeister & Satija (2019), *Normalization and variance stabilization of single-cell RNA-seq data using regularized negative binomial regression*, [Genome Biology](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1874-1)\n\nLause et al. (2021), *Analytic Pearson residuals for normalization of single-cell RNA-seq UMI data*, [Genome Biology](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-021-02451-7)\n\nWagner (2021), *Normalization methods for single-cell RNA-Seq data*, [Youtube](https://www.youtube.com/watch?v=huxkc2GH4lk&t=2s)\n\nChoudhary & Satija (2022), *Comparison and evaluation of statistical error models for scRNA-seq*, [Genome Biology](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-021-02584-9)",
+            "code": "for adata in [adata_pbmc3k, adata_pbmc10k]:\n    sc.pp.neighbors(adata, n_neighbors=10, n_pcs=50)\n    sc.tl.leiden(adata)\nfor adata in [adata_pbmc3k, adata_pbmc10k]:\n    print(adata.uns[\"name\"], \":\")\n    sc.pl.tsne(adata, color=[\"leiden\"], cmap=\"tab20\")\n    sc.pl.tsne(adata, color=markers, layer=\"sqrt_norm\")",
+            "relevant_API": [
+                "scanpy.pp.neighbors",
+                "scanpy.tl.leiden",
+                "scanpy.pl.tsne"
+            ]
+        }
+    ],
+    "core": [
+        {
+            "text": "With scanpy, scatter plots for tSNE, UMAP and several other embeddings are readily available using the `sc.pl.tsne`, `sc.pl.umap` etc. functions. See [here](https://scanpy.readthedocs.io/en/stable/api/scanpy.plotting.html#embeddings) the list of options.\n\nThose functions access the data stored in `adata.obsm`. For example `sc.pl.umap` uses the information stored in `adata.obsm['X_umap']`. For more flexibility, any key stored in `adata.obsm` can be used with the generic function `sc.pl.embedding`.\n\n### Load pbmc dataset",
+            "code": "import scanpy as sc\nimport pandas as pd\nfrom matplotlib.pyplot import rc_context\nsc.set_figure_params(dpi=100, color_map = 'viridis_r')\nsc.settings.verbosity = 1\nsc.logging.print_header()\npbmc = sc.datasets.pbmc68k_reduced()",
+            "relevant_API": [
+                "scanpy.set_figure_params",
+                "scanpy.logging.print_header",
+                "scanpy.datasets.pbmc68k_reduced"
+            ]
+        },
+        {
+            "text": "For the scatter plots, the value to plot is given as the `color` argument. This can be any gene or any column in `.obs`, where `.obs` is a DataFrame containing the annotations per observation/cell, see [AnnData](https://anndata.readthedocs.io/en/stable/) for more information.\n\nMultiple values can be given to `color`. In the following example we will plot 6 genes: 'CD79A', 'MS4A1', 'IGJ', CD3D', 'FCER1A', and 'FCGR3A' to get an idea on where those marker genes are being expressed.\n\nAlso, we will plot two other values: `n_counts` which is the number of UMI counts per cell (stored in `.obs`), and `bulk_labels` which is a categorical value containing the original labelling of the cells from 10X. \n\nThe number of plots per row is controlled using the `ncols` parameter. The maximum value plotted can be adjusted using `vmax` (similarly `vmin` can be used for the minimum value). In this case we use `p99`, which means to use as max value the 99 percentile. The max value can be a number or a list of numbers if the vmax wants to be set for multiple plots individually.\n\nAlso, we are using `frameon=False` to remove the boxes around the plots and `s=50` to set the dot size.\n\n",
+            "code": "# inspect pbmc contents\npbmc\n# rc_context is used for the figure size, in this case 4x4\nwith rc_context({'figure.figsize': (4, 4)}):\n    sc.pl.umap(pbmc, color='CD79A')\nwith rc_context({'figure.figsize': (3, 3)}):\n    sc.pl.umap(pbmc, color=['CD79A', 'MS4A1', 'IGJ', 'CD3D', 'FCER1A', 'FCGR3A', 'n_counts', 'bulk_labels'], s=50, frameon=False, ncols=4, vmax='p99') ",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "In this plot we can see the groups of cells that express the marker genes and the agreement with the original cell labels.\n\nThe functions for scatterplots have many options that allow fine tuning of the images. For example, we can look at the clustering as follows:\n\n## Identification of clusters based on known marker genes\n\nFrequently, clusters need to be labelled using well known marker genes. Using scatter plots we can see the expression of a gene and perhaps associate it with a cluster. Here, we will show other visual ways to associate marker genes to clusters using *dotplots*, *violin plots*, *heatmaps* and something that we call '*tracksplot*'. All of these visualizations summarize the same information, expression split by cluster, and the selection of the best results is left to the investigator do decide.\n \nFirst, we set up a dictionary with the marker genes, as this will allow scanpy to automatically label the groups of genes:\n",
+            "code": "# compute clusters using the leiden method and store the results with the name `clusters`\nsc.tl.leiden(pbmc, key_added='clusters', resolution=0.5)\nwith rc_context({'figure.figsize': (5, 5)}):\n    sc.pl.umap(pbmc, color='clusters', add_outline=True, legend_loc='on data', \n               legend_fontsize=12, legend_fontoutline=2,frameon=False,  \n               title='clustering of cells', palette='Set1') \nmarker_genes_dict = {\n    'B-cell': ['CD79A', 'MS4A1'],     \n    'Dendritic': ['FCER1A', 'CST3'],    \n    'Monocytes': ['FCGR3A'],\n    'NK': ['GNLY', 'NKG7'],\n    'Other': ['IGLL1'],\n    'Plasma': ['IGJ'],\n    'T-cell': ['CD3D'],\n}",
+            "relevant_API": [
+                "scanpy.tl.leiden",
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "A quick way to check the expression of these genes per cluster is to using a dotplot. This type of plot summarizes two types of information: the color represents the mean expression within each of the categories (in this case in each cluster) and the dot size indicates the fraction of cells in the categories expressing a gene. \n\nAlso, it is also useful to add a dendrogram to the graph to bring together similar clusters. The hierarchical clustering is computed automatically using the correlation of the PCA components between the clusters.\n\nUsing this plot, we can see that cluster 4 correspond to B-cells, cluster 2 is T-cells etc. This information can be used to manually annotate the cells as follows:",
+            "code": "sc.pl.dotplot(pbmc, marker_genes_dict, 'clusters', dendrogram=True)\n# create a dictionary to map cluster to annotation label\ncluster2annotation = {\n     '0': 'Monocytes',\n     '1': 'Dendritic',\n     '2': 'T-cell',\n     '3': 'NK',\n     '4': 'B-cell',\n     '5': 'Dendritic',\n     '6': 'Plasma',\n     '7': 'Other',\n     '8': 'Dendritic',\n}\n# add a new `.obs` column called `cell type` by mapping clusters to annotation using pandas `map` function\npbmc.obs['cell type'] = pbmc.obs['clusters'].map(cluster2annotation).astype('category')\nsc.pl.dotplot(pbmc, marker_genes_dict, 'cell type', dendrogram=True)",
+            "relevant_API": [
+                "scanpy.pl.dotplot"
+            ]
+        },
+        {
+            "text": "A different way to explore the markers is with violin plots. Here we can see the expression of *CD79A* in clusters 5 and 8, and *MS4A1* in cluster 5.Compared to a dotplot, the violin plot gives us and idea of the distribution of gene expression values across cells.\n\n**Note** Violin plots can also be used to plot any numerical value stored in `.obs`. For example, here violin plots are used to compare the number of genes and the percentage of mitochondrial genes between the different clusters. ",
+            "code": "sc.pl.umap(pbmc, color='cell type', legend_loc='on data',\n           frameon=False, legend_fontsize=10, legend_fontoutline=2)\nwith rc_context({'figure.figsize': (4.5, 3)}):\n    sc.pl.violin(pbmc, ['CD79A', 'MS4A1'], groupby='clusters' )\nwith rc_context({'figure.figsize': (4.5, 3)}):\n    sc.pl.violin(pbmc, ['n_genes', 'percent_mito'], groupby='clusters', stripplot=False, inner='box')  # use stripplot=False to remove the internal dots, inner='box' adds a boxplot inside violins",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.pl.violin"
+            ]
+        },
+        {
+            "text": "To simultaneously look at the violin plots for all marker genes we use `sc.pl.stacked_violin`. As previously, a dendrogram was added to group similar clusters\n\nA simple way to visualize the expression of genes is with a `matrix plot`. This is a heatmap of the mean expression values per gene grouped by categories. This type plot basically shows the same information as the color in the dotplots.\n\nHere, scale the expression of the genes from 0 to 1, being the maximum mean expression and 0 the minimum.\n\nOther useful option is to normalize the gene expression using `sc.pp.scale`. Here we store this information under the `scale` layer. Afterwards we adjust the plot min and max and use a diverging color map (in this case `RdBu_r` where `_r` means reversed). ",
+            "code": "ax = sc.pl.stacked_violin(pbmc, marker_genes_dict, groupby='clusters', swap_axes=False, dendrogram=True)\nsc.pl.matrixplot(pbmc, marker_genes_dict, 'clusters', dendrogram=True, cmap='Blues', standard_scale='var', colorbar_title='column scaled\\nexpression')\n# scale and store results in layer\npbmc.layers['scaled'] = sc.pp.scale(pbmc, copy=True).X",
+            "relevant_API": [
+                "scanpy.pl.stacked_violin",
+                "scanpy.pl.matrixplot",
+                "scanpy.pp.scale"
+            ]
+        },
+        {
+            "text": "An `axis` can be passed to a plot to combine multiple outputs as in the following example\n\nHeatmaps do not collapse cells as in previous plots. Instead, each cells is shown in a row (or column if `swap_axes=True`). The groupby information can be added and is shown using the same color code found for `sc.pl.umap` or any other embedding.",
+            "code": "sc.pl.matrixplot(pbmc, marker_genes_dict, 'clusters', dendrogram=True, \n                 colorbar_title='mean z-score', layer='scaled', vmin=-2, vmax=2, cmap='RdBu_r')\nimport matplotlib.pyplot as plt\nfig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(20,4), gridspec_kw={'wspace':0.9})\nax1_dict = sc.pl.dotplot(pbmc, marker_genes_dict, groupby='bulk_labels', ax=ax1, show=False)\nax2_dict = sc.pl.stacked_violin(pbmc, marker_genes_dict, groupby='bulk_labels', ax=ax2, show=False)\nax3_dict = sc.pl.matrixplot(pbmc, marker_genes_dict, groupby='bulk_labels', ax=ax3, show=False, cmap='viridis')\nax = sc.pl.heatmap(pbmc, marker_genes_dict, groupby='clusters', cmap='viridis', dendrogram=True)",
+            "relevant_API": [
+                "scanpy.pl.matrixplot",
+                "scanpy.pl.dotplot",
+                "scanpy.pl.stacked_violin",
+                "scanpy.pl.heatmap"
+            ]
+        },
+        {
+            "text": "The heatmap can also be plotted on scaled data. In the next image, similar to the previus matrixplot the min and max had been adjusted and a divergent color map is used.\n\nThe track plot shows the same information as the heatmap, but, instead of a color scale, the gene expression is represented by height.\n\nTo identify differentially expressed genes we run `sc.tl.rank_genes_groups`. This function will take each group of cells and compare the distribution of each gene in a group against the distribution in all other cells not in the group. Here, we will use the original cell labels given by 10x to identify marker genes for those cell types.",
+            "code": "ax = sc.pl.heatmap(pbmc, marker_genes_dict, groupby='clusters', layer='scaled', vmin=-2, vmax=2, cmap='RdBu_r', dendrogram=True, swap_axes=True, figsize=(11,4))\nax = sc.pl.tracksplot(pbmc, marker_genes_dict, groupby='clusters', dendrogram=True)\nsc.tl.rank_genes_groups(pbmc, groupby='clusters', method='wilcoxon')",
+            "relevant_API": [
+                "scanpy.pl.heatmap",
+                "scanpy.pl.tracksplot",
+                "scanpy.tl.rank_genes_groups"
+            ]
+        },
+        {
+            "text": "### Visualize marker genes using dotplot\n\nThe dotplot visualization is useful to get an overview of the genes that show differential expression. To make the resulting image more compact we will use `n_genes=4` to show only the top 4 scoring genes.\n\nIn order to get a better representation we can plot *log fold changes* instead of gene expression. Also, we want to focus on genes that have a log fold change >= 3 between the cell type expression and the rest of cells. \n\nIn this case we set `values_to_plot='logfoldchanges'` and `min_logfoldchange=3`.\n\nBecause log fold change is a divergent scale we also adjust the min and max to be plotted and use a divergent color map. Notice in the following plot that is rather difficult to distinguish between T-cell populations.\n\nNext, we use a dotplot focusing only on two groups (the groups option is also available for violin, heatmap and matrix plots). Here, we set `n_genes=30` as in this case it will show all the genes that have a `min_logfoldchange=4` up to 30.",
+            "code": "sc.pl.rank_genes_groups_dotplot(pbmc, n_genes=4)\nsc.pl.rank_genes_groups_dotplot(pbmc, n_genes=4, values_to_plot='logfoldchanges', min_logfoldchange=3, vmax=7, vmin=-7, cmap='bwr')\nsc.pl.rank_genes_groups_dotplot(pbmc, n_genes=30, values_to_plot='logfoldchanges', min_logfoldchange=4, vmax=7, vmin=-7, cmap='bwr', groups=['1', '5'])",
+            "relevant_API": [
+                "scanpy.pl.rank_genes_groups_dotplot"
+            ]
+        },
+        {
+            "text": "### Visualize marker genes using matrixplot \n\nFor the following plot the we use the previously computed 'scaled' values (stored in layer `scaled`) and use a divergent color map.\n\n### Visualize marker genes using stacked violin plots\n\n### Visualize marker genes using heatmap",
+            "code": "sc.pl.rank_genes_groups_matrixplot(pbmc, n_genes=3, use_raw=False, vmin=-3, vmax=3, cmap='bwr', layer='scaled')\nsc.pl.rank_genes_groups_stacked_violin(pbmc, n_genes=3, cmap='viridis_r')\nsc.pl.rank_genes_groups_heatmap(pbmc, n_genes=3, use_raw=False, swap_axes=True, vmin=-3, vmax=3, cmap='bwr', layer='scaled', figsize=(10,7), show=False);",
+            "relevant_API": [
+                "scanpy.pl.rank_genes_groups_matrixplot",
+                "scanpy.pl.rank_genes_groups_stacked_violin",
+                "scanpy.pl.rank_genes_groups_heatmap"
+            ]
+        },
+        {
+            "text": "Showing 10 genes per category, turning the gene labels off and swapping the axes. Notice that when the image is swapped, a color code for the categories appear instead of the 'brackets'.\n\n### Visualize marker genes using tracksplot\n\n## Comparison of marker genes using split violin plots\nIn scanpy, is very easy to compare marker genes using split violin plots for all groups at once.",
+            "code": "sc.pl.rank_genes_groups_heatmap(pbmc, n_genes=10, use_raw=False, swap_axes=True, show_gene_labels=False,\n                                vmin=-3, vmax=3, cmap='bwr')\nsc.pl.rank_genes_groups_tracksplot(pbmc, n_genes=3)\nwith rc_context({'figure.figsize': (9, 1.5)}):\n    sc.pl.rank_genes_groups_violin(pbmc, n_genes=20, jitter=False)",
+            "relevant_API": [
+                "scanpy.pl.rank_genes_groups_heatmap",
+                "scanpy.pl.rank_genes_groups_tracksplot",
+                "scanpy.pl.rank_genes_groups_violin"
+            ]
+        },
+        {
+            "text": "## Dendrogram options\n\nMost of the visualizations can arrange the categories using a dendrogram. However, the dendrogram can also be plotted independently as follows:\n\nTogether with the dendrogram it is possible to plot the correlation (by default 'pearson') of the categories.",
+            "code": "# compute hierarchical clustering using PCs (several distance metrics and linkage methods are available).\nsc.tl.dendrogram(pbmc, 'bulk_labels')\nax = sc.pl.dendrogram(pbmc, 'bulk_labels')\nax = sc.pl.correlation_matrix(pbmc, 'bulk_labels', figsize=(5,3.5))",
+            "relevant_API": [
+                "scanpy.tl.dendrogram",
+                "scanpy.pl.dendrogram",
+                "scanpy.pl.correlation_matrix"
+            ]
+        }
+    ],
+    "advanced": [
+        {
+            "text": "# Customizing Scanpy plots\n\nThis is an advanced tutorial on customizing scanpy plots. For an introduction to `scanpy` plotting functions please see the [introductory tutorial](https://scanpy-tutorials.readthedocs.io/en/latest/plotting/core.html).\n\n\nThis tutorial covers\n* [Customizing plots](#customization)\n    * [Scanpy plot objects](#fig-ax)\n    * [Pre-defined matplotlib axes](#mpl-ax)\n    * [Plot size](#size)\n    * [Space between plots](#gap)\n    * [Axes appearance](#pretty-axes)\n    * [Legends](#legends)\n    * [Highlights and marks on plots](#marks)\n    * [Colors and palettes](#colors)\n* [UMAP](#umap)    \n    * [Coloring-in a subset of cells](#umap-subset)\n    * [Ordering of cells](#umap-order)\n    * [Optimized UMAP layout](#umap-embed)\n* [PAGA](#paga)\n    * [Prunning edges](#paga-prune)\n    * [Custom layout](#paga-embed)\n\nFor example, from `embedding` plots (such as `umap`) we can obtain either axes (by setting `show=False`) or the whole figure (by setting `return_fig=True`) that stores axes in `figure.axes`. For every plotted category one `Axes` object will be created and for every continuous category two `Axes` objects: the UMAP plot and colorbar on the side. However, if we want to obtain the colorbar axes object we need to use `return_fig=True` rather than `show=False`. When accessing `Axes` from `Figure` the returned object is a list and we need to select the relevant `Axes` to modify them. When returning `Axes` directly (e.g. with `show=False`) we obtain either an individual `Axes` object (if this is the only `Axes` object on the `Figure`) or a list of `Axes` (if multiple `Axes` were created).",
+            "code": "import scanpy as sc\nimport pandas as pd\nimport numpy as np\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nimport matplotlib.colors as mcolors\n# Inital setting for plot size\nfrom matplotlib import rcParams\nFIGSIZE=(3,3)\nrcParams['figure.figsize']=FIGSIZE\nimport warnings\nwarnings.filterwarnings('ignore')\nadata = sc.datasets.pbmc68k_reduced()\n# Examples of returned objects from the UMAP function\nprint('Categorical plots:')\naxes=sc.pl.umap(adata,color=[\"bulk_labels\"],show=False)\nprint('Axis from a single category plot:',axes)\nplt.close()\naxes=sc.pl.umap(adata,color=[\"bulk_labels\",'S_score'],show=False)\nprint('Axes list from two categorical plots:',axes)\nplt.close()\nfig=sc.pl.umap(adata,color=[\"bulk_labels\"],return_fig=True)\nprint('Axes list from a figure with one categorical plot:',fig.axes)\nplt.close()\nprint('\\nContinous plots:')\naxes=sc.pl.umap(adata,color=[\"IGJ\"],show=False)\nprint('Axes from one continuous plot:',axes)\nplt.close()\nfig=sc.pl.umap(adata,color=[\"IGJ\"],return_fig=True)\nprint('Axes list from a figure of one continous plot:',fig.axes)\nplt.close()",
+            "relevant_API": [
+                "scanpy.datasets.pbmc68k_reduced",
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "Certain plots (e.g. `dotplot`) are more complex, having a special plot object with multiple `Axes` that are used to plot different parts of the plot.\n\n### Using matplotlib Axes to customize plot alignment <a class=\"anchor\" id=\"mpl-ax\"></a>\nWhen combining multiple different plots one can pass pre-defined `matplotlib` `Axes` to some plotting functions (e.g. `embedding`). This can be useful when we want to have custom subplot aligmnet or want to show side by side two different plot types or two different data subsets. \n\nPlease also see the note on the `show` parameter above, which is required for figure rendering.\n\nWe can also remove some `Axes` from the `Figure`, for example to have different number of columns per row. \n\n`matplotlib` also enables more advanced Axes alignment customization, such as differently sized `Axes` as shown in [their tutorial](https://matplotlib.org/stable/gallery/userdemo/demo_gridspec03.html#sphx-glr-gallery-userdemo-demo-gridspec03-py) for `GridSpec`.",
+            "code": "axes=sc.pl.dotplot(adata, ['CD79A', 'MS4A1'], 'bulk_labels', show=False)\nprint('Axes returned from dotplot object:',axes)\ndp=sc.pl.dotplot(adata, ['CD79A', 'MS4A1'], 'bulk_labels', return_fig=True)\nprint('DotPlot object:',dp)\nplt.close()\n# Define matplotlib Axes\n# Number of Axes & plot size\nncols=2\nnrows=1\nfigsize=4\nwspace=0.5\nfig,axs = plt.subplots(nrows=nrows, ncols=ncols,\n                       figsize=(ncols*figsize+figsize*wspace*(ncols-1),nrows*figsize))\nplt.subplots_adjust(wspace=wspace)\n# This produces two Axes objects in a single Figure\nprint('axes:',axs)\n# We can use these Axes objects individually to plot on them\n# We need to set show=False so that the Figure is not displayed before we \n# finished plotting on all Axes and making all plot adjustments\nsc.pl.umap(adata,color='louvain',ax=axs[0],show=False)\n# Example zoom-in into a subset of louvain clusters\nsc.pl.umap(adata[adata.obs.louvain.isin(['0','3','9']),:],color='S_score',ax=axs[1])\n# In this example we want to show UMAPs of different cell type markers, \n# with markers of a single cell type in one row \n# and with a different number of markers per cell type (row)\n# Marker genes\nmarker_genes= {\n    'B-cell': ['CD79A', 'MS4A1'],     \n    'Dendritic': ['FCER1A', 'CST3'],    \n    'Monocytes': ['FCGR3A'],\n    'NK': ['GNLY', 'NKG7'],\n    'Other': ['IGLL1'],\n    'Plasma': ['IGJ'],\n    'T-cell': ['CD3D'],\n}\n# Make Axes\n# Number of needed rows and columns (based on the row with the most columns)\nnrow=len(marker_genes)\nncol=max([len(vs) for vs in marker_genes.values()])\nfig,axs=plt.subplots(nrow,ncol,figsize=(2*ncol,2*nrow))\n# Plot expression for every marker on the corresponding Axes object\nfor row_idx,(cell_type,markers) in enumerate(marker_genes.items()):\n    col_idx=0\n    for marker in markers:\n        ax=axs[row_idx,col_idx]\n        sc.pl.umap(adata,color=marker,ax=ax,show=False,frameon=False,s=20)\n        # Add cell type as row label - here we simply add it as ylabel of\n        # the first Axes object in the row\n        if col_idx==0:\n            # We disabled axis drawing in UMAP to have plots without background and border\n            # so we need to re-enable axis to plot the ylabel\n            ax.axis('on')\n            ax.tick_params(\n                top='off', bottom='off', left='off', right='off', \n                labelleft='on', labelbottom='off')\n            ax.set_ylabel(cell_type+'\\n', rotation=90, fontsize=14)\n            ax.set(frame_on=False)\n        col_idx+=1\n    # Remove unused column Axes in the current row\n    while col_idx<ncol:\n        axs[row_idx,col_idx].remove()\n        col_idx+=1\n# Alignment within the Figure\nfig.tight_layout()",
+            "relevant_API": [
+                "scanpy.pl.dotplot",
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "We can adjust plot size by setting `rcParams['figure.figsize']`, which will also change settings for future plots.\nThese are either available through scanpy's [set_figure_params](https://scanpy.readthedocs.io/en/stable/generated/scanpy._settings.ScanpyConfig.set_figure_params.html#scanpy._settings.ScanpyConfig.set_figure_params) which wraps Matplotlib's rcParams or by modifying them directly.\n\nWe can set `rcParams` for a single plot with a context manager which won't change the setting for future plots.\n\nWe can also create an `Axes` object with a predefined size and pass it to a `scanpy` plotting function. ",
+            "code": "rcParams['figure.figsize']=(2,2)\nsc.pl.umap(adata,color='bulk_labels')\n# Set back to value selected above\nrcParams['figure.figsize']=FIGSIZE \nwith plt.rc_context({'figure.figsize':(5,5)}):\n    sc.pl.umap(adata,color='bulk_labels')\nfig,ax=plt.subplots(figsize=(4,4))\nsc.pl.umap(adata,color='bulk_labels',ax=ax)",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "The `figsize` is divided between all `Axes` and `spaces` between them. Thus, if we have multiple `Axes` (columns or rows) we must accordingly increase `figsize`. \n\nHowever, if we do not pass `Axes` objects to the `scanpy` `embedding` function it will automatically create individual `Axes` with the size of the current global `figsize` (as specified by e.g. `matplotlib` `figure.figsize`).\n\n### Adjust space between subplots <a class=\"anchor\" id=\"gap\"></a>\nWhen plotting multiple plots (e.g. with `embedding`) in the same row or column it may happen that the legend overlaps with the neighbouring plot. This can be overcomed by setting `wspace` (width) or `hspace` (height). These parameters can be likewise used when creating `Axes` for plotting (see the above section on using `matplotlib` `Axes`).",
+            "code": "ncol=2\nnrow=1\nfigsize=3\nwspace=1\n# Adapt figure size based on number of rows and columns and added space between them\n# (e.g. wspace between columns)\nfig,axs=plt.subplots(nrow,ncol,figsize=(ncol*figsize+(ncol-1)*wspace*figsize,nrow*figsize))\nplt.subplots_adjust(wspace=wspace)\nsc.pl.umap(adata,color='louvain',ax=axs[0],show=False)\nsc.pl.umap(adata,color='phase',ax=axs[1])\n# Default, legend is overlapping\nsc.pl.umap(adata,color=['bulk_labels','phase'])\n# Increase gap size between plots\nsc.pl.umap(adata,color=['bulk_labels','phase'],wspace=1)",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "We can further modify the plot object (e.g. `Axes`) to change axis text, title size, font type (e.g. italic), font color, etc. For further details on customizing `Axes` and `Figure` objects see `matplotlib` documentation.\n\nSome `scanpy` plotting functions already have predefined parameters for adjusting plot appearance. For example, `embedding` enables setting of titles with the `title` parameter and transparent plotting with the `frameon` parameter.",
+            "code": "# Set title with the title parameter\n# Return Axes to further modify the plot\nax=sc.pl.umap(adata,color='bulk_labels', title='Cell type',show=False)\n# Modify xlabel\n_=ax.set_xlabel('umap1',fontsize=20)\n# Make title italic\nax=sc.pl.umap(adata,color='IGJ', show=False)\n_=ax.set_title('IGJ', style='italic')\n# Transparent background and no borders/axis labels with frameon=False\nsc.pl.umap(adata,color='bulk_labels',frameon=False)",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "We can also change appearance (e.g color) of individual axis labels. This may be of special interest for plots like dotplot where we show multiple genes or cell groups and we want to highlight some of them.\n\nWe can define order of groups in `scanpy` legend by setting order of groups (`categories`) in the corresponding `obs` column in the `pandas` `DataFrame`.\n\nChange the `Legend` title and move the `Legend` to a different location",
+            "code": "dp=sc.pl.dotplot(adata, ['CD79A', 'MS4A1'], 'bulk_labels', show=False)\n# All Axes used in dotplot\nprint('Dotplot axes:',dp)\n# Select the Axes object that contains the subplot of interest\nax=dp['mainplot_ax']\n# Loop through ticklabels and make them italic\nfor l in ax.get_xticklabels():\n    l.set_style('italic')\n    g=l.get_text()\n    # Change settings (e.g. color) of certain ticklabels based on their text (here gene name)\n    if g =='MS4A1':\n        l.set_color('#A97F03')   \n# The default ordering of cell cycle phases is alphabetical\n# To ensure that the ordering corresponds to cell cycle define order of categories; \n# this should include all categories in the corresponding pandas table column\nphases=['G1','S','G2M']\nadata.obs['phase_ordered']=pd.Categorical(\n    values=adata.obs.phase, categories=phases, ordered=True)\nsc.pl.umap(adata,color=['phase','phase_ordered'], wspace=0.5)\n# This just removes the newly added ordered column from adata as we do not need it below\nadata.obs.drop('phase_ordered',axis=1,inplace=True)\nfig=sc.pl.umap(adata,color=['bulk_labels'],return_fig=True)\nax=fig.axes[0]\nax.legend_.set_title('Cell type')\n# Change Legend location\nax.legend_.set_bbox_to_anchor((-0.2,-0.7))",
+            "relevant_API": [
+                "scanpy.pl.dotplot",
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "Make a customized `Legend` by replacing the `Legend` instance in the plot. \n\nIn case we want to add multiple `Legend` instances we need to use `plt.gca().add_artist(legend)` (shown in one of the below sections).\n\nHere we show how to encircle a single object on the plot and then add a new `Legend` to explain the mark.\n\nWe can also use external packages, such as `adjustText`, to help us mark objects on plots. \n\n`adjustText` enables annotation of multiple nearby plot locations while minimising text overlap. ",
+            "code": "from matplotlib.lines import Line2D\nfig=sc.pl.umap(adata,color=['bulk_labels'],return_fig=True)\nax=fig.axes[0]\n# Remove original Legend\nax.legend_.remove()\n# Make new Legend\nl1=ax.legend(\n    \n    # Add Legend element for each color group\n    handles=[\n        # Instead of Line2D we can also use other matplotlib objects, such as Patch, etc.\n        Line2D([0], [0], marker='x', color=c,lw=0, \n               label=l, markerfacecolor=c, markersize=7) \n        # Color groups in adata\n        for l,c in zip(\n            list(adata.obs.bulk_labels.cat.categories),\n            adata.uns['bulk_labels_colors'])], \n    \n    # Customize Legend outline\n    \n    # Remove background\n    frameon=False,\n    # Make more Legend columns\n    ncols=2,\n    # Change location to not overlap with the plot  \n    bbox_to_anchor=(1,1),\n    # Set title\n    title='Cell type'\n)\nfig,ax=plt.subplots(figsize=(3,3))\nsc.pl.umap(adata,color=['bulk_labels'],ax=ax,show=False)\n# Encircle part of the plot\n# Find location on the plot where circle should be added\nlocation_cells=adata[adata.obs.bulk_labels=='CD56+ NK',:].obsm['X_umap']\nx=location_cells[:,0].mean()\ny=location_cells[:,1].mean()\nsize=1.5 # Set circle size\n# Plot circle\ncircle = plt.Circle((x,y), size, color='k', clip_on=False,fill=False)\nax.add_patch(circle)\n# Add annother Legend for the mark\n# Save the original Legend\nl1=ax.get_legend()\nl1.set_title('Cell type')\n# Make a new Legend for the mark\nl2=ax.legend(handles=[Line2D([0],[0],marker='o', color='k',  markerfacecolor='none', \n                        markersize=12,markeredgecolor='k',lw=0,label='selected')], \n          frameon=False, bbox_to_anchor=(3,1),title='Annotation')\n# Add back the original Legend which was overwritten by the new Legend\n_=plt.gca().add_artist(l1)\n# Package used for adding well aligned labels on the plot\nfrom adjustText import adjust_text\nwith plt.rc_context({'figure.figsize':(5,5)}):\n    x='means'\n    y='dispersions'\n    color='is_highly_variable'\n    adata.var['is_highly_variable']=adata.var['highly_variable'].astype(bool).astype(str)\n    ax=sc.pl.scatter(adata,x=x,y=y,color=color,show=False)\n    print('Axes:',ax)\n    # Move plot title from Axes to Legend\n    ax.set_title('')\n    ax.get_legend().set_title(color)\n    # Labels\n    # Select genes to be labeled\n    texts = []\n    genes= ['CD79A', 'MS4A1','FCER1A', 'CST3','FCGR3A','GNLY', 'NKG7','IGLL1','IGJ','CD3D']\n    for gene in genes:\n        # Position of object to be marked\n        x_loc=adata.var.at[gene,x]\n        y_loc=adata.var.at[gene,y]\n        # Text color\n        color_point='k' \n        texts.append(ax.text(x_loc, y_loc, gene, color=color_point, fontsize=10))\n    # Label selected genes on the plot\n    _=adjust_text(texts, expand_points=(2, 2),\n        arrowprops=dict(arrowstyle=\"->\",  color='gray',  lw=1), ax=ax)",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.pl.scatter"
+            ]
+        },
+        {
+            "text": "We can define colors for individual categories in `scanpy` with a `dictionary`. \n\nWe can center a diverging palette in `scanpy` with `vcenter`. Alternatively, we can use `vmin` and `vmax` to make the palette symmetric.",
+            "code": "sc.pl.umap(adata,color='phase',s=20,\n           palette={'S':'tab:cyan','G1':'tab:olive','G2M':'tab:red'})\n# Center palette with vcenter\n# Make mock column for plotting, here we use random values from normal distribution\nloc=0\nadata.obs['normal']=np.random.normal(loc=loc,size=adata.shape[0])\n# Center at mean (loc) of the distribution with vcenter parameter\nsc.pl.umap(adata,color='normal',cmap='coolwarm',s=20,vcenter=loc)\nadata.obs.drop('normal',axis=1,inplace=True)\n# Make symmetric palette with vmin and vmax\n# Make mock column for plotting, here we use B cell score\nsc.tl.score_genes(adata,['CD79A', 'MS4A1'],score_name='B_cell_score')\n# To make a symmetric palette centerd around 0 we set vmax to maximal absolut value and vmin to \n# the negative value of maxabs\nmaxabs=max(abs(adata.obs['B_cell_score']))\nsc.pl.umap(adata,color='B_cell_score',cmap='coolwarm',s=20,vmin=-maxabs,vmax=maxabs)\nadata.obs.drop('B_cell_score',axis=1,inplace=True)",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.tl.score_genes"
+            ]
+        },
+        {
+            "text": "`matplotlib` also supports [custom](https://matplotlib.org/stable/tutorials/colors/colormapnorms.html) color palettes with scaling (e.g. log), value range normalisation, centering, and custom color combinations or dynamic ranges.\n\nWe can color-in only specific cell groups when using categorical colors with the `groups` parameter.",
+            "code": "# Log-scaled palette\n# Make mock column with log-normally distirbuited values\nadata.obs['lognormal']=np.random.lognormal(3, 1, adata.shape[0])\n# Log scaling of the palette\nnorm=mcolors.LogNorm()\nsc.pl.umap(adata,color='lognormal',s=20, norm=norm)\nadata.obs.drop('lognormal',axis=1,inplace=True)\n# Centered non-symmetric palette\n# Make mock column for plotting, here we use B cell score\nsc.tl.score_genes(adata,['CD79A', 'MS4A1'],score_name='B_cell_score')\n# Palette normalization with centering and adapted dynamic range to correspond to\n# the distance of vmin and vmax from the cenetr\n# Adapted from https://stackoverflow.com/a/50003503\nclass MidpointNormalize(mcolors.Normalize):\n    def __init__(self, vmin=None, vmax=None, midpoint=0, clip=False):\n        self.midpoint = midpoint\n        mcolors.Normalize.__init__(self, vmin, vmax, clip)\n    def __call__(self, value, clip=None):\n        value=np.array(value).astype(float)\n        normalized_min = max(0.0, 0.5 * (1.0 - abs((self.midpoint - self.vmin) / (self.midpoint - self.vmax))))\n        normalized_max = min(1.0, 0.5 * (1.0 + abs((self.vmax - self.midpoint) / (self.midpoint - self.vmin))))\n        normalized_mid = 0.5\n        x, y = [self.vmin, self.midpoint, self.vmax], [normalized_min, normalized_mid, normalized_max]\n        return np.ma.masked_array(np.interp(value, x, y))\n# Add padding arround vmin and vmax as Colorbar sets value limits to round numbers below and \n# above the vmin and vmax, respectively, which means that they can not be assigned the correct \n# color with our nomalisation function that is limited to vmin and vmax\n# However, this padding reduces the dynamic range as we set a broad padding and \n# then later discard values that are not needed for the rounding up and down \n# of the vmin and vmax on the Colorbar, respectively\nvmin=adata.obs['B_cell_score'].min()\nvmax=adata.obs['B_cell_score'].max()\nvpadding=(vmax-vmin)*0.2\nnorm = MidpointNormalize(\n    vmin=vmin-vpadding, vmax=vmax+vpadding, \n    midpoint=0)\n# Plot umap\nfig=sc.pl.umap(adata,color='B_cell_score',cmap='coolwarm',s=20,\n               norm=norm,return_fig=True,show=False)\n# Adjust Colorbar ylim to be just outside of vmin,vmax and not far outside of this range\n# as the padding we set initially may be too broad\ncmap_yticklabels=np.array([t._y for t in fig.axes[1].get_yticklabels()])\nfig.axes[1].set_ylim(max(cmap_yticklabels[cmap_yticklabels<vmin]),\n                     min(cmap_yticklabels[cmap_yticklabels>vmax]))\nadata.obs.drop('B_cell_score',axis=1,inplace=True)\nax=sc.pl.umap(adata,color=['bulk_labels'],groups=['Dendritic'], show=False)\n# We can change the 'NA' in the legend that represents all cells outside of the\n# specified groups\nlegend_texts=ax.get_legend().get_texts()\n# Find legend object whose text is \"NA\" and change it\nfor legend_text in legend_texts:\n    if legend_text.get_text()==\"NA\":\n        legend_text.set_text('other cell types')",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.tl.score_genes"
+            ]
+        },
+        {
+            "text": "We can also plot continous values of an individual cell group. For this we need to first plot all cells as a background and then overlay the expression of the selected cell group.\n\n### Cell ordering <a class=\"anchor\" id=\"umap-order\"></a>\n`embedding` allows sorting based on continous value to plot cells with the highest score on top (parameter `sort_order`). However, for categorical values `embedding` currently does not offer special ordering parameters. Instead, the cells are plotted in the same order as they are stored in the `AnnData`. Thus, for example, when we concatente two `AnnData` objects of two batches and we want to visualise the location of batches, one of the batches will be plotted ontop of the other batch. Thus we first need to reorder cells to ensure that both batches will be visible.\n\n### Optimising UMAP layout <a class=\"anchor\" id=\"umap-embed\"></a>\nUMAP layout can be modified to make cells located in more tight or dispersed structures. This can be regulated with the `sc.tl.umap` parameters `min_dist` and `spread`. Below we show UMAP exaples computed with different parameter combinations.",
+            "code": "# Define dot size for all plot parts\ndot_size=40\n# Plot all cells as background\nax=sc.pl.umap(adata, show=False,s=dot_size)\n# Plot ontop expression of a single cell group by subsetting adata\nsc.pl.umap(adata[adata.obs.bulk_labels=='CD19+ B',:],color='IGJ',ax=ax,s=dot_size)\n# Make two batches in the adata object for the plot example\nadata.obs['batch']=['a']*int(adata.shape[0]/2)+['b']*(adata.shape[0]-int(adata.shape[0]/2))\nfig,axs=plt.subplots(1,2,figsize=(9,3))\nplt.subplots_adjust(wspace=1)\nsc.pl.umap(adata,color='batch',ax=axs[0],title='Default ordering',show=False)\n# Randomly order cells by making a random index and subsetting AnnData based on it\n# Set a random seed to ensure that the cell ordering will be reproducible\nnp.random.seed(0)\nrandom_indices=np.random.permutation(list(range(adata.shape[0])))\nsc.pl.umap(adata[random_indices,:],color='batch',ax=axs[1],title='Random re-ordering')\n# Copy adata not to modify UMAP in the original adata object\nadata_temp=adata.copy()\n# Loop through different umap parameters, recomputting and replotting UMAP for each of them\nfor min_dist in [0.1,1,2]:\n    for spread in [0.5,1,5]:\n        param_str=' '.join(['min_dist =',str(min_dist),'and spread =',str(spread)])\n        sc.tl.umap(adata_temp, min_dist=min_dist, spread=spread)\n        # Display plot and then immediately close it to ensure that\n        # we do not open too many plot windows at once\n        g=sc.pl.umap(adata_temp,color=['louvain'],title=param_str,s=40,\n                   show=False, return_fig=True)\n        print(g)\n        plt.close()\ndel adata_temp",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.tl.umap"
+            ]
+        },
+        {
+            "text": "## PAGA <a class=\"anchor\" id=\"paga\"></a>\n\n### Prune PAGA edges <a class=\"anchor\" id=\"paga-prune\"></a>\nRemove weak PAGA edges in the plot based on edge weight distribution. \n\nThis is based on the assumption that most edge weights will be relatively weak and that we can therefore spot the few most interesting edges as the outliers of the distribution.",
+            "code": "sc.tl.paga(adata,groups='louvain')\n# Distribution of PAGA connectivities for determining the cutting threshold\nfig,axs=plt.subplots(1,2,figsize=(6,3))\npaga_conn=adata.uns['paga']['connectivities'].toarray().ravel()\na=axs[0].hist(paga_conn,bins=30)\nsns.violinplot(paga_conn,ax=axs[1], inner=None)\nsns.swarmplot(paga_conn,ax=axs[1],color='k')\nthr=0.5\n_=axs[1].axhline(thr,c='r')\n_=axs[0].axvline(thr,c='r')\n# Compare PAGA with and without prunning\nfig,axs=plt.subplots(1,2,figsize=(6,3))\nsc.pl.paga(adata,ax=axs[0],title='PAGA',show=False)\nsc.pl.paga(adata,ax=axs[1],title='PAGA - prunned',threshold=thr)",
+            "relevant_API": [
+                "scanpy.tl.paga",
+                "scanpy.pl.paga"
+            ]
+        },
+        {
+            "text": "#### PAGA layout corresponding to UMAP\nSet PAGA dot centers to the mean of the UMAP embedding values of cells from the corresponding groups.",
+            "code": "# Compare UMAP and PAGA layouts\nfig,axs=plt.subplots(1,2,figsize=(6,3))\nsc.pl.umap(adata,color='louvain',ax=axs[0],show=False,title='UMAP',legend_loc='on data')\nsc.pl.paga(adata,ax=axs[1],title='PAGA')\n# Define PAGA positions based on the UMAP layout - \n# for each cluster we use the mean of the UMAP positions from the cells in that cluster\npos=pd.DataFrame(adata.obsm['X_umap'],index=adata.obs_names)\npos['group']=adata.obs[adata.uns['paga']['groups']]\npos=pos.groupby('group').mean()\n# Plot UMAP in the background\nax=sc.pl.umap(adata,show=False)\n# Plot PAGA ontop of the UMAP\nsc.pl.paga(adata, color='louvain',threshold=thr,\n           node_size_scale=1, edge_width_scale=0.7,\n           pos=pos.values,\n           random_state=0, ax=ax)",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.pl.paga"
+            ]
+        }
+    ],
+    "day2_02_GSEA_Colabs": [
+        {
+            "text": "Install all required packages.",
+            "code": "subprocess.run('pip install scanpy==1.4.6 umap-learn==0.4.0 anndata==0.7.1 numpy==1.18.2 scipy==1.4.1 pandas matplotlib scrublet seaborn python-igraph==0.8.0 louvain==0.6.1 !pip install scanpy==1.4.6 umap-learn==0.4.0 anndata==0.7.1 numpy==1.18.2 scipy==1.4.1 pandas matplotlib scrublet seaborn python-igraph==0.8.0 louvain==0.6.1 gprofiler', shell=True)\nimport scanpy as sc\nimport anndata as ann\nimport numpy as np\nimport scipy as sp\nimport pandas as pd\nimport matplotlib.pyplot as plt\nfrom matplotlib import rcParams\nfrom matplotlib import colors\nimport os \n#doublet detection\nimport scrublet as scr\n#batch correction (not installed by default in the docker container, install via command line: pip install scanorama bbknn)\nimport scanorama as scan\n#external modules\nimport scanpy.external as sce\n#pretty plotting\nimport seaborn as sb\n#gene set enrichment analysis\nfrom gprofiler import GProfiler\nimport logging\nplt.rcParams['figure.figsize']=(8,8) #rescale figures\nsc.settings.verbosity = 3\n#sc.set_figure_params(dpi=200, dpi_save=300)\nsc.logging.print_versions()",
+            "relevant_API": [
+                "scanpy.logging.print_versions"
+            ]
+        },
+        {
+            "text": "The tables directory contains all tabular data output, e.g. in `.csv` or `.xls` file format. That applies to differential expression test results or overview tables such as the number of cells per cell type.\n\nThe default figure path is a POSIX path calles 'figures'. If you don't change the default figure directory, scanpy creates a subdirectory where this notebook is located.  \n\nWe read in the annotated dataset. As a reminder, the `anndata` object contains (amongst others):\n1. The raw counts as 'counts' layer. \n2. Normalised gene expression values (log-scran normalised) as `X` matrix\n3. Cell type annotation\n4. Size factors ",
+            "code": "table_dir = file_path + 'day2/tables/'\nsc.settings.figdir = file_path + 'day2/figures/'\nadata= sc.read(data_dir + 'data_processed.h5ad')",
+            "relevant_API": [
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "We want to check which condition was the reference (i.e. \"second\" with negative log-fold change) and which one was the test (i.e. \"first\" with positive log-fold change). For this purpose, we distinguish astrocytes by location in a new `obs` variable.\n\nLet us select 2 genes from the `high_in_first` list: `HES4` and `E2F2`.\n\n# Run g:profiler",
+            "code": "adata.obs['annotated_location'] = adata.obs['annotated'].cat.add_categories(['Astrocyte_SN', 'Astrocyte_C'])\nadata.obs['annotated_location'][np.logical_and(adata.obs['annotated']=='Astrocyte',\n                                             adata.obs['location']=='SN'\n                                            )] = 'Astrocyte_SN'\nadata.obs['annotated_location'][np.logical_and(adata.obs['annotated']=='Astrocyte',\n                                             adata.obs['location']=='C'\n                                            )] = 'Astrocyte_C'\nadata.obs['annotated_location'] = adata.obs['annotated_location'].cat.remove_unused_categories()\nrcParams['figure.figsize']=(10,5)\nsc.pl.violin(adata, groupby='annotated_location', keys=['HES4', 'E2F2'], rotation=90)\n#Interpretation of differentially expressed genes in paneth cells - g:profiler\ngp = GProfiler(return_dataframe=True, user_agent='g:GOSt')",
+            "relevant_API": [
+                "scanpy.pl.violin"
+            ]
+        }
+    ],
+    "day1_01": [
+        {
+            "text": "Of note, this notebook was created as part of a workshop, so we use extra large legend texts in all seaborn plots. You can set the context as well to 'talk' or 'paper'.",
+            "code": "import scanpy as sc\nimport anndata as ann\nimport numpy as np\nimport scipy as sp\nimport pandas as pd\nimport matplotlib.pyplot as plt\nfrom matplotlib import rcParams\nfrom matplotlib import colors\nimport os \n#doublet detection\nimport scrublet as scr\n#batch correction (not installed by default in the docker container, install via command line: pip install scanorama bbknn)\nimport scanorama as scan\n#external modules\nimport scanpy.external as sce\n#pretty plotting\nimport seaborn as sb\n#R interface\nimport rpy2.rinterface_lib.callbacks\nimport logging\nfrom rpy2.robjects import pandas2ri\nimport anndata2ri\n#Note: this can be commented out to get more verbose R output\nrpy2.rinterface_lib.callbacks.logger.setLevel(logging.ERROR)\n# Automatically convert rpy2 outputs to pandas dataframes\npandas2ri.activate()\nanndata2ri.activate()\n# %load_ext rpy2.ipython\nplt.rcParams['figure.figsize']=(8,8) #rescale figures\nsc.settings.verbosity = 3\n#sc.set_figure_params(dpi=200, dpi_save=300)\nsc.logging.print_versions()\nsb.set_context(context='poster')",
+            "relevant_API": [
+                "scanpy.logging.print_versions"
+            ]
+        },
+        {
+            "text": "The dataset consists of 4k PBMCs (Human) provided by 10X Genomics. The data is an mtx directory with an `mtx` file (*i.e.* count matrix), two `tsv` files with barcodes (*i.e.* cell indices) and features (*i.e.* gene symbols). `Scanpy` unpacks the files (if the files are in `gz` archive format) and creates an `anndata` object with the `read_10x_mtx` function.    \n\nThe dataset is not filtered, yet. \n\nLet us check the dataset size. ",
+            "code": "file_path_raw = file_path_raw + 'raw_gene_bc_matrices/'\nadata_raw = sc.read_10x_mtx(path=file_path_raw)\nadata_raw.shape",
+            "relevant_API": [
+                "scanpy.read_10x_mtx"
+            ]
+        },
+        {
+            "text": "Save the filtered data set to file.\n\nRead data from file to begin with the quality control.",
+            "code": "adata\nadata.write(data_dir + 'data_filtered.h5ad')\nadata = sc.read(data_dir + 'data_filtered.h5ad')",
+            "relevant_API": [
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "**Task:** Below, you find a the code to create a violin plot of the library size. Create another two violin plots displaying the number of genes and the fraction of mitochondrial reads.\n\n**Questions:** How do the count data distribute within the sample? \n\n\nNote: `pandas` does some histogram plotting with `adata.obs['n_counts'].hist()`, howecer, you will obtain prettier plots with `distplot` from `seaborn`.    \n\n**Task:** Create a histogram for the total number of genes. Further, create a histogram for the low gene count regime.",
+            "code": "#Sample quality plots\nrcParams['figure.figsize']=(7,7)\nt1 = sc.pl.violin(adata, 'n_counts',\n                  #groupby='sample',\n                  size=2, log=True, cut=0)\nt1 = sc.pl.violin() #display number of genes\nt2 = sc.pl.violin() #display the fraction of mitochondrial reads\n#Thresholding decision: counts\nrcParams['figure.figsize']=(20,5)\nfig_ind=np.arange(131, 134)\nfig = plt.figure()\nfig.subplots_adjust(hspace=0.4, wspace=0.6)\np3 = sb.distplot(adata.obs['n_counts'], \n                 kde=False, \n                 ax=fig.add_subplot(fig_ind[0]))\np4 = sb.distplot( #histogram for low count regime\n                 ax=fig.add_subplot(fig_ind[1]))\np5 = sb.distplot( #histogram for high count regime\n                 ax=fig.add_subplot(fig_ind[2]))\nplt.savefig(\"'figure_20240127164227.jpg'\")\n#Thresholding decision: genes\nrcParams['figure.figsize']=(20,5)\nfig_ind=np.arange(131, 133)\nfig = plt.figure()\nfig.subplots_adjust(hspace=0.4, wspace=0.6) #create a grid for subplots\np6 = sb.distplot(adata.obs['n_genes'], kde=False, bins=60, ax=fig.add_subplot(fig_ind[0]))\n#low number of genes regime\np7 = sb.distplot( ax=fig.add_subplot(fig_ind[1]))\nplt.savefig(\"'figure_20240127164227.jpg'\")",
+            "relevant_API": [
+                "scanpy.pl.violin"
+            ]
+        },
+        {
+            "text": "Let us estimate the amount of doublets in the dataset. Here, we use the tool `scrublet` that simulates doublet gene expression profiles based on the data. We apply it for each sample separately.\n\n**Tasks:** Plot the doublet score as a histogram and as violin plot. ",
+            "code": "adata.obs['doublet_score']= np.zeros(adata.shape[0])\nadata.obs['doublet'] = np.zeros(adata.shape[0])\n# filtering/preprocessing parameters:\nmin_counts = 2\nmin_cells = 3\nvscore_percentile = 85\nn_pc = 50\n# doublet detector parameters:\nexpected_doublet_rate = 0.02 \nsim_doublet_ratio = 3\nn_neighbors = 15\nscrub = scr.Scrublet(counts_matrix = adata.X,  \n                     n_neighbors = n_neighbors,\n                     sim_doublet_ratio = sim_doublet_ratio,\n                     expected_doublet_rate = expected_doublet_rate)\ndoublet_scores, predicted_doublets = scrub.scrub_doublets( \n                    min_counts = min_counts, \n                    min_cells = min_cells, \n                    n_prin_comps = n_pc,\n                    use_approx_neighbors = True, \n                    get_doublet_neighbor_parents = False)\nadata.obs['doublet_score'] = doublet_scores\nadata.obs['doublet'] = predicted_doublets\nrcParams['figure.figsize']=(6,6)\nsb.distplot() #histogram of the doublet score\nplt.savefig(\"'figure_20240127164227.jpg'\")\nrcParams['figure.figsize']=(15,7)\nsc.pl.violin() #violin plot of the doublet score",
+            "relevant_API": [
+                "scanpy.pl.violin"
+            ]
+        },
+        {
+            "text": "**Tasks:** Save the summary table to file (`csv` or `xlsx` format) to the `tables` subdirectory. \n\n**Comment:** We have (not comprehensively) tested whether normalisation per sample or all samples jointly gives more accurate results. When we normalised per sample, observed many more differentially expressed genes across conditions (in the range of thousands). We think that normalisation per sample preserves a systematic bias while joint normalisation removes batch effects within the same cluster partially, if a cluster contains cell from several batches. No such effect of the normalisation can be observed when samples do not overlap at all. For the time being, we perform joint normalisation of all samples. ",
+            "code": "#Perform a clustering for scran normalization in clusters\nadata_pp = adata.copy()\nsc.pp.normalize_per_cell(adata_pp, counts_per_cell_after=1e6)\nsc.pp.log1p(adata_pp)\nsc.pp.pca(adata_pp, n_comps=15)\nsc.pp.neighbors(adata_pp)\nsc.tl.louvain(adata_pp, key_added='groups', resolution=0.5)\n#Preprocess variables for scran normalization\ninput_groups = adata_pp.obs['groups']\ndata_mat = adata.X.T",
+            "relevant_API": [
+                "scanpy.pp.normalize_per_cell",
+                "scanpy.pp.log1p",
+                "scanpy.pp.pca",
+                "scanpy.pp.neighbors",
+                "scanpy.tl.louvain"
+            ]
+        },
+        {
+            "text": "Normalize with scran size-factors and log-scale. \n\nModify the format of the resulting data matrix.\n\nFree memory.",
+            "code": "adata.X /= adata.obs['size_factors'].values[:,None]\nsc.pp.log1p(adata)\nadata.X = np.asarray(adata.X)\ndel adata_pp",
+            "relevant_API": [
+                "scanpy.pp.log1p"
+            ]
+        },
+        {
+            "text": "Compute highly variable genes and visualize.\n\nCompute the following embeddings: PCA, t-SNE, UMAP, diffusion map and force-directed graph. Please compute PCA first and compute nearest neighbors next. All other embeddings rely on this information. Visualize the embeddings and color by the total number of counts.",
+            "code": "sc.pp.highly_variable_genes(adata, flavor='cell_ranger', n_top_genes=2000)\nprint('\\n','Number of highly variable genes: {:d}'.format(np.sum(adata.var['highly_variable'])))\nrcParams['figure.figsize']=(10,5)\nsc.pl.highly_variable_genes(adata)\nsc.pp.pca(adata, n_comps=50, use_highly_variable=True, svd_solver='arpack')",
+            "relevant_API": [
+                "scanpy.pp.highly_variable_genes",
+                "scanpy.pl.highly_variable_genes",
+                "scanpy.pp.pca"
+            ]
+        },
+        {
+            "text": "Compute cell cycle score per batch.",
+            "code": "adata.obs['S_score']= np.zeros(adata.shape[0])\nadata.obs['G2M_score'] = np.zeros(adata.shape[0])\nadata.obs['phase'] = np.zeros(adata.shape[0])\nsc.tl.score_genes_cell_cycle(adata, s_genes=s_genes_hvg, g2m_genes=g2m_genes_hvg)\nprint(len(s_genes_hvg))\nprint(len(g2m_genes_hvg))",
+            "relevant_API": [
+                "scanpy.tl.score_genes_cell_cycle"
+            ]
+        },
+        {
+            "text": "# Downstream analysis\n\nCompute a `louvain` clustering with two different resolutions (`0.5` and `1`). Compare the clusterings in a table and visualize the clustering in an embedding. Optional: Compute a clustering with the `leiden` algorithm. ",
+            "code": "adata = sc.read(data_dir + 'data_processed.h5ad')\n# Perform clustering - using highly variable genes\nsc.tl.louvain(adata, resolution=1.5, key_added='louvain_r1.5')\nsc.tl.louvain(adata, resolution=0.5, key_added='louvain_r0.5')\npd.crosstab(adata.obs['louvain_r0.5'], adata.obs['louvain_r1.5'])",
+            "relevant_API": [
+                "scanpy.read",
+                "scanpy.tl.louvain"
+            ]
+        },
+        {
+            "text": "Compute the differential expression profile for each cluster with `rank_genes_groups` and visualize the results.",
+            "code": "#Visualize the clustering and how this is reflected by different technical covariates\nsc.pl.umap(adata, color=['louvain_r1.5', 'louvain_r0.5'], wspace=0.6)\nsc.pl.umap(adata, color=['log_counts', 'mt_frac'])\n#Calculate marker genes\nsc.tl.rank_genes_groups(adata, groupby='louvain_r0.5', key_added='rank_genes_r0.5')\n#Plot marker genes\nsc.pl.rank_genes_groups(adata, key='rank_genes_r0.5', fontsize=12)",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.tl.rank_genes_groups",
+                "scanpy.pl.rank_genes_groups"
+            ]
+        },
+        {
+            "text": "Use the `pandas` data frame functionality to rename your clusters and visualize your annotation.\n\n**Task:** Visualise your annotation on a UMAP as well as in a `matrixplot`, `dotplot`, `heatmap` or `violin` plots.",
+            "code": "adata.obs['annotated'] = adata.obs['louvain_r1.5'].cat.add_categories(['CD4 T cells', \n                        'CD14+ Monocytes', 'B cells', 'CD8 T cells', \n                        'FCGR3A+ Monocytes', 'NK cells', 'Dendritic cells', 'Megakaryocytes'])\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [ #add cluster name here (as string)    \n                                                            ])] = 'CD4 T cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'CD14+ Monocytes'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'B cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'CD8 T cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'FCGR3A+ Monocytes'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'NK cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'Dendritic cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'Megakaryocytes'\n#remove unused categories from annotation\nadata.obs['annotated'] = adata.obs['annotated'].cat.remove_unused_categories()\nadata.obs['annotated'].value_counts()\nsc.pl.umap(adata, color='annotated', legend_loc='on data', title='', frameon=False)\nsc.pl.umap(adata, color='annotated',  title='', frameon=True)",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "Compute PAGA on the cluster annotation and plot the graph (note: use the plot function `paga_compare`).\n\nAt this point, we have finished the data annotation. This represents another milestone in the data analysis of single cell data. Once the annotation is finished, we won't have to touch this part of the analysis again.   ",
+            "code": "sc.tl.paga(adata = adata, groups='annotated')\nrcParams['figure.figsize']=(7,7)\nsc.pl.paga_compare(adata = adata, basis='umap', frameon=True)\nadata.write(data_dir + 'data_processed.h5ad')",
+            "relevant_API": [
+                "scanpy.tl.paga",
+                "scanpy.pl.paga_compare"
+            ]
+        },
+        {
+            "text": "In this section, we want to explore a potential transition of CD14+ and FCGR3A+ Monocytes.\n\nSelect the monocytes.",
+            "code": "adata = sc.read(data_dir + 'data_processed.h5ad')\nadata_mono = adata[np.in1d(adata.obs['annotated'], \n                           ['CD14+ Monocytes', 'FCGR3A+ Monocytes'])].copy()\nadata_mono",
+            "relevant_API": [
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "Compute a diffusion pseudotime (DPT). Note: Fix a root cell as `adata.uns['iroot']` first. Visualize the pseudotime on the embedding. Compute the differentially expressed genes between the two subgroups and visualize the expression of 20 top differentially expressed genes along pseudotime.\n\nConvert UMAP indices to arrays.\n\nSet root cell to the cell with the smallest value in the first UMAP component and compute DPT.",
+            "code": "sc.tl.pca(adata_mono, svd_solver='arpack')\nsc.pp.neighbors(adata_mono)\numap_0 = [term[0] for term in adata_mono.obsm['X_umap']]\numap_1 = [term[1] for term in adata_mono.obsm['X_umap']]\nadata_mono.uns['iroot'] = np.flatnonzero(umap_0== max(umap_0))[0]\nsc.tl.dpt(adata = adata_mono)",
+            "relevant_API": [
+                "scanpy.tl.pca",
+                "scanpy.pp.neighbors",
+                "scanpy.tl.dpt"
+            ]
+        },
+        {
+            "text": "Visualise DPT on a UMAP and on a diffusion map.\n\nRun a differential test on the two groups of monocytes in order to determine characteristic genes.  ",
+            "code": "rcParams['figure.figsize']=(7,7)\nsc.pl.umap(adata_mono, color=['dpt_pseudotime', 'annotated'])\nrcParams['figure.figsize']=(7,7)\nsc.pl.diffmap(adata_mono, color=['dpt_pseudotime', 'annotated'], components=['1,2'])\nsc.pl.diffmap(adata_mono, color=['dpt_pseudotime', 'annotated'], components=['1,3'])\nsc.tl.rank_genes_groups(adata_mono, groupby='annotated', \n                        groups= ['FCGR3A+ Monocytes'], reference='CD14+ Monocytes', rankby_abs=True)",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.pl.diffmap",
+                "scanpy.tl.rank_genes_groups"
+            ]
+        },
+        {
+            "text": "In order to visualise the gene expression along pseudotime, we have to compute PAGA for the two groups of monocytes.\n\nModify the format of the data matrix, because `paga_path` takes only dense matrices (in this `scanpy` version).",
+            "code": "sc.tl.paga(adata_mono, groups='annotated')\nadata_mono.X = adata_mono.X.todense()\nrcParams['figure.figsize']=(20,10)\nsc.pl.paga_path(adata_mono, nodes=['FCGR3A+ Monocytes','CD14+ Monocytes'], \n                keys=mono_genes[:25],n_avg=10, use_raw=False, save='_monocyte_transition.pdf')",
+            "relevant_API": [
+                "scanpy.tl.paga",
+                "scanpy.pl.paga_path"
+            ]
+        }
+    ],
+    "day1_01_GColab": [
+        {
+            "text": "Install all packages for the tutorial.\n\nLoad all required packages.",
+            "code": "subprocess.run('pip install scanpy==1.4.6 umap-learn==0.4.0 anndata==0.7.1 numpy==1.18.2 scipy==1.4.1 pandas matplotlib scrublet seaborn python-igraph==0.8.0 louvain==0.6.1', shell=True)\nimport scanpy as sc\nimport anndata as ann\nimport numpy as np\nimport scipy as sp\nimport pandas as pd\nimport matplotlib.pyplot as plt\nfrom matplotlib import rcParams\nfrom matplotlib import colors\nimport os \n#doublet detection\nimport scrublet as scr\n#pretty plotting\nimport seaborn as sb\nplt.rcParams['figure.figsize']=(8,8) #rescale figures\nsc.settings.verbosity = 3\n#sc.set_figure_params(dpi=200, dpi_save=300)\nsc.logging.print_versions()",
+            "relevant_API": [
+                "scanpy.logging.print_versions"
+            ]
+        },
+        {
+            "text": "Let us check the dataset size. ",
+            "code": "adata_raw = sc.read_10x_mtx(path=file_path_raw)\nadata_raw.shape\nprint('Total number of observations: {:d}'.format(adata_raw.n_obs))",
+            "relevant_API": [
+                "scanpy.read_10x_mtx"
+            ]
+        },
+        {
+            "text": "Display the top 10 genes with the strongest contribution to the background. \n\nLet us create a filtered data matrix by filtering out all barcodes with less than 100 counts per barcode.",
+            "code": "adata_empty.var['frac_gene'].sort_values(ascending=False)[:10]\nfilter_bool, filter_idx = sc.pp.filter_cells(adata_raw, min_counts=100, inplace=False)\nadata = adata_raw[filter_bool].copy()",
+            "relevant_API": [
+                "scanpy.pp.filter_cells"
+            ]
+        },
+        {
+            "text": "Save the filtered data set to file.\n\nRead data from file to begin with the quality control.",
+            "code": "adata\nadata.write(data_dir + 'data_filtered.h5ad')\nadata = sc.read(data_dir + 'data_filtered.h5ad')",
+            "relevant_API": [
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "**Task:** Below, you find a the code to create a violin plot of the library size. Create another two violin plots displaying the number of genes and the fraction of mitochondrial reads.\n\n**Questions:** How do the count data distribute within the sample? \n\n\nNote: `pandas` does some histogram plotting with `adata.obs['n_counts'].hist()`, howecer, you will obtain prettier plots with `distplot` from `seaborn`.    \n\n**Task:** Create a histogram for the total number of genes. Further, create a histogram for the low gene count regime.",
+            "code": "#Sample quality plots\nrcParams['figure.figsize']=(7,7)\nt1 = sc.pl.violin(adata, 'n_counts',\n                  #groupby='sample',\n                  size=2, log=True, cut=0)\nt1 = sc.pl.violin() #display number of genes\nt2 = sc.pl.violin() #display the fraction of mitochondrial reads\n#Thresholding decision: counts\nrcParams['figure.figsize']=(20,5)\nfig_ind=np.arange(131, 134)\nfig = plt.figure()\nfig.subplots_adjust(hspace=0.4, wspace=0.6)\np3 = sb.distplot(adata.obs['n_counts'], \n                 kde=False, \n                 ax=fig.add_subplot(fig_ind[0]))\np4 = sb.distplot( #histogram for low count regime\n                 ax=fig.add_subplot(fig_ind[1]))\np5 = sb.distplot( #histogram for high count regime\n                 ax=fig.add_subplot(fig_ind[2]))\nplt.savefig(\"'figure_20240127164227.jpg'\")\n#Thresholding decision: genes\nrcParams['figure.figsize']=(20,5)\nfig_ind=np.arange(131, 133)\nfig = plt.figure()\nfig.subplots_adjust(hspace=0.4, wspace=0.6) #create a grid for subplots\np6 = sb.distplot(adata.obs['n_genes'], kde=False, bins=60, ax=fig.add_subplot(fig_ind[0]))\n#low number of genes regime\np7 = sb.distplot( ax=fig.add_subplot(fig_ind[1]))\nplt.savefig(\"'figure_20240127164227.jpg'\")",
+            "relevant_API": [
+                "scanpy.pl.violin"
+            ]
+        },
+        {
+            "text": "Save the count matrix as layer. \n\nWe use the logCPM normalisation: Normalise with the library size and log-scale.\n\n**Tasks:** Create a scatter plot of size factor vs library size and number of expressed genes, respectively. \n\n**Questions:** How does the library size and number of expressed genes relate to each other? Can we determine cell type specific differences?\n",
+            "code": "adata.layers['counts'] = adata.X.copy()\nsc.pp.normalize_per_cell(adata, counts_per_cell_after=1e4)\nsc.pp.log1p(adata)\nrcParams['figure.figsize']=(8,8)\nsc.pl.scatter() ",
+            "relevant_API": [
+                "scanpy.pp.normalize_per_cell",
+                "scanpy.pp.log1p",
+                "scanpy.pl.scatter"
+            ]
+        },
+        {
+            "text": "Compute highly variable genes and visualize.\n\nCompute the following embeddings: PCA, t-SNE, UMAP, diffusion map and force-directed graph. Please compute PCA first and compute nearest neighbors next. All other embeddings rely on this information. Visualize the embeddings and color by the total number of counts.",
+            "code": "sc.pp.highly_variable_genes(adata, flavor='cell_ranger', n_top_genes=2000)\nprint('\\n','Number of highly variable genes: {:d}'.format(np.sum(adata.var['highly_variable'])))\nrcParams['figure.figsize']=(10,5)\nsc.pl.highly_variable_genes(adata)\nsc.pp.pca(adata, n_comps=50, use_highly_variable=True, svd_solver='arpack')",
+            "relevant_API": [
+                "scanpy.pp.highly_variable_genes",
+                "scanpy.pl.highly_variable_genes",
+                "scanpy.pp.pca"
+            ]
+        },
+        {
+            "text": "Compute cell cycle score.",
+            "code": "sc.tl.score_genes_cell_cycle(adata, s_genes=s_genes_hvg, g2m_genes=g2m_genes_hvg)\nprint(len(s_genes_hvg))\nprint(len(g2m_genes_hvg))\nadata.obs['phase'].value_counts()",
+            "relevant_API": [
+                "scanpy.tl.score_genes_cell_cycle"
+            ]
+        },
+        {
+            "text": "# Downstream analysis\n\nCompute a `louvain` clustering with two different resolutions (`0.5` and `1.5`). Compare the clusterings in a table and visualize the clustering in an embedding. Optional: Compute a clustering with the `leiden` algorithm. ",
+            "code": "adata = sc.read(data_dir + 'data_processed.h5ad')\n# Perform clustering - using highly variable genes\nsc.tl.louvain(adata, resolution=1.5, key_added='louvain_r1.5')\nsc.tl.louvain(adata, resolution=0.5, key_added='louvain_r0.5')\npd.crosstab(adata.obs['louvain_r0.5'], adata.obs['louvain_r1.5'])",
+            "relevant_API": [
+                "scanpy.read",
+                "scanpy.tl.louvain"
+            ]
+        },
+        {
+            "text": "Compute the differential expression profile for each cluster with `rank_genes_groups` and visualize the results.",
+            "code": "#Visualize the clustering and how this is reflected by different technical covariates\nsc.pl.umap(adata, color=['louvain_r1.5', 'louvain_r0.5'], wspace=0.6)\nsc.pl.umap(adata, color=['log_counts', 'mt_frac'])\n#Calculate marker genes\nsc.tl.rank_genes_groups(adata, groupby='louvain_r0.5', key_added='rank_genes_r0.5')\n#Plot marker genes\nsc.pl.rank_genes_groups(adata, key='rank_genes_r0.5', fontsize=12)",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.tl.rank_genes_groups",
+                "scanpy.pl.rank_genes_groups"
+            ]
+        },
+        {
+            "text": "Use the `pandas` data frame functionality to rename your clusters and visualize your annotation.\n\n**Task:** Visualise your annotation on a UMAP as well as in a `matrixplot`, `dotplot`, `heatmap` or `violin` plots.",
+            "code": "adata.obs['annotated'] = adata.obs['louvain_r1.5'].cat.add_categories(['CD4 T cells', \n                        'CD14+ Monocytes', 'B cells', 'CD8 T cells', \n                        'FCGR3A+ Monocytes', 'NK cells', 'Dendritic cells', 'Megakaryocytes'])\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [ #add cluster name here (as string)    \n                                                            ])] = 'CD4 T cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'CD14+ Monocytes'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'B cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'CD8 T cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'FCGR3A+ Monocytes'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'NK cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'Dendritic cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], [])] = 'Megakaryocytes'\n#remove unused categories from annotation\nadata.obs['annotated'] = adata.obs['annotated'].cat.remove_unused_categories()\nadata.obs['annotated'].value_counts()\nsc.pl.umap(adata, color='annotated', legend_loc='on data', title='', frameon=False)\nsc.pl.umap(adata, color='annotated',  title='', frameon=True)",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "Compute PAGA on the cluster annotation and plot the graph (note: use the plot function `paga_compare`).\n\nAt this point, we have finished the data annotation. This represents another milestone in the data analysis of single cell data. Once the annotation is finished, we won't have to touch this part of the analysis again.   ",
+            "code": "sc.tl.paga(adata = adata, groups='annotated')\nrcParams['figure.figsize']=(7,7)\nsc.pl.paga_compare(adata = adata, basis='umap', frameon=True)\nadata.write(data_dir + 'data_processed.h5ad')",
+            "relevant_API": [
+                "scanpy.tl.paga",
+                "scanpy.pl.paga_compare"
+            ]
+        },
+        {
+            "text": "In this section, we want to explore a potential transition of CD14+ and FCGR3A+ Monocytes.\n\nSelect the monocytes.",
+            "code": "adata = sc.read(data_dir + 'data_processed.h5ad')\nadata_mono = adata[np.in1d(adata.obs['annotated'], \n                           ['CD14+ Monocytes', 'FCGR3A+ Monocytes'])].copy()\nadata_mono",
+            "relevant_API": [
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "Compute a diffusion pseudotime (DPT). Note: Fix a root cell as `adata.uns['iroot']` first. Visualize the pseudotime on the embedding. Compute the differentially expressed genes between the two subgroups and visualize the expression of 20 top differentially expressed genes along pseudotime.\n\nConvert UMAP indices to arrays.\n\n**Task:** Plot UMAP for `adata_mono` and color by cell type.",
+            "code": "sc.tl.pca(adata_mono, svd_solver='arpack')\nsc.pp.neighbors(adata_mono)\numap_0 = [term[0] for term in adata_mono.obsm['X_umap']]\numap_1 = [term[1] for term in adata_mono.obsm['X_umap']]\n#plot UMAP",
+            "relevant_API": [
+                "scanpy.tl.pca",
+                "scanpy.pp.neighbors"
+            ]
+        },
+        {
+            "text": "Set root cell to the cell with the largest value in the second UMAP component and compute DPT. We chose the root cell as one cell of the *FCGR3A+ monocytes*.\n\nVisualise DPT on a UMAP and on a diffusion map.",
+            "code": "adata_mono.uns['iroot'] = np.flatnonzero(umap_1== max(umap_1))[0]\nsc.tl.dpt(adata = adata_mono)\nrcParams['figure.figsize']=(7,7)\nsc.pl.umap(adata_mono, color=['dpt_pseudotime', 'annotated'])\nrcParams['figure.figsize']=(7,7)\nsc.pl.diffmap(adata_mono, color=['dpt_pseudotime', 'annotated'], components=['1,2'])\nsc.pl.diffmap(adata_mono, color=['dpt_pseudotime', 'annotated'], components=['1,3'])",
+            "relevant_API": [
+                "scanpy.tl.dpt",
+                "scanpy.pl.umap",
+                "scanpy.pl.diffmap"
+            ]
+        },
+        {
+            "text": "Run a differential test on the two groups of monocytes in order to determine characteristic genes.  ",
+            "code": "sc.tl.rank_genes_groups(adata_mono, groupby='annotated', \n                        groups= ['FCGR3A+ Monocytes'], reference='CD14+ Monocytes', rankby_abs=True)\nrcParams['figure.figsize']=(10,5)\nsc.pl.rank_genes_groups(adata_mono, size=10, n_genes=30)\nrcParams['figure.figsize']= (15,5)\nsc.pl.rank_genes_groups_violin(adata_mono, use_raw=False)",
+            "relevant_API": [
+                "scanpy.tl.rank_genes_groups",
+                "scanpy.pl.rank_genes_groups",
+                "scanpy.pl.rank_genes_groups_violin"
+            ]
+        },
+        {
+            "text": "In order to visualise the gene expression along pseudotime, we have to compute PAGA for the two groups of monocytes.\n\nModify the format of the data matrix, because `paga_path` takes only dense matrices (in this `scanpy` version).",
+            "code": "mono_genes = [idx[1][0] for idx in enumerate(adata_mono.uns['rank_genes_groups']['names'])]\nsc.tl.paga(adata_mono, groups='annotated')\nadata_mono.X = adata_mono.X.todense()",
+            "relevant_API": [
+                "scanpy.tl.paga"
+            ]
+        }
+    ],
+    "day2_02_GeneSetEnrichmentAnalysis": [
+        {
+            "text": "Of note, this notebook was created as part of a workshop, so we use extra large legend texts in all seaborn plots. You can set the context as well to 'talk' or 'paper'.",
+            "code": "import scanpy as sc\nimport anndata as ann\nimport numpy as np\nimport scipy as sp\nimport pandas as pd\nimport matplotlib.pyplot as plt\nfrom matplotlib import rcParams\nfrom matplotlib import colors\nimport os \n#doublet detection\nimport scrublet as scr\n#batch correction (not installed by default in the docker container, install via command line: pip install scanorama bbknn)\nimport scanorama as scan\n#external modules\nimport scanpy.external as sce\n#pretty plotting\nimport seaborn as sb\n#gene set enrichment analysis\nfrom gprofiler import GProfiler\n#R interface\n#import rpy2.rinterface_lib.callbacks\nimport logging\n#from rpy2.robjects import pandas2ri\n#import anndata2ri\nplt.rcParams['figure.figsize']=(8,8) #rescale figures\nsc.settings.verbosity = 3\n#sc.set_figure_params(dpi=200, dpi_save=300)\nsc.logging.print_versions()\nsb.set_context(context='poster')",
+            "relevant_API": [
+                "scanpy.logging.print_versions"
+            ]
+        },
+        {
+            "text": "The tables directory contains all tabular data output, e.g. in `.csv` or `.xls` file format. That applies to differential expression test results or overview tables such as the number of cells per cell type.\n\nThe default figure path is a POSIX path calles 'figures'. If you don't change the default figure directory, scanpy creates a subdirectory where this notebook is located.  \n\nWe read in the annotated dataset. As a reminder, the `anndata` object contains (amongst others):\n1. The raw counts as 'counts' layer. \n2. Normalised gene expression values (log-scran normalised) as `X` matrix\n3. Cell type annotation\n4. Size factors ",
+            "code": "table_dir = file_path + 'day2/tables/'\nsc.settings.figdir = file_path + 'day2/figures/'\nadata= sc.read(data_dir + 'data_processed.h5ad')",
+            "relevant_API": [
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "We want to check which condition was the reference (i.e. \"second\" with negative log-fold change) and which one was the test (i.e. \"first\" with positive log-fold change). For this purpose, we distinguish astrocytes by location in a new `obs` variable.\n\nLet us select 2 genes from the `high_in_first` list: `HES4` and `E2F2`.\n\n# Run g:profiler",
+            "code": "adata.obs['annotated_location'] = adata.obs['annotated'].cat.add_categories(['Astrocyte_SN', 'Astrocyte_C'])\nadata.obs['annotated_location'][np.logical_and(adata.obs['annotated']=='Astrocyte',\n                                             adata.obs['location']=='SN'\n                                            )] = 'Astrocyte_SN'\nadata.obs['annotated_location'][np.logical_and(adata.obs['annotated']=='Astrocyte',\n                                             adata.obs['location']=='C'\n                                            )] = 'Astrocyte_C'\nadata.obs['annotated_location'] = adata.obs['annotated_location'].cat.remove_unused_categories()\nrcParams['figure.figsize']=(10,5)\nsc.pl.violin(adata, groupby='annotated_location', keys=['HES4', 'E2F2'], rotation=90)\n#Interpretation of differentially expressed genes in paneth cells - g:profiler\ngp = GProfiler(return_dataframe=True, user_agent='g:GOSt')",
+            "relevant_API": [
+                "scanpy.pl.violin"
+            ]
+        }
+    ],
+    "day2_01_DE_Colabs": [
+        {
+            "text": "Load all required packages.\n\nOf note, this notebook was created as part of a workshop, so we use extra large legend texts in all seaborn plots. You can set the context as well to 'talk' or 'paper'.",
+            "code": "import scanpy as sc\nimport anndata as ann\nimport numpy as np\nimport scipy as sp\nimport pandas as pd\nimport matplotlib.pyplot as plt\nfrom matplotlib import rcParams\nfrom matplotlib import colors\nimport os \n#pretty plotting\nimport seaborn as sb\nimport logging\nplt.rcParams['figure.figsize']=(8,8) #rescale figures\nsc.settings.verbosity = 3\n#sc.set_figure_params(dpi=200, dpi_save=300)\nsc.logging.print_versions()\nsb.set_context(context='poster')",
+            "relevant_API": [
+                "scanpy.logging.print_versions"
+            ]
+        },
+        {
+            "text": "The tables directory contains all tabular data output, e.g. in `.csv` or `.xls` file format. That applies to differential expression test results or overview tables such as the number of cells per cell type.\n\nThe default figure path is a POSIX path calles 'figures'. If you don't change the default figure directory, scanpy creates a subdirectory where this notebook is located.  \n\nWe read in the annotated dataset. As a reminder, the `anndata` object contains (amongst others):\n1. The raw counts as 'counts' layer. \n2. Normalised gene expression values (log-scran normalised) as `X` matrix\n3. Cell type annotation\n4. Size factors ",
+            "code": "table_dir = file_path + 'day2/tables/'\nsc.settings.figdir = file_path + 'day2/figures/'\nadata = sc.read(data_dir + 'data_processed.h5ad')",
+            "relevant_API": [
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "The test of a single coefficient is the easiest differential expression test one can imagine, the comparison of two groups is a sub-scenario of this case.\n\nIn our case, testing differences of astrocytes from **cortex** and **substantia nigra** falls into this category.\n\n## Run differential expression test for two groups\n\nWe first tackle this scenario with a Wald test. The Wald test checks if a certain coefficient introduces a significant difference in the expression of a gene.\n\nIt needs a formula which describes the setup of the model and the factor of the formula `factor_loc_totest` which should be tested.\n\nUsually, this factor divides the samples into two groups, e.g. `condition 0` and `condition 1`. In this case, `diffxpy` chooses automatically the coefficient to test. If there are more than two groups specified by the factor, the coefficient which should be tested has to be set manually by specifying `coef_totest`. This coefficient should refer to one of the groups specified by `factor_loc_totest`, e.g. `condition 1`.",
+            "code": "adata\npd.crosstab(adata.obs['annotated'], adata.obs['location'])\nsc.pl.umap(adata, color=['annotated', 'location'])",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        }
+    ],
+    "day2_03_RNAvelocity": [],
+    "day1_01_solutions": [
+        {
+            "text": "Of note, this notebook was created as part of a workshop, so we use extra large legend texts in all seaborn plots. You can set the context as well to 'talk' or 'paper'.",
+            "code": "import scanpy as sc\nimport anndata as ann\nimport numpy as np\nimport scipy as sp\nimport pandas as pd\nimport matplotlib.pyplot as plt\nfrom matplotlib import rcParams\nfrom matplotlib import colors\nimport os \n#doublet detection\nimport scrublet as scr\n#batch correction (not installed by default in the docker container, install via command line: pip install scanorama bbknn)\nimport scanorama as scan\n#external modules\nimport scanpy.external as sce\n#pretty plotting\nimport seaborn as sb\n#R interface\nimport rpy2.rinterface_lib.callbacks\nimport logging\nfrom rpy2.robjects import pandas2ri\nimport anndata2ri\n#Note: this can be commented out to get more verbose R output\nrpy2.rinterface_lib.callbacks.logger.setLevel(logging.ERROR)\n# Automatically convert rpy2 outputs to pandas dataframes\npandas2ri.activate()\nanndata2ri.activate()\n# %load_ext rpy2.ipython\nplt.rcParams['figure.figsize']=(8,8) #rescale figures\nsc.settings.verbosity = 3\n#sc.set_figure_params(dpi=200, dpi_save=300)\nsc.logging.print_versions()\nsb.set_context(context='poster')",
+            "relevant_API": [
+                "scanpy.logging.print_versions"
+            ]
+        },
+        {
+            "text": "The dataset consists of 4k PBMCs (Human) provided by 10X Genomics. The data is an mtx directory with an `mtx` file (*i.e.* count matrix), two `tsv` files with barcodes (*i.e.* cell indices) and features (*i.e.* gene symbols). `Scanpy` unpacks the files (if the files are in `gz` archive format) and creates an `anndata` object with the `read_10x_mtx` function.    \n\nThe dataset is not filtered, yet. \n\nLet us check the dataset size. ",
+            "code": "file_path_raw = file_path_raw + 'raw_gene_bc_matrices/'\nadata_raw = sc.read_10x_mtx(path=file_path_raw)\nadata_raw.shape",
+            "relevant_API": [
+                "scanpy.read_10x_mtx"
+            ]
+        },
+        {
+            "text": "Note: mitochondrial genes in human start with 'MT-'\n\nLet us visualize the number of expressed genes and the number of counts as a scatter plot. ",
+            "code": "# Quality control - calculate QC covariates\nadata.obs['n_counts'] = adata.X.sum(axis = 1)\nadata.obs['log_counts'] = np.log(adata.obs['n_counts'])\nadata.obs['n_genes'] = (adata.X > 0).sum(axis = 1)\nmt_gene_mask = np.flatnonzero([gene.startswith('MT-') for gene in adata.var_names])\n# the `.A1` is only necessary as X is sparse (to transform to a dense array after summing)\nadata.obs['mt_frac'] = np.sum(adata[:, mt_gene_mask].X, axis=1).A1/adata.obs['n_counts']\n#Data quality summary plots\np1 = sc.pl.scatter(adata, 'n_counts', 'n_genes', color='mt_frac', size=40)\np2 = sc.pl.scatter(adata[adata.obs['n_counts']<15000], 'n_counts', 'n_genes', \n                   color='mt_frac', size=40)\n#Sample quality plots\nrcParams['figure.figsize']=(7,7)\nt1 = sc.pl.violin(adata, 'n_counts',\n                  #groupby='sample',\n                  size=2, log=True, cut=0)\nt2 = sc.pl.violin(adata, 'mt_frac')",
+            "relevant_API": [
+                "scanpy.pl.scatter",
+                "scanpy.pl.violin"
+            ]
+        },
+        {
+            "text": "Filter your cells according for the total number of counts, number of expressed genes and fraction of mitochondrial reads. Check the number of remaining cells after each filtering step.\n\nNext, filter out non-expressed genes. Check the number of remaining genes after filtering.\n\nLet us estimate the amount of doublets in the dataset.",
+            "code": "# Filter cells according to identified QC thresholds:\nprint('Total number of cells: {:d}'.format(adata.n_obs))\nsc.pp.filter_cells(adata, min_counts = 1000)\nprint('Number of cells after min count filter: {:d}'.format(adata.n_obs))\nsc.pp.filter_cells(adata, max_counts = 20000)\nprint('Number of cells after max count filter: {:d}'.format(adata.n_obs))\nadata = adata[adata.obs['mt_frac'] < 0.2]\nprint('Number of cells after MT filter: {:d}'.format(adata.n_obs))\nsc.pp.filter_cells(adata, min_genes = 700)\nprint('Number of cells after gene filter: {:d}'.format(adata.n_obs))\n#Filter genes:\nprint('Total number of genes: {:d}'.format(adata.n_vars))\n# Min 20 cells - filters out 0 count genes\nsc.pp.filter_genes(adata, min_cells=20)\nprint('Number of genes after cell filter: {:d}'.format(adata.n_vars))\nadata.obs['doublet_score']= np.zeros(adata.shape[0])\nadata.obs['doublet'] = np.zeros(adata.shape[0])",
+            "relevant_API": [
+                "scanpy.pp.filter_cells",
+                "scanpy.pp.filter_genes"
+            ]
+        },
+        {
+            "text": "Scrublet proposed a different threshold than we would choose based upon the histogram plot of the doublet scores.",
+            "code": "# filtering/preprocessing parameters:\nmin_counts = 2\nmin_cells = 3\nvscore_percentile = 85\nn_pc = 50\n# doublet detector parameters:\nexpected_doublet_rate = 0.02 \nsim_doublet_ratio = 3\nn_neighbors = 15\nscrub = scr.Scrublet(counts_matrix = adata.X,  \n                     n_neighbors = n_neighbors,\n                     sim_doublet_ratio = sim_doublet_ratio,\n                     expected_doublet_rate = expected_doublet_rate)\ndoublet_scores, predicted_doublets = scrub.scrub_doublets( \n                    min_counts = min_counts, \n                    min_cells = min_cells, \n                    n_prin_comps = n_pc,\n                    use_approx_neighbors = True, \n                    get_doublet_neighbor_parents = False)\nadata.obs['doublet_score'] = doublet_scores\nadata.obs['doublet'] = predicted_doublets\nrcParams['figure.figsize']=(6,6)\nsb.distplot(adata.obs['doublet_score'], bins=100, kde=False)\nplt.savefig(\"'figure_20240127164227.jpg'\")\nsc.pl.violin(adata, 'doublet_score',\n                  size=2, log=True, cut=0)\nthr = 0.05\nix_filt = adata.obs['doublet_score']<=thr\nadata = adata[ix_filt].copy()\nprint('Number of cells after doublet filter: {:d}'.format(adata.n_obs))",
+            "relevant_API": [
+                "scanpy.pl.violin"
+            ]
+        },
+        {
+            "text": "Normalize with scran size-factors and log-scale. \n\nModify the format of the resulting data matrix.",
+            "code": "# Visualize the estimated size factors\nadata.obs['size_factors'] = size_factors\nadata_pp.obs['size_factors'] = size_factors\nrcParams['figure.figsize']=(8,8)\nsc.pl.scatter(adata, 'size_factors', 'n_counts')\nsc.pl.scatter(adata, 'size_factors', 'n_genes')\nsc.pl.scatter(adata_pp, 'size_factors', 'n_counts', color='groups')\nsc.pl.scatter(adata_pp, 'size_factors', 'n_genes', color='groups')\nsb.distplot(size_factors, bins=50, kde=False)\nplt.savefig(\"'figure_20240127164227.jpg'\")\nadata.X /= adata.obs['size_factors'].values[:,None]\nsc.pp.log1p(adata)\nadata.X = np.asarray(adata.X)",
+            "relevant_API": [
+                "scanpy.pl.scatter",
+                "scanpy.pp.log1p"
+            ]
+        },
+        {
+            "text": "Free memory.\n\nCompute highly variable genes and visualize.",
+            "code": "del adata_pp\nsc.pp.highly_variable_genes(adata, flavor='cell_ranger', n_top_genes=2000)\nprint('\\n','Number of highly variable genes: {:d}'.format(np.sum(adata.var['highly_variable'])))\nrcParams['figure.figsize']=(10,5)\nsc.pl.highly_variable_genes(adata)",
+            "relevant_API": [
+                "scanpy.pp.highly_variable_genes",
+                "scanpy.pl.highly_variable_genes"
+            ]
+        },
+        {
+            "text": "Compute the following embeddings: PCA, t-SNE, UMAP, diffusion map and force-directed graph. Please compute PCA first and compute nearest neighbors next. All other embeddings rely on this information. Visualize the embeddings and color by the total number of counts.\n\nTo determine the number of informative principal components, let us review the variance contribution of each component. \n\nUsing the elbow method, we select the first 6 PCs as informative.",
+            "code": "sc.pp.pca(adata, n_comps=50, use_highly_variable=True, svd_solver='arpack')\nsc.pl.pca_variance_ratio(adata)\nsc.pp.pca(adata, n_comps=6, use_highly_variable=True, svd_solver='arpack')\nsc.pp.neighbors(adata)\nsc.tl.tsne(adata) #Note n_jobs works for MulticoreTSNE, but not regular implementation)\nsc.tl.umap(adata)\nsc.tl.diffmap(adata)\nsc.tl.draw_graph(adata)",
+            "relevant_API": [
+                "scanpy.pp.pca",
+                "scanpy.pl.pca_variance_ratio",
+                "scanpy.pp.neighbors",
+                "scanpy.tl.tsne",
+                "scanpy.tl.umap",
+                "scanpy.tl.diffmap",
+                "scanpy.tl.draw_graph"
+            ]
+        },
+        {
+            "text": "Known sources of technical variation in the data have been investigated and corrected for (e.g. batch, count depth). A known source of biological variation that can explain the data is the cell cycle. Here, gene lists from [Macosko et al., Cell 161 (2015)](https://www.sciencedirect.com/science/article/pii/S0092867415005498) is used to score the cell cycle effect in the data and classify cells by cell cycle phase. The file can be found on the [scIB github repository](https://github.com/theislab/scib/tree/master/scIB/resources/).\n\nPlease note, that the gene list was generated for human HeLa cells.",
+            "code": "rcParams['figure.figsize']=(20,10)\nfig_ind=np.arange(231, 237)\nfig = plt.figure()\nfig.subplots_adjust(hspace=0.4, wspace=0.6)\np10 = sc.pl.pca_scatter(adata, color='n_counts', ax=fig.add_subplot(fig_ind[0]), show=False)\np11 = sc.pl.tsne(adata, color='n_counts', ax=fig.add_subplot(fig_ind[1]), show=False)\np12 = sc.pl.umap(adata, color='n_counts', ax=fig.add_subplot(fig_ind[2]), show=False)\np13 = sc.pl.diffmap(adata, color='n_counts', components=['1,2'], ax=fig.add_subplot(fig_ind[3]),show=False)\np14 = sc.pl.diffmap(adata, color='n_counts', components=['1,3'], ax=fig.add_subplot(fig_ind[4]), show=False)\np15 = sc.pl.draw_graph(adata, color='n_counts', ax=fig.add_subplot(fig_ind[5]), show=False)\nplt.savefig(\"'figure_20240127164227.jpg'\")\ns_genes_file = data_dir + 's_genes_tirosh_hm.txt'\ng2m_genes_file = data_dir + 'g2m_genes_tirosh_hm.txt'\ns_genes = pd.read_table(s_genes_file, header = None).values.flatten()\ng2m_genes = pd.read_table(g2m_genes_file, header = None).values.flatten()",
+            "relevant_API": [
+                "scanpy.pl.pca_scatter",
+                "scanpy.pl.tsne",
+                "scanpy.pl.umap",
+                "scanpy.pl.diffmap",
+                "scanpy.pl.draw_graph"
+            ]
+        },
+        {
+            "text": "Compute cell cycle score per batch.",
+            "code": "s_genes_hvg = adata.var_names[np.in1d(adata.var_names, s_genes)]\ng2m_genes_hvg = adata.var_names[np.in1d(adata.var_names, g2m_genes)]\nadata.obs['S_score']= np.zeros(adata.shape[0])\nadata.obs['G2M_score'] = np.zeros(adata.shape[0])\nadata.obs['phase'] = np.zeros(adata.shape[0])\nsc.tl.score_genes_cell_cycle(adata, s_genes=s_genes_hvg, g2m_genes=g2m_genes_hvg)",
+            "relevant_API": [
+                "scanpy.tl.score_genes_cell_cycle"
+            ]
+        },
+        {
+            "text": "Of note, before we save the data to file, we convert the gene expression matrix X to the sparse format to memory.",
+            "code": "rcParams['figure.figsize']=(5,5)\nsc.pl.umap(adata, color=['S_score', 'G2M_score'], size=20, use_raw=False)\nsc.pl.umap(adata, color=['phase'], size=20, use_raw=False)\n#a classical interphase marker (which is not present in this dataset, unfortunately, is MKI67)\nsc.pl.umap(adata, color='MKI67')\nimport scipy.sparse as sparse\nadata.X = sparse.csr_matrix(adata.X)",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "# Downstream analysis\n\nCompute a `louvain` clustering with two different resolutions (`0.5` and `1`). Compare the clusterings in a table and visualize the clustering in an embedding. Optional: Compute a clustering with the `leiden` algorithm. ",
+            "code": "adata.write(data_dir + 'data_processed.h5ad')\nadata = sc.read(data_dir + 'data_processed.h5ad')\n# Perform clustering - using highly variable genes\nsc.tl.louvain(adata, resolution=1.5, key_added='louvain_r1.5')\nsc.tl.louvain(adata, resolution=0.5, key_added='louvain_r0.5')",
+            "relevant_API": [
+                "scanpy.read",
+                "scanpy.tl.louvain"
+            ]
+        },
+        {
+            "text": "Compute the differential expression profile for each cluster with `rank_genes_groups` and visualize the results.",
+            "code": "pd.crosstab(adata.obs['louvain_r0.5'], adata.obs['louvain_r1.5'])\n#Visualize the clustering and how this is reflected by different technical covariates\nsc.pl.umap(adata, color=['louvain_r1.5', 'louvain_r0.5'], wspace=0.6)\nsc.pl.umap(adata, color=['log_counts', 'mt_frac'])\n#Calculate marker genes\nsc.tl.rank_genes_groups(adata, groupby='louvain_r0.5', key_added='rank_genes_r0.5')",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.tl.rank_genes_groups"
+            ]
+        },
+        {
+            "text": "Let us define a list of marker genes from literature.\n\nLet us check if the marker genes are expressed in our dataset.",
+            "code": "marker_genes = ['IL7R', 'CD79A', 'MS4A1', 'CD8A', 'CD8B', 'LYZ', 'CD14',\n                'LGALS3', 'S100A8', 'GNLY', 'NKG7', 'KLRB1',\n                'FCGR3A', 'MS4A7', 'FCER1A', 'CST3', 'PPBP']\nnp.in1d(marker_genes, adata.var_names)\nsc.pl.umap(adata=adata, color=marker_genes, use_raw=False)",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "Use the `pandas` data frame functionality to rename your clusters and visualize your annotation.",
+            "code": "adata.obs['annotated'] = adata.obs['louvain_r1.5'].cat.add_categories(['CD4 T cells', \n                        'CD14+ Monocytes', 'B cells', 'CD8 T cells', \n                        'FCGR3A+ Monocytes', 'NK cells', 'Dendritic cells'])\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['0','2','6','11'])] = 'CD4 T cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['4','5','7','13'])] = 'CD14+ Monocytes'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['3','10'])] = 'B cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['1','8','11','14'])] = 'CD8 T cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['16'])] = 'FCGR3A+ Monocytes'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['9', '12'])] = 'NK cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['15','17'])] = 'Dendritic cells'\nadata.obs['annotated'] = adata.obs['annotated'].cat.remove_unused_categories()\nadata.obs['annotated'].value_counts()\nsc.pl.umap(adata, color='annotated', legend_loc='on data', title='', frameon=False)\nsc.pl.umap(adata, color='annotated',  title='', frameon=True)",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "Let us determine the differences in the B cell clusters by differential expression. Subcluster the B cells first.",
+            "code": "ax = sc.pl.stacked_violin(adata, marker_genes, groupby='annotated', use_raw=False)\nsc.pl.matrixplot(adata, marker_genes, groupby='annotated', use_raw=False, vmin=0)\nsc.tl.louvain(adata, resolution=0.2, restrict_to = ['annotated',['B cells']], key_added='louvain_R')",
+            "relevant_API": [
+                "scanpy.pl.stacked_violin",
+                "scanpy.pl.matrixplot",
+                "scanpy.tl.louvain"
+            ]
+        },
+        {
+            "text": "Compute PAGA on the cluster annotation and plot the graph (note: use the plot function `paga_compare`).",
+            "code": "sc.pl.rank_genes_groups_violin(adata, groups='B cells,1', n_genes=10, use_raw=False)\nsc.tl.paga(adata = adata, groups='annotated')\nrcParams['figure.figsize']=(7,7)\nsc.pl.paga_compare(adata = adata, basis='umap', frameon=True)",
+            "relevant_API": [
+                "scanpy.pl.rank_genes_groups_violin",
+                "scanpy.tl.paga",
+                "scanpy.pl.paga_compare"
+            ]
+        },
+        {
+            "text": "At this point, we have finished the data annotation. This represents another milestone in the data analysis of single cell data. Once the annotation is finished, we won't have to touch this part of the analysis again.   \n\nIn this section, we want to explore a potential transition of CD14+ and FCGR3A+ Monocytes.\n\nSelect the monocytes.",
+            "code": "adata.write(data_dir + 'data_processed.h5ad')\nadata = sc.read(data_dir + 'data_processed.h5ad')\nadata_mono = adata[np.in1d(adata.obs['annotated'], \n                           ['CD14+ Monocytes', 'FCGR3A+ Monocytes'])].copy()",
+            "relevant_API": [
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "Compute a diffusion pseudotime (DPT). Note: Fix a root cell as `adata.uns['iroot']` first. Visualize the pseudotime on the embedding. Compute the differentially expressed genes between the two subgroups and visualize the expression of 20 top differentially expressed genes along pseudotime.\n\nConvert UMAP indices to arrays.",
+            "code": "adata_mono\nsc.tl.pca(adata_mono, svd_solver='arpack')\nsc.pp.neighbors(adata_mono)\numap_0 = [term[0] for term in adata_mono.obsm['X_umap']]\numap_1 = [term[1] for term in adata_mono.obsm['X_umap']]",
+            "relevant_API": [
+                "scanpy.tl.pca",
+                "scanpy.pp.neighbors"
+            ]
+        },
+        {
+            "text": "Set root cell to the cell with the smallest value in the first UMAP component and compute DPT.\n\nVisualise DPT on a UMAP and on a diffusion map.",
+            "code": "adata_mono.uns['iroot'] = np.flatnonzero(umap_0== max(umap_0))[0]\nsc.tl.dpt(adata = adata_mono)\nrcParams['figure.figsize']=(7,7)\nsc.pl.umap(adata_mono, color=['dpt_pseudotime', 'annotated'])\nrcParams['figure.figsize']=(7,7)\nsc.pl.diffmap(adata_mono, color=['dpt_pseudotime', 'annotated'], components=['1,2'])\nsc.pl.diffmap(adata_mono, color=['dpt_pseudotime', 'annotated'], components=['1,3'])",
+            "relevant_API": [
+                "scanpy.tl.dpt",
+                "scanpy.pl.umap",
+                "scanpy.pl.diffmap"
+            ]
+        },
+        {
+            "text": "Run a differential test on the two groups of monocytes in order to determine characteristic genes.  ",
+            "code": "sc.tl.rank_genes_groups(adata_mono, groupby='annotated', \n                        groups= ['FCGR3A+ Monocytes'], reference='CD14+ Monocytes', rankby_abs=True)\nrcParams['figure.figsize']=(10,5)\nsc.pl.rank_genes_groups(adata_mono, size=10, n_genes=30)\nrcParams['figure.figsize']= (15,5)\nsc.pl.rank_genes_groups_violin(adata_mono, use_raw=False)",
+            "relevant_API": [
+                "scanpy.tl.rank_genes_groups",
+                "scanpy.pl.rank_genes_groups",
+                "scanpy.pl.rank_genes_groups_violin"
+            ]
+        },
+        {
+            "text": "In order to visualise the gene expression along pseudotime, we have to compute PAGA for the two groups of monocytes.\n\nModify the format of the data matrix, because `paga_path` takes only dense matrices (in this `scanpy` version).",
+            "code": "mono_genes = [idx[1][0] for idx in enumerate(adata_mono.uns['rank_genes_groups']['names'])]\nsc.tl.paga(adata_mono, groups='annotated')\nadata_mono.X = adata_mono.X.todense()",
+            "relevant_API": [
+                "scanpy.tl.paga"
+            ]
+        }
+    ],
+    "day2_01_DifferentialExpression": [
+        {
+            "text": "Of note, this notebook was created as part of a workshop, so we use extra large legend texts in all seaborn plots. You can set the context as well to 'talk' or 'paper'.",
+            "code": "import scanpy as sc\nimport anndata as ann\nimport numpy as np\nimport scipy as sp\nimport pandas as pd\nimport matplotlib.pyplot as plt\nfrom matplotlib import rcParams\nfrom matplotlib import colors\nimport os \n#doublet detection\nimport scrublet as scr\n#batch correction (not installed by default in the docker container, install via command line: pip install scanorama bbknn)\nimport scanorama as scan\n#external modules\nimport scanpy.external as sce\n#pretty plotting\nimport seaborn as sb\n#gene set enrichment analysis\nfrom gprofiler import GProfiler\n#R interface\n#import rpy2.rinterface_lib.callbacks\nimport logging\n#from rpy2.robjects import pandas2ri\n#import anndata2ri\nplt.rcParams['figure.figsize']=(8,8) #rescale figures\nsc.settings.verbosity = 3\n#sc.set_figure_params(dpi=200, dpi_save=300)\nsc.logging.print_versions()\nsb.set_context(context='poster')",
+            "relevant_API": [
+                "scanpy.logging.print_versions"
+            ]
+        },
+        {
+            "text": "We read in the annotated dataset. As a reminder, the `anndata` object contains (amongst others):\n1. The raw counts as 'counts' layer. \n2. Normalised gene expression values (log-scran normalised) as `X` matrix\n3. Cell type annotation\n4. Size factors ",
+            "code": "adata = sc.read(data_dir + 'data_processed.h5ad')\nadata\npd.crosstab(adata.obs['annotated'], adata.obs['location'])",
+            "relevant_API": [
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "The test of a single coefficient is the easiest differential expression test one can imagine, the comparison of two groups is a sub-scenario of this case.\n\nIn our case, testing differences of astrocytes from **cortex** and **substantia nigra** falls into this category.\n\n## Run differential expression test for two groups\n\nWe first tackle this scenario with a Wald test. The Wald test checks if a certain coefficient introduces a significant difference in the expression of a gene.\n\nIt needs a formula which describes the setup of the model and the factor of the formula `factor_loc_totest` which should be tested.\n\nUsually, this factor divides the samples into two groups, e.g. `condition 0` and `condition 1`. In this case, `diffxpy` chooses automatically the coefficient to test. If there are more than two groups specified by the factor, the coefficient which should be tested has to be set manually by specifying `coef_totest`. This coefficient should refer to one of the groups specified by `factor_loc_totest`, e.g. `condition 1`.\n\nPrepare test data.",
+            "code": "adata_new.write(data_dir + 'counts_only.h5ad')\nsc.pl.umap(adata, color=['annotated', 'location'])\n#select astrocytes\nadata_astro = adata[adata.obs['annotated'] == 'Astrocyte'].copy() ",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "**Task:** Save your filtered tables to file.\n\nIn the previous test, we did not consider cell-specific effects in the test. \nHowever, the count data is not normalised and size factors indicate cell-specific differences in e.g. cell size and sequencing depth. Therefore, we use it as additional, numeric covariate to regress out the effect described by the size factors.  \n\nFirstly, you have to indicate that you are supplying a continuous effect if you want to do so. We will otherwise turn it into a categorical effect and this will not produce the desired results. We do this so that we can make sure that there are no errors arising from numeric and categorical columns in `pandas` `DataFrames`. \n\n**Please note** that the following differential expression tests **takes considerably longer than the simple test above** because it optimizes more parameters.",
+            "code": "sc.pl.violin(adata_astro, groupby='location', keys='SLC1A2')\ntest_sf = de.test.wald(\n    data=adata_astro.layers['counts'],\n    formula_loc=\"~ 1 + location + size_factors\",\n    factor_loc_totest=\"location\",\n    as_numeric=['size_factors'],\n    gene_names=adata_astro.var_names,\n    sample_description=adata_astro.obs\n)",
+            "relevant_API": [
+                "scanpy.pl.violin"
+            ]
+        }
+    ],
+    "day1_01_GColabs_solutions": [
+        {
+            "text": "\nInstall all packages for the tutorial.\n\nLoad all required packages.",
+            "code": "subprocess.run('pip install scanpy==1.4.6 umap-learn==0.4.0 anndata==0.7.1 numpy==1.18.2 scipy==1.4.1 pandas matplotlib scrublet seaborn python-igraph==0.8.0 louvain==0.6.1', shell=True)\nimport scanpy as sc\nimport anndata as ann\nimport numpy as np\nimport scipy as sp\nimport pandas as pd\nimport matplotlib.pyplot as plt\nfrom matplotlib import rcParams\nfrom matplotlib import colors\nimport os \n#doublet detection\nimport scrublet as scr\n#pretty plotting\nimport seaborn as sb\nplt.rcParams['figure.figsize']=(8,8) #rescale figures\nsc.settings.verbosity = 3\n#sc.set_figure_params(dpi=200, dpi_save=300)\nsc.logging.print_versions()",
+            "relevant_API": [
+                "scanpy.logging.print_versions"
+            ]
+        },
+        {
+            "text": "The default figure path is a POSIX path calles 'figures'. If you don't change the default figure directory, scanpy creates a subdirectory where this notebook is located.  \n\nThe dataset consists of 4k PBMCs (Human) provided by 10X Genomics. The data is an mtx directory with an `mtx` file (*i.e.* count matrix), two `tsv` files with barcodes (*i.e.* cell indices) and features (*i.e.* gene symbols). `Scanpy` unpacks the files (if the files are in `gz` archive format) and creates an `anndata` object with the `read_10x_mtx` function.    \n\nThe dataset is not filtered, yet. ",
+            "code": "sc.settings.figdir = file_path + 'day1_beginner/figures/'\nfile_path_raw = file_path_raw + 'raw_gene_bc_matrices/'\nadata_raw = sc.read_10x_mtx(path=file_path_raw)",
+            "relevant_API": [
+                "scanpy.read_10x_mtx"
+            ]
+        },
+        {
+            "text": "Estimate the gene composition in the background. Compute the number of counts per gene over all cells first.\n\nCompute the contribution of a gene to the background signal as the total number of counts of a gene over all cells divided by the total number of counts.",
+            "code": "adata_empty.var['total_gene']= np.sum(adata_empty.X, axis=0).A1\nfilter_bool, _ = sc.pp.filter_cells(adata_raw, min_counts=100, inplace=False)\nadata = adata_raw[filter_bool].copy()",
+            "relevant_API": [
+                "scanpy.pp.filter_cells"
+            ]
+        },
+        {
+            "text": "Save the filtered data set to file.\n\n## Quality control",
+            "code": "adata\nadata.write(data_dir + 'data_filtered.h5ad')\nadata = sc.read(data_dir + 'data_filtered.h5ad')",
+            "relevant_API": [
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "Note: mitochondrial genes in human start with 'MT-'\n\nLet us visualize the number of expressed genes and the number of counts as a scatter plot. ",
+            "code": "# Quality control - calculate QC covariates\nadata.obs['n_counts'] = adata.X.sum(axis = 1)\nadata.obs['log_counts'] = np.log(adata.obs['n_counts'])\nadata.obs['n_genes'] = (adata.X > 0).sum(axis = 1)\nmt_gene_mask = np.flatnonzero([gene.startswith('MT-') for gene in adata.var_names])\n# the `.A1` is only necessary as X is sparse (to transform to a dense array after summing)\nadata.obs['mt_frac'] = np.sum(adata[:, mt_gene_mask].X, axis=1).A1/adata.obs['n_counts']\n#Data quality summary plots\np1 = sc.pl.scatter(adata, 'n_counts', 'n_genes', color='mt_frac', size=40)\np2 = sc.pl.scatter(adata[adata.obs['n_counts']<15000], 'n_counts', 'n_genes', \n                   color='mt_frac', size=40)\n#Sample quality plots\nrcParams['figure.figsize']=(7,7)\nt1 = sc.pl.violin(adata, 'n_counts',\n                  #groupby='sample',\n                  size=2, log=True, cut=0)\nt2 = sc.pl.violin(adata, 'mt_frac')",
+            "relevant_API": [
+                "scanpy.pl.scatter",
+                "scanpy.pl.violin"
+            ]
+        },
+        {
+            "text": "Filter your cells according for the total number of counts, number of expressed genes and fraction of mitochondrial reads. Check the number of remaining cells after each filtering step.\n\nNext, filter out non-expressed genes. Check the number of remaining genes after filtering.\n\nLet us estimate the amount of doublets in the dataset.",
+            "code": "# Filter cells according to identified QC thresholds:\nprint('Total number of cells: {:d}'.format(adata.n_obs))\nsc.pp.filter_cells(adata, min_counts = 1000)\nprint('Number of cells after min count filter: {:d}'.format(adata.n_obs))\nsc.pp.filter_cells(adata, max_counts = 20000)\nprint('Number of cells after max count filter: {:d}'.format(adata.n_obs))\nadata = adata[adata.obs['mt_frac'] < 0.2]\nprint('Number of cells after MT filter: {:d}'.format(adata.n_obs))\nsc.pp.filter_cells(adata, min_genes = 700)\nprint('Number of cells after gene filter: {:d}'.format(adata.n_obs))\n#Filter genes:\nprint('Total number of genes: {:d}'.format(adata.n_vars))\n# Min 20 cells - filters out 0 count genes\nsc.pp.filter_genes(adata, min_cells=20)\nprint('Number of genes after cell filter: {:d}'.format(adata.n_vars))\n# filtering/preprocessing parameters:\nmin_counts = 2\nmin_cells = 3\nvscore_percentile = 85\nn_pc = 50\n# doublet detector parameters:\nexpected_doublet_rate = 0.02 \nsim_doublet_ratio = 3\nn_neighbors = 15\nscrub = scr.Scrublet(counts_matrix = adata.X,  \n                     n_neighbors = n_neighbors,\n                     sim_doublet_ratio = sim_doublet_ratio,\n                     expected_doublet_rate = expected_doublet_rate)\ndoublet_scores, predicted_doublets = scrub.scrub_doublets( \n                    min_counts = min_counts, \n                    min_cells = min_cells, \n                    n_prin_comps = n_pc,\n                    use_approx_neighbors = True, \n                    get_doublet_neighbor_parents = False)\nadata.obs['doublet_score'] = doublet_scores\nadata.obs['doublet'] = predicted_doublets",
+            "relevant_API": [
+                "scanpy.pp.filter_cells",
+                "scanpy.pp.filter_genes"
+            ]
+        },
+        {
+            "text": "Scrublet proposed a different threshold than we would choose based upon the histogram plot of the doublet scores.\n\nIn order to group by `batch` (for future purposes, because we presently deal with one sample), let us add a `batch` covariate to the `adata` object. ",
+            "code": "rcParams['figure.figsize']=(6,6)\nsb.distplot(adata.obs['doublet_score'], bins=100, kde=False)\nplt.savefig(\"'figure_20240127164227.jpg'\")\nsc.pl.violin(adata, 'doublet_score',\n                  size=2, log=True, cut=0)\nthr = 0.05\nix_filt = adata.obs['doublet_score']<=thr\nadata = adata[ix_filt].copy()\nprint('Number of cells after doublet filter: {:d}'.format(adata.n_obs))\nadata.obs['batch'] = '1'\ndf = adata.obs[['n_genes','n_counts', 'batch']]\ndf_all = pd.DataFrame(df.groupby(by='batch')['n_genes'].apply(np.mean).values,\n                      index=df.groupby(by='batch')['n_genes'].apply(np.mean).index,\n                      columns=['mean_genes'])\ndf_all['median_genes']=df.groupby(by='batch')['n_genes'].apply(np.median).values\ndf_all['mean_counts']=df.groupby(by='batch')['n_counts'].apply(np.mean).values\ndf_all['median_counts']=df.groupby(by='batch')['n_counts'].apply(np.median).values\ndf_all",
+            "relevant_API": [
+                "scanpy.pl.violin"
+            ]
+        },
+        {
+            "text": "**Comment:** For `scran`, we have not (comprehensively) tested whether normalisation per sample or all samples jointly gives more accurate results. When we normalised per sample, observed many more differentially expressed genes across conditions (in the range of thousands). We think that normalisation per sample preserves a systematic bias while joint normalisation removes batch effects within the same cluster partially, if a cluster contains cell from several batches. No such effect of the normalisation can be observed when samples do not overlap at all. For the time being, we perform joint normalisation of all samples. \n\nWe use the logCPM normalisation: Normalise with the library size and log-scale.",
+            "code": "df_all.to_csv(table_dir + 'data_overview.csv')\nadata.layers['counts'] = adata.X.copy()\nsc.pp.normalize_per_cell(adata, counts_per_cell_after=1e4)\nsc.pp.log1p(adata)",
+            "relevant_API": [
+                "scanpy.pp.normalize_per_cell",
+                "scanpy.pp.log1p"
+            ]
+        },
+        {
+            "text": "Compute highly variable genes and visualize.",
+            "code": "# Visualize the estimated size factors\nrcParams['figure.figsize']=(8,8)\nsc.pl.scatter(adata,  'n_counts', 'n_genes')\nsc.pp.highly_variable_genes(adata, flavor='cell_ranger', n_top_genes=2000)\nprint('\\n','Number of highly variable genes: {:d}'.format(np.sum(adata.var['highly_variable'])))\nrcParams['figure.figsize']=(10,5)\nsc.pl.highly_variable_genes(adata)",
+            "relevant_API": [
+                "scanpy.pl.scatter",
+                "scanpy.pp.highly_variable_genes",
+                "scanpy.pl.highly_variable_genes"
+            ]
+        },
+        {
+            "text": "Compute the following embeddings: PCA, t-SNE, UMAP, diffusion map and force-directed graph. Please compute PCA first and compute nearest neighbors next. All other embeddings rely on this information. Visualize the embeddings and color by the total number of counts.\n\nTo determine the number of informative principal components, let us review the variance contribution of each component. \n\nUsing the elbow method, we select the first 4 PCs as informative.",
+            "code": "sc.pp.pca(adata, n_comps=50, use_highly_variable=True, svd_solver='arpack')\nsc.pl.pca_variance_ratio(adata)\nsc.pp.pca(adata, n_comps=4, use_highly_variable=True, svd_solver='arpack')\nsc.pp.neighbors(adata)\nsc.tl.tsne(adata) #Note n_jobs works for MulticoreTSNE, but not regular implementation)\nsc.tl.umap(adata)\nsc.tl.diffmap(adata)\nsc.tl.draw_graph(adata)",
+            "relevant_API": [
+                "scanpy.pp.pca",
+                "scanpy.pl.pca_variance_ratio",
+                "scanpy.pp.neighbors",
+                "scanpy.tl.tsne",
+                "scanpy.tl.umap",
+                "scanpy.tl.diffmap",
+                "scanpy.tl.draw_graph"
+            ]
+        },
+        {
+            "text": "Known sources of technical variation in the data have been investigated and corrected for (e.g. batch, count depth). A known source of biological variation that can explain the data is the cell cycle. Here, gene lists from [Macosko et al., Cell 161 (2015)](https://www.sciencedirect.com/science/article/pii/S0092867415005498) is used to score the cell cycle effect in the data and classify cells by cell cycle phase. The file can be found on the [scIB github repository](https://github.com/theislab/scib/tree/master/scIB/resources/).\n\nPlease note, that the gene list was generated for human HeLa cells.",
+            "code": "rcParams['figure.figsize']=(20,10)\nfig_ind=np.arange(231, 237)\nfig = plt.figure()\nfig.subplots_adjust(hspace=0.4, wspace=0.6)\np10 = sc.pl.pca_scatter(adata, color='n_counts', ax=fig.add_subplot(fig_ind[0]), show=False)\np11 = sc.pl.tsne(adata, color='n_counts', ax=fig.add_subplot(fig_ind[1]), show=False)\np12 = sc.pl.umap(adata, color='n_counts', ax=fig.add_subplot(fig_ind[2]), show=False)\np13 = sc.pl.diffmap(adata, color='n_counts', components=['1,2'], ax=fig.add_subplot(fig_ind[3]),show=False)\np14 = sc.pl.diffmap(adata, color='n_counts', components=['1,3'], ax=fig.add_subplot(fig_ind[4]), show=False)\np15 = sc.pl.draw_graph(adata, color='n_counts', ax=fig.add_subplot(fig_ind[5]), show=False)\nplt.savefig(\"'figure_20240127164227.jpg'\")\ns_genes_file = data_dir + 's_genes_tirosh_hm.txt'\ng2m_genes_file = data_dir + 'g2m_genes_tirosh_hm.txt'\ns_genes = pd.read_table(s_genes_file, header = None).values.flatten()\ng2m_genes = pd.read_table(g2m_genes_file, header = None).values.flatten()",
+            "relevant_API": [
+                "scanpy.pl.pca_scatter",
+                "scanpy.pl.tsne",
+                "scanpy.pl.umap",
+                "scanpy.pl.diffmap",
+                "scanpy.pl.draw_graph"
+            ]
+        },
+        {
+            "text": "Compute cell cycle score.",
+            "code": "s_genes_hvg = adata.var_names[np.in1d(adata.var_names, s_genes)]\ng2m_genes_hvg = adata.var_names[np.in1d(adata.var_names, g2m_genes)]\nsc.tl.score_genes_cell_cycle(adata, s_genes=s_genes_hvg, g2m_genes=g2m_genes_hvg)\nprint(len(s_genes_hvg))\nprint(len(g2m_genes_hvg))",
+            "relevant_API": [
+                "scanpy.tl.score_genes_cell_cycle"
+            ]
+        },
+        {
+            "text": "Let us check whether MKI67 is present in the dataset.",
+            "code": "adata.obs['phase'].value_counts()\nsum(adata.var_names == 'MKI67')\nrcParams['figure.figsize']=(5,5)\nsc.pl.umap(adata, color=['S_score', 'G2M_score'], size=20, use_raw=False)\nsc.pl.umap(adata, color=['phase'], size=20, use_raw=False)\n#a classical interphase marker (which is not present in this dataset, unfortunately, is MKI67)\nsc.pl.umap(adata, color='MKI67')",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "At this point of the analysis, we have reached an important milestone as we finished the pre-processing and enter the downstream analysis part. **Ideally, we don't have to revisit this part again.**\n\n# Downstream analysis\n\nCompute a `louvain` clustering with two different resolutions (`0.5` and `1.5`). Compare the clusterings in a table and visualize the clustering in an embedding. Optional: Compute a clustering with the `leiden` algorithm. ",
+            "code": "adata.write(data_dir + 'data_processed.h5ad')\nadata = sc.read(data_dir + 'data_processed.h5ad')\n# Perform clustering - using highly variable genes\nsc.tl.louvain(adata, resolution=1.5, key_added='louvain_r1.5')\nsc.tl.louvain(adata, resolution=0.5, key_added='louvain_r0.5')",
+            "relevant_API": [
+                "scanpy.read",
+                "scanpy.tl.louvain"
+            ]
+        },
+        {
+            "text": "Compute the differential expression profile for each cluster with `rank_genes_groups` and visualize the results.",
+            "code": "pd.crosstab(adata.obs['louvain_r0.5'], adata.obs['louvain_r1.5'])\n#Visualize the clustering and how this is reflected by different technical covariates\nsc.pl.umap(adata, color=['louvain_r1.5', 'louvain_r0.5'], wspace=0.6)\nsc.pl.umap(adata, color=['log_counts', 'mt_frac'])\n#Calculate marker genes\nsc.tl.rank_genes_groups(adata, groupby='louvain_r0.5', key_added='rank_genes_r0.5')",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.tl.rank_genes_groups"
+            ]
+        },
+        {
+            "text": "Let us define a list of marker genes from literature.\n\nLet us check if the marker genes are expressed in our dataset.",
+            "code": "marker_genes = ['IL7R', 'CD79A', 'MS4A1', 'CD8A', 'CD8B', 'LYZ', 'CD14',\n                'LGALS3', 'S100A8', 'GNLY', 'NKG7', 'KLRB1',\n                'FCGR3A', 'MS4A7', 'FCER1A', 'CST3', 'PPBP']\nnp.in1d(marker_genes, adata.var_names)\nsc.pl.umap(adata=adata, color=marker_genes, use_raw=False)",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "Use the `pandas` data frame functionality to rename your clusters and visualize your annotation.",
+            "code": "adata.obs['annotated'] = adata.obs['louvain_r1.5'].cat.add_categories(['CD4 T cells', \n                        'CD14+ Monocytes', 'B cells', 'CD8 T cells', \n                        'FCGR3A+ Monocytes', 'NK cells', 'Dendritic cells'])\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['0','2','8','10'])] = 'CD4 T cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['3','6','11','15'])] = 'CD14+ Monocytes'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['1','9'])] = 'B cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['4','5'])] = 'CD8 T cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['14'])] = 'FCGR3A+ Monocytes'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['7', '12'])] = 'NK cells'\nadata.obs['annotated'][np.in1d(adata.obs['annotated'], ['13','16'])] = 'Dendritic cells'\nadata.obs['annotated'] = adata.obs['annotated'].cat.remove_unused_categories()\nadata.obs['annotated'].value_counts()\nsc.pl.umap(adata, color='annotated', legend_loc='on data', title='', frameon=False)\nsc.pl.umap(adata, color='annotated',  title='', frameon=True)",
+            "relevant_API": [
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "Let us determine the differences in the B cell clusters by differential expression. Subcluster the B cells first.",
+            "code": "ax = sc.pl.stacked_violin(adata, marker_genes, groupby='annotated', use_raw=False)\nsc.pl.matrixplot(adata, marker_genes, groupby='annotated', use_raw=False, vmin=0)\nsc.tl.louvain(adata, resolution=0.2, restrict_to = ['annotated',['B cells']], key_added='louvain_R')",
+            "relevant_API": [
+                "scanpy.pl.stacked_violin",
+                "scanpy.pl.matrixplot",
+                "scanpy.tl.louvain"
+            ]
+        },
+        {
+            "text": "Compute PAGA on the cluster annotation and plot the graph (note: use the plot function `paga_compare`).",
+            "code": "sc.pl.rank_genes_groups_violin(adata, groups='B cells,1', n_genes=10, use_raw=False)\nsc.tl.paga(adata = adata, groups='annotated')\nrcParams['figure.figsize']=(7,7)\nsc.pl.paga_compare(adata = adata, basis='umap', frameon=True)",
+            "relevant_API": [
+                "scanpy.pl.rank_genes_groups_violin",
+                "scanpy.tl.paga",
+                "scanpy.pl.paga_compare"
+            ]
+        },
+        {
+            "text": "At this point, we have finished the data annotation. This represents another milestone in the data analysis of single cell data. Once the annotation is finished, we won't have to touch this part of the analysis again.   \n\nIn this section, we want to explore a potential transition of CD14+ and FCGR3A+ Monocytes.\n\nSelect the monocytes.",
+            "code": "adata.write(data_dir + 'data_processed.h5ad')\nadata = sc.read(data_dir + 'data_processed.h5ad')\nadata_mono = adata[np.in1d(adata.obs['annotated'], \n                           ['CD14+ Monocytes', 'FCGR3A+ Monocytes'])].copy()",
+            "relevant_API": [
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "Compute a diffusion pseudotime (DPT). Note: Fix a root cell as `adata.uns['iroot']` first. Visualize the pseudotime on the embedding. Compute the differentially expressed genes between the two subgroups and visualize the expression of 20 top differentially expressed genes along pseudotime.\n\nConvert UMAP indices to arrays.",
+            "code": "adata_mono\nsc.tl.pca(adata_mono, svd_solver='arpack')\nsc.pp.neighbors(adata_mono)\numap_0 = [term[0] for term in adata_mono.obsm['X_umap']]\numap_1 = [term[1] for term in adata_mono.obsm['X_umap']]",
+            "relevant_API": [
+                "scanpy.tl.pca",
+                "scanpy.pp.neighbors"
+            ]
+        },
+        {
+            "text": "Set root cell to the cell with the smallest value in the first UMAP component and compute DPT.\n\nVisualise DPT on a UMAP and on a diffusion map.",
+            "code": "adata_mono.uns['iroot'] = np.flatnonzero(umap_1== max(umap_1))[0]\nsc.tl.dpt(adata = adata_mono)\nrcParams['figure.figsize']=(7,7)\nsc.pl.umap(adata_mono, color=['dpt_pseudotime', 'annotated'])\nrcParams['figure.figsize']=(7,7)\nsc.pl.diffmap(adata_mono, color=['dpt_pseudotime', 'annotated'], components=['1,2'])\nsc.pl.diffmap(adata_mono, color=['dpt_pseudotime', 'annotated'], components=['1,3'])",
+            "relevant_API": [
+                "scanpy.tl.dpt",
+                "scanpy.pl.umap",
+                "scanpy.pl.diffmap"
+            ]
+        },
+        {
+            "text": "Run a differential test on the two groups of monocytes in order to determine characteristic genes.  ",
+            "code": "sc.tl.rank_genes_groups(adata_mono, groupby='annotated', \n                        groups= ['FCGR3A+ Monocytes'], reference='CD14+ Monocytes', rankby_abs=True)\nrcParams['figure.figsize']=(10,5)\nsc.pl.rank_genes_groups(adata_mono, size=10, n_genes=30)\nrcParams['figure.figsize']= (15,5)\nsc.pl.rank_genes_groups_violin(adata_mono, use_raw=False)",
+            "relevant_API": [
+                "scanpy.tl.rank_genes_groups",
+                "scanpy.pl.rank_genes_groups",
+                "scanpy.pl.rank_genes_groups_violin"
+            ]
+        },
+        {
+            "text": "In order to visualise the gene expression along pseudotime, we have to compute PAGA for the two groups of monocytes.\n\nModify the format of the data matrix, because `paga_path` takes only dense matrices (in this `scanpy` version).",
+            "code": "mono_genes = [idx[1][0] for idx in enumerate(adata_mono.uns['rank_genes_groups']['names'])]\nsc.tl.paga(adata_mono, groups='annotated')\nadata_mono.X = adata_mono.X.todense()",
+            "relevant_API": [
+                "scanpy.tl.paga"
+            ]
+        }
+    ],
+    "basic-analysis": [
+        {
+            "text": "* This tutorial demonstrates how to work with spatial transcriptomics data within Scanpy.\n* We focus on 10x Genomics [Visium](https://www.10xgenomics.com/spatial-transcriptomics/) data, and provide an example for [MERFISH](#MERFISH-example).\n\n## Reading the data\n\nWe will use a Visium spatial transcriptomics dataset of the human lymphnode, which is publicly available from the 10x genomics website: [link](https://support.10xgenomics.com/spatial-gene-expression/datasets/1.0.0/V1_Human_Lymph_Node).\n\nThe function [datasets.visium_sge()](https://scanpy.readthedocs.io/en/latest/api/scanpy.datasets.visium_sge.html) downloads the dataset from 10x Genomics and returns an `AnnData` object that contains counts, images and spatial coordinates. We will calculate standards QC metrics with [pp.calculate_qc_metrics](https://scanpy.readthedocs.io/en/latest/api/scanpy.pp.calculate_qc_metrics.html) and percentage of mitochondrial read counts per sample.\n\nWhen using your own Visium data, use [sc.read_visium()](https://scanpy.readthedocs.io/en/latest/api/scanpy.read_visium.html) function to import it.",
+            "code": "import scanpy as sc\nimport pandas as pd\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nsc.logging.print_versions()\nsc.set_figure_params(facecolor=\"white\", figsize=(8, 8))\nsc.settings.verbosity = 3\nadata = sc.datasets.visium_sge(sample_id=\"V1_Human_Lymph_Node\")\nadata.var_names_make_unique()\nadata.var[\"mt\"] = adata.var_names.str.startswith(\"MT-\")\nsc.pp.calculate_qc_metrics(adata, qc_vars=[\"mt\"], inplace=True)",
+            "relevant_API": [
+                "scanpy.logging.print_versions",
+                "scanpy.set_figure_params",
+                "scanpy.datasets.visium_sge",
+                "scanpy.pp.calculate_qc_metrics"
+            ]
+        },
+        {
+            "text": "This is how the adata structure looks like for Visium data\n\nWe perform some basic filtering of spots based on total counts and expressed genes",
+            "code": "adata\nfig, axs = plt.subplots(1, 4, figsize=(15, 4))\nsns.distplot(adata.obs[\"total_counts\"], kde=False, ax=axs[0])\nsns.distplot(adata.obs[\"total_counts\"][adata.obs[\"total_counts\"] < 10000], kde=False, bins=40, ax=axs[1])\nsns.distplot(adata.obs[\"n_genes_by_counts\"], kde=False, bins=60, ax=axs[2])\nsns.distplot(adata.obs[\"n_genes_by_counts\"][adata.obs[\"n_genes_by_counts\"] < 4000], kde=False, bins=60, ax=axs[3])\nsc.pp.filter_cells(adata, min_counts=5000)\nsc.pp.filter_cells(adata, max_counts=35000)\nadata = adata[adata.obs[\"pct_counts_mt\"] < 20]\nprint(f\"#cells after MT filter: {adata.n_obs}\")\nsc.pp.filter_genes(adata, min_cells=10)",
+            "relevant_API": [
+                "scanpy.pp.filter_cells",
+                "scanpy.pp.filter_genes"
+            ]
+        },
+        {
+            "text": "We proceed to normalize Visium counts data with the built-in `normalize_total` method from Scanpy, and detect highly-variable genes (for later). Note that there are alternatives for normalization (see discussion in [[Luecken19](https://www.embopress.org/doi/full/10.15252/msb.20188746)], and more recent alternatives such as [SCTransform](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1874-1) or [GLM-PCA](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1861-6)).\n\nTo embed and cluster the manifold encoded by transcriptional similarity, we proceed as in the standard clustering tutorial.\n\nWe plot some covariates to check if there is any particular structure in the UMAP associated with total counts and detected genes.",
+            "code": "sc.pp.normalize_total(adata, inplace=True)\nsc.pp.log1p(adata)\nsc.pp.highly_variable_genes(adata, flavor=\"seurat\", n_top_genes=2000)\nsc.pp.pca(adata)\nsc.pp.neighbors(adata)\nsc.tl.umap(adata)\nsc.tl.leiden(adata, key_added=\"clusters\")\nplt.rcParams[\"figure.figsize\"] = (4, 4)\nsc.pl.umap(adata, color=[\"total_counts\", \"n_genes_by_counts\", \"clusters\"], wspace=0.4)",
+            "relevant_API": [
+                "scanpy.pp.normalize_total",
+                "scanpy.pp.log1p",
+                "scanpy.pp.highly_variable_genes",
+                "scanpy.pp.pca",
+                "scanpy.pp.neighbors",
+                "scanpy.tl.umap",
+                "scanpy.tl.leiden",
+                "scanpy.pl.umap"
+            ]
+        },
+        {
+            "text": "Let us now take a look at how `total_counts` and `n_genes_by_counts` behave in spatial coordinates. We will overlay the circular spots on top of the Hematoxylin and eosin stain (H&E) image provided, using the function [sc.pl.spatial](https://scanpy.readthedocs.io/en/latest/api/scanpy.pl.spatial.html).\n\nThe function [sc.pl.spatial](https://scanpy.readthedocs.io/en/latest/api/scanpy.pl.spatial.html) accepts 4 additional parameters:\n\n* `img_key`: key where the img is stored in the `adata.uns` element\n* `crop_coord`: coordinates to use for cropping (left, right, top, bottom)\n* `alpha_img`: alpha value for the transcparency of the image\n* `bw`: flag to convert the image into gray scale  \n\nFurthermore, in [sc.pl.spatial](https://scanpy.readthedocs.io/en/latest/api/scanpy.pl.spatial.html), the `size` parameter changes its behaviour: it becomes a scaling factor for the spot sizes.\n\nBefore, we performed clustering in gene expression space, and visualized the results with UMAP. By visualizing clustered samples in spatial dimensions, we can gain insights into tissue organization and, potentially, into inter-cellular communication.\n\nWe can zoom in specific regions of interests to gain qualitative insights. Furthermore, by changing the alpha values of the spots, we can visualize better the underlying tissue morphology from the H&E image.",
+            "code": "plt.rcParams[\"figure.figsize\"] = (8, 8)\nsc.pl.spatial(adata, img_key=\"hires\", color=[\"total_counts\", \"n_genes_by_counts\"])\nsc.pl.spatial(adata, img_key=\"hires\", color=\"clusters\", size=1.5)\nsc.pl.spatial(adata, img_key=\"hires\", color=\"clusters\", groups=[\"0\", \"5\"], crop_coord=[1200, 1700, 1900, 1000], alpha=0.5, size=1.3)",
+            "relevant_API": [
+                "scanpy.pl.spatial"
+            ]
+        },
+        {
+            "text": "Let us further inspect cluster 5, which occurs in small groups of spots across the image.\n\nCompute marker genes and plot a heatmap with expression levels of its top 10 marker genes across clusters.\n\nWe see that *CR2* recapitulates the spatial structure.\n\nFirst, we convert normalized counts and coordinates to pandas dataframe, needed for inputs to spatialDE.\n\nRunning SpatialDE takes considerable time.",
+            "code": "sc.tl.rank_genes_groups(adata, \"clusters\", method=\"t-test\")\nsc.pl.rank_genes_groups_heatmap(adata, groups=\"5\", n_genes=10, groupby=\"clusters\")\nsc.pl.spatial(adata, img_key=\"hires\", color=[\"clusters\", \"CR2\"])\nimport SpatialDE",
+            "relevant_API": [
+                "scanpy.tl.rank_genes_groups",
+                "scanpy.pl.rank_genes_groups_heatmap",
+                "scanpy.pl.spatial"
+            ]
+        },
+        {
+            "text": "In case you have spatial data generated with FISH-based techniques, just read the cordinate table and assign it to the `adata.obsm` element. \n\nLet's take a look at the example from [Xia et al. 2019](https://www.pnas.org/content/116/39/19490.abstract).\n\nFirst, we need to download the coordinate and counts data from the [original publication](https://www.pnas.org/content/116/39/19490/tab-figures-data).",
+            "code": "sc.pl.spatial(adata, img_key=\"hires\", color=[\"COL1A2\", \"SYPL1\"], alpha=0.7)\nimport urllib.request\nurl_coord = \"https://www.pnas.org/highwire/filestream/887973/field_highwire_adjunct_files/15/pnas.1912459116.sd15.xlsx\"\nfilename_coord = \"pnas.1912459116.sd15.xlsx\"\nurllib.request.urlretrieve(url_coord, filename_coord)",
+            "relevant_API": [
+                "scanpy.pl.spatial"
+            ]
+        },
+        {
+            "text": "And read the data in a AnnData object.",
+            "code": "url_counts = \"https://www.pnas.org/highwire/filestream/887973/field_highwire_adjunct_files/12/pnas.1912459116.sd12.csv\"\nfilename_counts = \"pnas.1912459116.sd12.csv\"\nurllib.request.urlretrieve(url_counts, filename_counts)\ncoordinates = pd.read_excel(\"./pnas.1912459116.sd15.xlsx\", index_col=0)\ncounts = sc.read_csv(\"./pnas.1912459116.sd12.csv\").transpose()\nadata_merfish = counts[coordinates.index, :]\nadata_merfish.obsm[\"spatial\"] = coordinates.to_numpy()",
+            "relevant_API": [
+                "scanpy.read_csv"
+            ]
+        },
+        {
+            "text": "We will perform standard preprocessing and dimensionality reduction.\n\nThe experiment consisted in measuring gene expression counts from a single cell type (cultured U2-OS cells). Clusters consist of cell states at different stages of the cell cycle. We don't expect to see specific structure in spatial dimensions given the experimental setup.\n\nWe can visualize the clusters obtained from running Leiden in UMAP space and spatial coordinates like this.",
+            "code": "sc.pp.normalize_per_cell(adata_merfish, counts_per_cell_after=1e6)\nsc.pp.log1p(adata_merfish)\nsc.pp.pca(adata_merfish, n_comps=15)\nsc.pp.neighbors(adata_merfish)\nsc.tl.umap(adata_merfish)\nsc.tl.leiden(adata_merfish, key_added=\"clusters\", resolution=0.5)\nadata_merfish\nsc.pl.umap(adata_merfish, color=\"clusters\")\nsc.pl.embedding(adata_merfish, basis=\"spatial\", color=\"clusters\")",
+            "relevant_API": [
+                "scanpy.pp.normalize_per_cell",
+                "scanpy.pp.log1p",
+                "scanpy.pp.pca",
+                "scanpy.pp.neighbors",
+                "scanpy.tl.umap",
+                "scanpy.tl.leiden",
+                "scanpy.pl.umap",
+                "scanpy.pl.embedding"
+            ]
+        }
+    ],
+    "integration-scanorama": [
+        {
+            "text": "### Loading libraries\n\n### Reading the data\n\nWe will use two **Visium** spatial transcriptomics dataset of the mouse brain (Sagittal), which are publicly available from the [10x genomics website](https://support.10xgenomics.com/spatial-gene-expression/datasets/).\n\nThe function `datasets.visium_sge()` downloads the dataset from 10x genomics and returns an AnnData object that contains counts, images and spatial coordinates. We will calculate standards QC metrics with `pp.calculate_qc_metrics` and visualize them.\n\nWhen using your own Visium data, use Scanpy's `read_visium()` [function](https://icb-scanpy.readthedocs-hosted.com/en/latest/api/scanpy.read_visium.html) to import it.\n",
+            "code": "import scanpy as sc\nimport anndata as an\nimport pandas as pd\nimport numpy as np\nimport matplotlib as mpl\nimport matplotlib.pyplot as plt\nimport seaborn as sns\nimport scanorama\nsc.logging.print_versions()\nsc.set_figure_params(facecolor=\"white\", figsize=(8, 8))\nsc.settings.verbosity = 3\nadata_spatial_anterior = sc.datasets.visium_sge(\n    sample_id=\"V1_Mouse_Brain_Sagittal_Anterior\"\n)\nadata_spatial_posterior = sc.datasets.visium_sge(\n    sample_id=\"V1_Mouse_Brain_Sagittal_Posterior\"\n)",
+            "relevant_API": [
+                "scanpy.logging.print_versions",
+                "scanpy.set_figure_params",
+                "scanpy.datasets.visium_sge"
+            ]
+        },
+        {
+            "text": "`sc.datasets.visium_sge` downloads the *filtered* visium dataset, the output of [spaceranger](https://support.10xgenomics.com/spatial-gene-expression/software/pipelines/latest/what-is-space-ranger) that contains only spots within the tissue slice. Indeed, looking at standard QC metrics we can observe that the samples do not contain empty spots.\n\nWe proceed to normalize Visium counts data with the built-in `normalize_total` method from Scanpy, and detect highly-variable genes (for later). As discussed previously, note that there are more sensible alternatives for normalization (see discussion in [sc-tutorial paper](https://www.embopress.org/doi/full/10.15252/msb.20188746) and more recent alternatives such as [SCTransform](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1874-1) or [GLM-PCA](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1861-6)).",
+            "code": "adata_spatial_anterior.var_names_make_unique()\nadata_spatial_posterior.var_names_make_unique()\nsc.pp.calculate_qc_metrics(adata_spatial_anterior, inplace=True)\nsc.pp.calculate_qc_metrics(adata_spatial_posterior, inplace=True)\nfor name, adata in [\n    (\"anterior\", adata_spatial_anterior),\n    (\"posterior\", adata_spatial_posterior),\n]:\n    fig, axs = plt.subplots(1, 4, figsize=(12, 3))\n    fig.suptitle(f\"Covariates for filtering: {name}\")\n    sns.distplot(adata.obs[\"total_counts\"], kde=False, ax=axs[0])\n    sns.distplot(\n        adata.obs[\"total_counts\"][adata.obs[\"total_counts\"] < 20000],\n        kde=False,\n        bins=40,\n        ax=axs[1],\n    )\n    sns.distplot(adata.obs[\"n_genes_by_counts\"], kde=False, bins=60, ax=axs[2])\n    sns.distplot(\n        adata.obs[\"n_genes_by_counts\"][adata.obs[\"n_genes_by_counts\"] < 4000],\n        kde=False,\n        bins=60,\n        ax=axs[3],\n    )\nfor adata in [\n    adata_spatial_anterior,\n    adata_spatial_posterior,\n]:\n    sc.pp.normalize_total(adata, inplace=True)\n    sc.pp.log1p(adata)\n    sc.pp.highly_variable_genes(adata, flavor=\"seurat\", n_top_genes=2000, inplace=True)",
+            "relevant_API": [
+                "scanpy.pp.calculate_qc_metrics",
+                "scanpy.pp.normalize_total",
+                "scanpy.pp.log1p",
+                "scanpy.pp.highly_variable_genes"
+            ]
+        },
+        {
+            "text": "### Data integration\n\nWe are now ready to perform integration of the two dataset. As mentioned before, we will be using Scanorama for that. Scanorama returns two lists, one for the integrated embeddings and one for the corrected counts, for each dataset. \nWe would like to note that in this context using [BBKNN](https://scanpy.readthedocs.io/en/stable/external/scanpy.external.pp.bbknn.html) or [Ingest](https://scanpy.readthedocs.io/en/stable/api/scanpy.tl.ingest.html) is also possible.\n\nWe will concatenate the two datasets and save the integrated embeddings in `adata_spatial.obsm['scanorama_embedding']`. Furthermore we will compute UMAP to visualize the results and qualitatively assess the data integration task.\n\nNotice that we are concatenating the two dataset with `uns_merge=\"unique\"` strategy, in order to keep both images from the visium datasets in the concatenated anndata object.",
+            "code": "adatas = [adata_spatial_anterior, adata_spatial_posterior]\nadatas_cor = scanorama.correct_scanpy(adatas, return_dimred=True)\nadata_spatial = sc.concat(\n    adatas_cor,\n    label=\"library_id\",\n    uns_merge=\"unique\",\n    keys=[\n        k\n        for d in [\n            adatas_cor[0].uns[\"spatial\"],\n            adatas_cor[1].uns[\"spatial\"],\n        ]\n        for k, v in d.items()\n    ],\n    index_unique=\"-\",\n)\nsc.pp.neighbors(adata_spatial, use_rep=\"X_scanorama\")\nsc.tl.umap(adata_spatial)\nsc.tl.leiden(adata_spatial, key_added=\"clusters\")",
+            "relevant_API": [
+                "scanpy.concat",
+                "scanpy.pp.neighbors",
+                "scanpy.tl.umap",
+                "scanpy.tl.leiden"
+            ]
+        },
+        {
+            "text": "We can also visualize the clustering result in spatial coordinates. For that, we first need to save the cluster colors in a dictionary. We can then plot the Visium tissue fo the Anterior and Posterior Sagittal view, alongside each other.",
+            "code": "sc.pl.umap(\n    adata_spatial, color=[\"clusters\", \"library_id\"], palette=sc.pl.palettes.default_20\n)\nclusters_colors = dict(\n    zip([str(i) for i in range(18)], adata_spatial.uns[\"clusters_colors\"])\n)\nfig, axs = plt.subplots(1, 2, figsize=(15, 10))\nfor i, library in enumerate(\n    [\"V1_Mouse_Brain_Sagittal_Anterior\", \"V1_Mouse_Brain_Sagittal_Posterior\"]\n):\n    ad = adata_spatial[adata_spatial.obs.library_id == library, :].copy()\n    sc.pl.spatial(\n        ad,\n        img_key=\"hires\",\n        library_id=library,\n        color=\"clusters\",\n        size=1.5,\n        palette=[\n            v\n            for k, v in clusters_colors.items()\n            if k in ad.obs.clusters.unique().tolist()\n        ],\n        legend_loc=None,\n        show=False,\n        ax=axs[i],\n    )\nplt.tight_layout()",
+            "relevant_API": [
+                "scanpy.pl.umap",
+                "scanpy.pl.spatial"
+            ]
+        },
+        {
+            "text": "### Data integration and label transfer from scRNA-seq dataset\n\ne can also perform data integration between one scRNA-seq dataset and one spatial transcriptomics dataset. Such task is particularly useful because it allows us to transfer cell type labels to the Visium dataset, which were dentified from the scRNA-seq dataset. \n\nFor this task, we will be using a dataset from [Tasic et al.](https://www.nature.com/articles/s41586-018-0654-5), where the mouse cortex was profiled with smart-seq technology.\n\nThe dataset can be downloaded from **[GEO](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE115746)** [count](https://ftp.ncbi.nlm.nih.gov/geo/series/GSE115nnn/GSE115746/suppl/GSE115746_cells_exon_counts.csv.gz) - [metadata](https://ftp.ncbi.nlm.nih.gov/geo/series/GSE115nnn/GSE115746/suppl/GSE115746_complete_metadata_28706-cells.csv.gz).\nConveniently, you can also download the pre-processed dataset in h5ad format from [here](https://hmgubox.helmholtz-muenchen.de/f/4ef254675e2a41f89835/?dl=1).\n\nSince the dataset was generated from the mouse cortex, we will subset the visium dataset in order to select only the spots part of the cortex. Note that the integration can also be performed on the whole brain slice, but it would give rise to false positive cell type assignments and and therefore it should be interpreted with more care.\n\nThe integration task will be performed with Scanorama: each Visium dataset will be integrated with the smart-seq cortex dataset.\n\nSubset the spatial anndata to (approximately) selects only spots belonging to the cortex.\n\nRun integration with Scanorama",
+            "code": "adata_cortex = sc.read(\"./adata_processed.h5ad\")\nadata_anterior_subset = adata_spatial_anterior[\n    adata_spatial_anterior.obsm[\"spatial\"][:, 1] < 6000, :\n]\nadata_posterior_subset = adata_spatial_posterior[\n    (adata_spatial_posterior.obsm[\"spatial\"][:, 1] < 4000)\n    & (adata_spatial_posterior.obsm[\"spatial\"][:, 0] < 6000),\n    :,\n]\nadatas_anterior = [adata_cortex, adata_anterior_subset]\nadatas_posterior = [adata_cortex, adata_posterior_subset]\n# Integration.\nadatas_cor_anterior = scanorama.correct_scanpy(adatas_anterior, return_dimred=True)\nadatas_cor_posterior = scanorama.correct_scanpy(adatas_posterior, return_dimred=True)",
+            "relevant_API": [
+                "scanpy.read"
+            ]
+        },
+        {
+            "text": "Concatenate datasets and assign integrated embeddings to anndata objects.\n\nNotice that we are concatenating datasets with the `join=\"outer\"` and `uns_merge=\"first\"` strategies. This is because we want to keep the `obsm['coords']` as well as the images of the visium datasets.\n\nFrist, let's compute cosine distances between the visium dataset and the scRNA-seq dataset, in the common embedding space\n\nThen, let's propagate labels from the scRNA-seq dataset to the visium dataset",
+            "code": "adata_cortex_anterior = sc.concat(\n    adatas_cor_anterior,\n    label=\"dataset\",\n    keys=[\"smart-seq\", \"visium\"],\n    join=\"outer\",\n    uns_merge=\"first\",\n)\nadata_cortex_posterior = sc.concat(\n    adatas_cor_posterior,\n    label=\"dataset\",\n    keys=[\"smart-seq\", \"visium\"],\n    join=\"outer\",\n    uns_merge=\"first\",\n)\nfrom sklearn.metrics.pairwise import cosine_distances\ndistances_anterior = 1 - cosine_distances(\n    adata_cortex_anterior[adata_cortex_anterior.obs.dataset == \"smart-seq\"].obsm[\n        \"X_scanorama\"\n    ],\n    adata_cortex_anterior[adata_cortex_anterior.obs.dataset == \"visium\"].obsm[\n        \"X_scanorama\"\n    ],\n)\ndistances_posterior = 1 - cosine_distances(\n    adata_cortex_posterior[adata_cortex_posterior.obs.dataset == \"smart-seq\"].obsm[\n        \"X_scanorama\"\n    ],\n    adata_cortex_posterior[adata_cortex_posterior.obs.dataset == \"visium\"].obsm[\n        \"X_scanorama\"\n    ],\n)\ndef label_transfer(dist, labels):\n    lab = pd.get_dummies(labels).to_numpy().T\n    class_prob = lab @ dist\n    norm = np.linalg.norm(class_prob, 2, axis=0)\n    class_prob = class_prob / norm\n    class_prob = (class_prob.T - class_prob.min(1)) / class_prob.ptp(1)\n    return class_prob",
+            "relevant_API": [
+                "scanpy.concat"
+            ]
+        },
+        {
+            "text": "We are then able to explore how cell types are propagated from the scRNA-seq dataset to the visium dataset. Let's first visualize the neurons cortical layers.\n\nInterestingly, it seems that this approach worked, since sequential layers of cortical neurons could be correctly identified, both in the anterior and posterior sagittal slide.\n\nWe can go ahead an visualize astrocytes and oligodendrocytes as well.\n\nIn this tutorial, we showed how to work with multiple slices in Scanpy, and perform label transfers between an annotated scRNA-seq dataset and an unannotated Visium dataset. We showed that such approach, that leverages the data integration performances of Scanorama, is useful and provide a straightforward tool for exploratory analysis.\n\nHowever, for the label transfer task, we advise analysts to explore more principled approaches, based on cell-type deconvolution, that are likely to provide more accurate and interpretable results. See recent approaches such as:  \n\n* **Stereoscope** [paper](https://www.biorxiv.org/content/10.1101/2019.12.13.874495v1) - [code](https://github.com/almaan/stereoscope)  \n* **AutogeneS** [paper](https://www.biorxiv.org/content/10.1101/2020.02.21.940650v1) - [code](https://github.com/theislab/AutoGeneS)  \n* **MuSiC** [paper](https://www.nature.com/articles/s41467-018-08023-x) - [code](https://github.com/xuranw/MuSiC)  \n* **CIBERSORT-X** [paper](https://www.nature.com/articles/s41587-019-0114-2) - [webtool](https://cibersortx.stanford.edu/)  \n* **Deconv-seq** [code](https://github.com/rosedu1/deconvSeq)  \n* **cell2location** [paper](https://www.biorxiv.org/content/10.1101/2020.11.15.378125v1) - [code](https://github.com/BayraktarLab/cell2location)  ",
+            "code": "sc.pl.spatial(\n    adata_anterior_subset_transfer,\n    img_key=\"hires\",\n    color=[\"L2/3 IT\", \"L4\", \"L5 PT\", \"L6 CT\"],\n    size=1.5,\n)\nsc.pl.spatial(\n    adata_posterior_subset_transfer,\n    img_key=\"hires\",\n    color=[\"L2/3 IT\", \"L4\", \"L5 PT\", \"L6 CT\"],\n    size=1.5,\n)\nsc.pl.spatial(\n    adata_anterior_subset_transfer, img_key=\"hires\", color=[\"Oligo\", \"Astro\"], size=1.5\n)\nsc.pl.spatial(\n    adata_posterior_subset_transfer, img_key=\"hires\", color=[\"Oligo\", \"Astro\"], size=1.5\n)",
+            "relevant_API": [
+                "scanpy.pl.spatial"
+            ]
+        }
+    ]
+}
