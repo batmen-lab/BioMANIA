@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: biomania-backend
+spec:
+  selector:
+    app: biomania-backend
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+

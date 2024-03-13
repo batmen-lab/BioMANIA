@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: biomania-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: biomania-backend
+  template:
+    metadata:
+      labels:
+        app: biomania-backend
+    spec:
+      containers:
+      - name: biomania-backend
+        image: chatbotuibiomania/biomania-backend:v1.1.9
+        ports:
+        - containerPort: 5000
+        env:
+        - name: OPENAI_API_KEY
+          value: ""
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+      resources:
+        limits:
+          nvidia.com/gpu: 1
+

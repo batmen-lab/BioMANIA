@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: biomania-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: biomania-frontend
+  template:
+    metadata:
+      labels:
+        app: biomania-frontend
+    spec:
+      containers:
+      - name: biomania-frontend
+        image: chatbotuibiomania/biomania-frontend:v1.1.9
+        ports:
+        - containerPort: 3000
+        env:
+        - name: BACKEND_URL
+          value: "http://biomania-backend:5000"
+

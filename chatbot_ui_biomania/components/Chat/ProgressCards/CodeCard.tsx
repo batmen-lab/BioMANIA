@@ -20,22 +20,32 @@ function CodeCard({ codeString, language, fullContent }: CodeCardProps) {
   };
 
   return (
-    <div style={{ padding: 0 }}>
+    <div style={{ padding: 0}}>
       <MemoizedReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          pre: ({ node, children, ...props }) => (
+            <pre style={{ margin: 0, marginTop: 0.2, 
+              marginBottom: 0.2 }} {...props}>
+              {children}
+            </pre>
+          ),
           code({ node, inline, className, children, ...props }) {
             const match = /language-(\w+)/.exec(className || '');
             return !inline ? (
+              //<div style={{ padding: 0, marginTop: 0, marginBottom: 0 }}>
               <CodeBlock
                 style={{ width: '100%', ...codeStyle, margin: 0, padding: 0,'& > p': {
                   margin: 0,
                   padding: 0,
+                  marginTop: 0, 
+                  marginBottom: 0
                 }, }}
                 language={language || (match && match[1]) || ''}
                 value={codeString || String(children).replace(/\n$/, '')}
                 {...props}
               />
+              //</div>
             ) : (
               <code className={className} {...props}>
                 {children}
@@ -61,6 +71,8 @@ function CodeCard({ codeString, language, fullContent }: CodeCardProps) {
                   backgroundColor: 'transparent',
                   textDecoration: 'underline',
                 },
+                margin: 0,
+                padding: 0,
               }}
               onClick={() => setIsCollapsed(!isCollapsed)}
             >
@@ -69,6 +81,7 @@ function CodeCard({ codeString, language, fullContent }: CodeCardProps) {
           </Typography>
 
           <Collapse in={!isCollapsed} timeout="auto" unmountOnExit>
+          <div style={{ padding: 0, marginTop: 0, marginBottom: 0 }}>
             <MemoizedReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -94,6 +107,7 @@ function CodeCard({ codeString, language, fullContent }: CodeCardProps) {
             >
               {`\`\`\`${language}\n${fullContent}\n\`\`\``}
             </MemoizedReactMarkdown>
+            </div>
           </Collapse>
         </>
       )}

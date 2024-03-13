@@ -534,7 +534,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                 <style jsx>{`
                   .fixed-top-container {
                     position: fixed;
-                    top: 10%;
+                    top: 0%;
                     left: 60%;
                     transform: translate(-50%, -50%);
                     width: auto;

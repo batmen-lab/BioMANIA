@@ -103,14 +103,14 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit}) =>
   return (
     <>
       <div
-      className={`group md:px-4 ${
+      className={`group md:px-0 ${
         message.role === 'assistant'
           ? 'border-b border-black/10 bg-gray-50 text-gray-800 dark:border-gray-900/50 dark:bg-[#444654] dark:text-gray-100'
             : 'border-b border-black/10 bg-white text-gray-800 dark:border-gray-900/50 dark:bg-[#343541] dark:text-gray-100'
         }`}
       style={{ overflowWrap: 'anywhere' }}
     >
-      <div className="relative m-auto flex p-4 text-xs md:max-w-2xl md:gap-6 md:py-2 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
+      <div className="relative m-auto flex px-4 text-xs md:max-w-2xl md:gap-6 md:py-2 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
         <div className="min-w-[40px] text-right">
           {message.role === 'assistant' ? (
             <IconRobot size={22} />

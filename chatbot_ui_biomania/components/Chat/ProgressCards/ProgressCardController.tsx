@@ -400,7 +400,7 @@ const ProgressCardController = (props: ProgressCardControllerProps) => {
         minWidth: "100%",
         width: "100%"
       }}>
-        <Box sx={{ height: '6px' }}></Box>
+        <Box sx={{ height: '0px' }}></Box>
           {cards}
       </Box>
       <SnackbarError open={snackbarOpen} handleClose={handleSnackbarClose} content={snackbarContent} />
