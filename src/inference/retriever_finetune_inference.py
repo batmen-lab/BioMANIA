@@ -4,7 +4,7 @@ from tqdm import tqdm
 import pandas as pd
 from configs.model_config import HUGGINGPATH
 from sentence_transformers import SentenceTransformer, util, models, InputExample, losses, LoggingHandler
-from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version
+from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version, is_pair_in_merged_pairs, find_similar_two_pairs
 import torch
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # Print average scores for each rank
@@ -12,18 +12,20 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 class ToolRetriever:
-    def __init__(self, LIB, corpus_tsv_path = "", model_path="", base_corpus_tsv_path="./data/standard_process/base/retriever_train_data/corpus.tsv",add_base=False):
-        #self.model_path = os.path.join(model_path,f"{LIB}","assigned")
+    def __init__(self, LIB, corpus_tsv_path = "", model_path="", base_corpus_tsv_path="./data/standard_process/base/retriever_train_data/corpus.tsv",add_base=False, shuffle_data=True, process_func=process_retrieval_document_query_version,max_seq_length=256):
+        self.process_func=process_func
+        self.max_seq_length = max_seq_length
         self.model_path = model_path
         self.corpus_tsv_path = corpus_tsv_path
         self.base_corpus_tsv_path = base_corpus_tsv_path
-        #self.build_retrieval_corpus(corpus_tsv_path)
         self.build_and_merge_corpus(add_base=add_base)
-        self.shuffled_data = self.build_shuffle_data(LIB, add_base=add_base)
-        self.shuffled_queries = [item['query'] for item in self.shuffled_data]
-        self.shuffled_query_embeddings = self.embedder.encode(self.shuffled_queries, convert_to_tensor=True)
+        if shuffle_data:
+            self.shuffled_data = self.build_shuffle_data(LIB, add_base=add_base)
+            self.shuffled_queries = [item['query'] for item in self.shuffled_data]
+            self.shuffled_query_embeddings = self.embedder.encode(self.shuffled_queries, convert_to_tensor=True)
     
     def build_shuffle_data(self,LIB, add_base=True):
+        print('set add_base as :', add_base)
         # add API_base, fix 231227
         import json
         import random
@@ -41,62 +43,48 @@ class ToolRetriever:
             lib_data = lib_data + base_data
         random.Random(0).shuffle(lib_data)
         return lib_data
-    def build_retrieval_corpus(self, corpus_tsv_path):
-        documents_df = pd.read_csv(self.corpus_tsv_path, sep='\t')
-        corpus, self.corpus2tool = process_retrieval_document_query_version(documents_df)
-        corpus_ids = list(corpus.keys())
-        corpus = [corpus[cid] for cid in corpus_ids]
-        self.corpus = corpus
-        print(f'modelpath: {self.model_path}')
-        if self.model_path=='bert-base-uncased':
-            print('using unpretrained model!!!')
-            word_embedding_model = models.Transformer(self.model_path, max_seq_length=args.max_seq_length)
-            pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension())
-            self.embedder = SentenceTransformer(modules=[word_embedding_model, pooling_model])
-        elif 'hugging_models' in self.model_path:
-            self.embedder = SentenceTransformer(self.model_path, device=device)
-        else:
-            raise ValueError
-        self.corpus_embeddings = self.embedder.encode(self.corpus, convert_to_tensor=True)
     def build_and_merge_corpus(self, add_base=True):
+        print('set add_base as :', add_base)
         # based on build_retrieval_corpus, add API_base.json, fix 231227
         original_corpus_df = pd.read_csv(self.corpus_tsv_path, sep='\t')
-        additional_corpus_df = pd.read_csv(self.base_corpus_tsv_path, sep='\t')
         if add_base:
+            print('--------> add base!')
+            additional_corpus_df = pd.read_csv(self.base_corpus_tsv_path, sep='\t')
             combined_corpus_df = pd.concat([original_corpus_df, additional_corpus_df], ignore_index=True)
             combined_corpus_df.reset_index(drop=True, inplace=True)
         else:
             combined_corpus_df = original_corpus_df
-        corpus, self.corpus2tool = process_retrieval_document_query_version(combined_corpus_df)
+        corpus, self.corpus2tool = self.process_func(combined_corpus_df)
         corpus_ids = list(corpus.keys())
         corpus = [corpus[cid] for cid in corpus_ids]
         self.corpus = corpus
-        if self.model_path=='bert-base-uncased':
-            print('using unpretrained model!!!')
-            word_embedding_model = models.Transformer(self.model_path, max_seq_length=args.max_seq_length)
-            pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension())
-            self.embedder = SentenceTransformer(modules=[word_embedding_model, pooling_model])
-        elif 'hugging_models/' in self.model_path:
-            print('using pretrained model!!!')
+        if 'hugging_models' in self.model_path:
+            print('running on pretrained model!!!')
+            self.embedder = SentenceTransformer(self.model_path, device=device)
+        elif self.model_path=='all-MiniLM-L6-v2' or self.model_path=='bert-base-uncased':
+            print('running on unpretrained model!!!')
             self.embedder = SentenceTransformer(self.model_path, device=device)
         else:
             raise ValueError
-        #self.embedder = SentenceTransformer(self.model_path, device=device)
         self.corpus_embeddings = self.embedder.encode(self.corpus, convert_to_tensor=True)
+        print('the length of corpus is: ', len(self.corpus_embeddings))
     def retrieving(self, query, top_k):
         query_embedding = self.embedder.encode(query, convert_to_tensor=True)
-        hits = util.semantic_search(query_embedding, self.corpus_embeddings, top_k=top_k, score_function=util.cos_sim) #170*
-        retrieved_apis = [self.corpus2tool[self.corpus[hit['corpus_id']]] for hit in hits[0]]
+        hits = util.semantic_search(query_embedding, self.corpus_embeddings, top_k=top_k, score_function=util.cos_sim)
+        retrieved_apis = [self.corpus2tool[hit['corpus_id']] for hit in hits[0]]
         return retrieved_apis[:top_k]
     def retrieve_similar_queries(self, query, shot_k=5):
         query_embedding = self.embedder.encode(query, convert_to_tensor=True)
         hits = util.semantic_search(query_embedding, self.shuffled_query_embeddings, top_k=shot_k, score_function=util.cos_sim)
         #similar_queries = [shuffled_data[hit['corpus_id']] for hit in hits[0]]
-        similar_queries = ["\nInstruction: " + self.shuffled_data[hit['corpus_id']]['query'] + "\nFunction: " + self.shuffled_data[hit['corpus_id']]['gold'] for hit in hits[0]]
+        similar_queries = ["\nExample Instruction: " + self.shuffled_data[hit['corpus_id']]['query'] + "\nExample Function: " + self.shuffled_data[hit['corpus_id']]['gold'] for hit in hits[0]]
         return ''.join(similar_queries)
 
 def compute_accuracy(retriever, data, args,name='train'):
+    merged_pairs = find_similar_two_pairs(args.LIB)
     correct_predictions = 0
+    ambiguous_correct_predictions = 0  # Additional metric for ambiguous matches
+    error_predictions = 0
     data_to_save = []
     scores_rank_1 = []
     scores_rank_2 = []
@@ -106,9 +94,19 @@ def compute_accuracy(retriever, data, args,name='train'):
     for query_data in tqdm(data):
         retrieved_apis = retriever.retrieving(query_data['query'], top_k=args.retrieved_api_nums)
         true_api = query_data['api_name']
-        if true_api in retrieved_apis:  # Checking for intersection between the two sets
-            correct_predictions += 1
-        else:
+        # changed the acc count
+        success = False
+        for pred_api in retrieved_apis:
+            if true_api == pred_api:
+                correct_predictions += 1
+                success = True
+                break
+            elif is_pair_in_merged_pairs(true_api, pred_api, merged_pairs):
+                ambiguous_correct_predictions += 1
+                success = True
+                break
+        if not success:
+            error_predictions += 1
             data_to_save.append({
                 "query": query_data['query'],
                 "ground_truth": [true_api],
@@ -127,6 +125,7 @@ def compute_accuracy(retriever, data, args,name='train'):
         if len(hits[0]) > 4:
             scores_rank_5.append(hits[0][4]['score'])
     accuracy = correct_predictions / len(data) * 100
+    ambiguous_accuracy = (correct_predictions + ambiguous_correct_predictions) / len(data) * 100
     with open(f'./plot/{args.LIB}/error_{name}_topk_{args.retrieved_api_nums}.json', 'w') as json_file:
         json.dump(data_to_save, json_file, indent=4)
     # Compute average scores for each rank
@@ -137,12 +136,14 @@ def compute_accuracy(retriever, data, args,name='train'):
         "rank_4": scores_rank_4,
         "rank_5": scores_rank_5
     }
-    return accuracy, scores
+    return accuracy, scores, ambiguous_accuracy
 def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train'):
     # remove class type API, and composite API from the data
     with open(f"./data/standard_process/{args.LIB}/API_composite.json", 'r') as file:
         API_composite = json.load(file)
+    merged_pairs = find_similar_two_pairs(args.LIB)
     correct_predictions = 0
+    ambiguous_correct_predictions = 0  # Additional metric for ambiguous matches
     error_predictions = 0
     data_to_save = []
     scores_rank_1 = []
@@ -152,23 +153,29 @@ def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train'):
     scores_rank_5 = []
     total_api_non_composite = 0
     for query_data in tqdm(data):
-        retrieved_apis = retriever.retrieving(query_data['query'], top_k=args.retrieved_api_nums+10)
+        retrieved_apis = retriever.retrieving(query_data['query'], top_k=args.retrieved_api_nums+20)
         true_api = query_data['api_name']
-        if not true_api.startswith(args.LIB):
-            # remove composite API
-            continue
-        elif query_data['api_type']=='class':
-            # remove class API
+        if not true_api.startswith(args.LIB) or query_data['api_type']=='class':
+            # remove composite API, class API
             continue
         else:
             total_api_non_composite+=1
         retrieved_apis = [i for i in retrieved_apis if i.startswith(args.LIB) and API_composite[i]['api_type']!='class']
         retrieved_apis = retrieved_apis[:args.retrieved_api_nums]
         assert len(retrieved_apis)==args.retrieved_api_nums
-        if true_api in retrieved_apis:  # Checking for intersection between the two sets
-            correct_predictions += 1
-        else:
-            error_predictions +=1
+        # changed the acc count
+        success = False
+        for pred_api in retrieved_apis:
+            if true_api == pred_api:
+                correct_predictions += 1
+                success = True
+                break
+            elif is_pair_in_merged_pairs(true_api, pred_api, merged_pairs):
+                ambiguous_correct_predictions += 1
+                success = True
+                break
+        if not success:
+            error_predictions += 1
             data_to_save.append({
                 "query": query_data['query'],
                 "ground_truth": [true_api],
@@ -186,8 +193,9 @@ def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train'):
             scores_rank_4.append(hits[0][3]['score'])
         if len(hits[0]) > 4:
             scores_rank_5.append(hits[0][4]['score'])
-    assert error_predictions+correct_predictions==total_api_non_composite
+    assert error_predictions + correct_predictions + ambiguous_correct_predictions == total_api_non_composite
     accuracy = correct_predictions / total_api_non_composite * 100
+    ambiguous_accuracy = (correct_predictions + ambiguous_correct_predictions) / total_api_non_composite * 100
     with open(f'./plot/{args.LIB}/error_{name}_topk_{args.retrieved_api_nums}.json', 'w') as json_file:
         json.dump(data_to_save, json_file, indent=4)
     # Compute average scores for each rank
@@ -198,10 +206,25 @@ def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train'):
         "rank_4": scores_rank_4,
         "rank_5": scores_rank_5
     }
-    return accuracy, scores
+    return accuracy, scores, ambiguous_accuracy
+
+def compute_and_plot(data_set, set_name, retriever, args, compute_func):
+    """Compute scores, visualize"""
+    accuracy, avg_scores, ambiguous_accuracy = compute_func(retriever, data_set, args, set_name)
+    print(f"{set_name.capitalize()} Accuracy: {accuracy:.2f}%, #samples {len(data_set)}")
+    print(f"{set_name.capitalize()} ambiguous Accuracy: {ambiguous_accuracy:.2f}%, #samples {len(data_set)}")
+    scores = [avg_scores[f'rank_{i+1}'] for i in range(5)]
+    plot_boxplot(scores, set_name.capitalize())
+
+def plot_boxplot(data, title):
+    plt.figure(figsize=(10, 6))
+    sns.boxplot(data=data)
+    plt.title(title)
+    plt.xticks(ticks=range(5), labels=[f'Rank {i+1}' for i in range(5)])
+    plt.ylabel('Score')
+    plt.savefig(f'./plot/{args.LIB}/avg_retriever_{title}.pdf')
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--corpus_tsv_path', type=str, required=True, help='')
     parser.add_argument('--retrieval_model_path', type=str, required=True, help='')
@@ -222,8 +245,7 @@ if __name__ == "__main__":
     val_ids = index_data['val']
 
     # Step 2: Create a ToolRetriever instance
-    retriever = ToolRetriever(LIB = args.LIB, corpus_tsv_path=args.corpus_tsv_path, model_path=args.retrieval_model_path, add_base=False)
-    print(retriever.corpus[0])
+    retriever = ToolRetriever(LIB = args.LIB, corpus_tsv_path=args.corpus_tsv_path, model_path=args.retrieval_model_path, add_base=False,max_seq_length=args.max_seq_length)
 
     total_queries = 0
     correct_predictions = 0
@@ -235,30 +257,7 @@ if __name__ == "__main__":
 
     os.makedirs("./plot",exist_ok=True)
     os.makedirs(f"./plot/{args.LIB}",exist_ok=True)
-    if args.filter_composite:
-        compute_func = compute_accuracy_filter_compositeAPI
-    else:
-        compute_func = compute_accuracy
-    train_accuracy, train_avg_scores = compute_func(retriever, train_data, args, 'train')
-    val_accuracy, val_avg_scores = compute_func(retriever, val_data, args, 'val')
-    test_accuracy, test_avg_scores = compute_func(retriever, test_data, args, 'test')
-    print(f"Training Accuracy: {train_accuracy:.2f}%, #samples {len(train_data)}")
-    print(f"val Accuracy: {val_accuracy:.2f}%, #samples {len(val_data)}")
-    print(f"test Accuracy: {test_accuracy:.2f}%, #samples {len(test_data)}")
+    compute_func = compute_accuracy_filter_compositeAPI if args.filter_composite else compute_accuracy
 
-    def plot_boxplot(data, title):
-        plt.figure(figsize=(10, 6))
-        sns.boxplot(data=data)
-        plt.title(title)
-        plt.xticks(ticks=range(5), labels=[f'Rank {i+1}' for i in range(5)])
-        plt.ylabel('Score')
-        plt.savefig(f'./plot/{args.LIB}/avg_retriever_{title}.pdf')
-
-    train_scores = [train_avg_scores['rank_1'], train_avg_scores['rank_2'], train_avg_scores['rank_3'], train_avg_scores['rank_4'], train_avg_scores['rank_5']]
-    val_scores = [val_avg_scores['rank_1'], val_avg_scores['rank_2'], val_avg_scores['rank_3'], val_avg_scores['rank_4'], val_avg_scores['rank_5']]
-    test_scores = [test_avg_scores['rank_1'], test_avg_scores['rank_2'], test_avg_scores['rank_3'], test_avg_scores['rank_4'], test_avg_scores['rank_5']]
-
-    plot_boxplot(train_scores, "Training")
-    plot_boxplot(val_scores, "Validation")
-    plot_boxplot(test_scores, "Test")
-    
+    for set_name, data_set in zip(['train', 'val', 'test'], [train_data, val_data, test_data]):
+        compute_and_plot(data_set, set_name, retriever, args, compute_func)

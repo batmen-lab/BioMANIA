@@ -200,11 +200,11 @@ You can just share your `data` and `hugging_models` folder and `logo` image by d
 We extend our gratitude to the following references:
 - [Toolbench](https://github.com/OpenBMB/ToolBench) 
 - [Chatbot-UI](https://github.com/mckaywrigley/chatbot-ui)
-- [Toolbench-UI](https://github.com/lilbillybiscuit/chatbot-ui-toolllama)
-- [Retriever](https://huggingface.co/bert-base-uncased)
+- [SentenceTransformers](https://github.com/UKPLab/sentence-transformers)
 - [Topical-Chat-data](https://github.com/alexa/Topical-Chat)
 - [ChitChat-data](https://github.com/microsoft/botframework-cli/blob/main/packages/qnamaker/docs/chit-chat-dataset.md)
 - [lit-llama](https://github.com/Lightning-AI/lit-llama)
+- [ollama](https://github.com/ollama/ollama)
 
 Thank you for choosing BioMANIA. We hope this guide assists you in navigating through our project with ease.
 

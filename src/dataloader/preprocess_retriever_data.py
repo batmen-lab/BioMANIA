@@ -11,16 +11,18 @@ import pandas as pd
 from sklearn.utils import shuffle
 from models.model import LLM_response, LLM_model
 #from configs.model_config import LIB
-from prompt.instruction import Task_Description_of_Singletool_oneapi_Instructions_whole, Other_Requirements_singletool_oneapi_whole
+from prompt.instruction import make_instruction_generation_prompt
+
 from inference.utils import process_retrieval_document, compress_api_str_from_list
 parser = argparse.ArgumentParser()
 parser.add_argument('--LIB', type=str, help='PyPI tool')
 parser.add_argument('--concurrency', type=int, default=80, help='adjust the maximum concurrency according to the rate limit of OpenAI API account')
+parser.add_argument('--GPT_model', type=str, default='gpt3.5', choices=['gpt4', 'gpt3.5'], help='GPT model version')
 args = parser.parse_args()
 
 semaphore = asyncio.Semaphore(args.concurrency)
 
-prompt_oneapi_whole = f"{Task_Description_of_Singletool_oneapi_Instructions_whole}\n{Other_Requirements_singletool_oneapi_whole}"
+from inference.retriever_finetune_inference import ToolRetriever
 
 def unify_response_format(response):
     try:
@@ -37,76 +39,192 @@ def unify_response_format(response):
                 pass
         return unified_response
 
+def preprocess_json_string(response):
+    # Replace single quotes with double quotes while preserving internal single quotes in strings
+    in_string = False
+    processed_response = ""
+    for char in response:
+        if char == "'" and not in_string:
+            processed_response += '"'
+        elif char == '"' and not in_string:
+            # Entering a string
+            in_string = True
+            processed_response += char
+        elif char == '"' and in_string:
+            # Exiting a string
+            in_string = False
+            processed_response += char
+        else:
+            processed_response += char
+    return processed_response
+
+def parse_unformatted_jsons(response):
+    response = preprocess_json_string(response)  # Preprocess to handle single quotes
+    jsons = []
+    current_json = ''
+    brace_count = 0
+    for char in response:
+        if char == '{':
+            brace_count += 1
+            current_json += char
+        elif char == '}':
+            brace_count -= 1
+            current_json += char
+            if brace_count == 0:
+                jsons.append(current_json)
+                current_json = ''
+        elif brace_count > 0:
+            current_json += char
+    parsed_jsons = []
+    for json_str in jsons:
+        try:
+            parsed_json = json.loads(json_str)
+            parsed_jsons.append(parsed_json)
+        except json.JSONDecodeError:
+            pass
+    return parsed_jsons
+
+def parse_json_response(response):
+    parsed_response = parse_unformatted_jsons(response)
+    valid_responses = []
+    for d in parsed_response:
+        valid_responses.append(d)
+    return valid_responses
+
 async def async_LLM_response(llm, tokenizer, prompt, history=[], kwargs={}):
+    model_version = "gpt-4-0125-preview" if args.GPT_model == 'gpt4' else "gpt-3.5-turbo-0125"
     loop = asyncio.get_event_loop()
-    response, history = await loop.run_in_executor(None, LLM_response, llm, tokenizer, prompt, history, kwargs)
+    response, history = await loop.run_in_executor(None, LLM_response, llm, tokenizer, prompt, model_version, history, kwargs)
     return response, history
 
-async def process_prompt_async(api_name, api, llm, tokenizer, prompt_template, progress):
-    prompt_ans = compress_api_str_from_list(api)
-    prompt = f'\nGiven API information starts: \n{prompt_ans}\nGiven API information ends\n{prompt_template}'
+from inference.utils import is_pair_in_merged_pairs, get_all_api_json, find_similar_api_pairs
+def get_ambiguous_pairs(LIB):
+    # For accuracy without ambiguous pair
+    from collections import defaultdict
+    with open(f"data/standard_process/{LIB}/API_init.json", "r") as file:
+        api_data = json.load(file)
+    api_data = {key:api_data[key] for key in api_data if api_data[key]['api_type']!='class'}
+    # 1: description
+    all_apis, all_apis_json = get_all_api_json(LIB)
+    similar_api_pairs = find_similar_api_pairs(all_apis_json)
+    # 2: 
+    require_same_depth=False
+    api_list = list(api_data.keys())
+    groups = defaultdict(list)
+    for api in api_list:
+        parts = api.split('.')
+        if require_same_depth:
+            key = (parts[-1], len(parts))
+        else:
+            key = parts[-1]
+        groups[key].append(api)
+    similar_pairs = [group for group in groups.values() if len(group) > 1]# Filter out groups that only contain 1 API (no similar pairs).
+    #for pair in similar_pairs:
+    #    print(pair)
+    list_1 = similar_api_pairs
+    list_2 = similar_pairs
+    pairs_from_list_2 = [(apis[i], apis[j]) for apis in list_2 for i in range(len(apis)) for j in range(i+1, len(apis))]
+    print(len(list_1), len(list_2), len(pairs_from_list_2))
+    merged_pairs = list(set(list_1 + pairs_from_list_2))
+    #merged_pairs = list_2
+    return merged_pairs, similar_api_pairs, pairs_from_list_2
+
+# get similar pairs
+merged_pairs, similar_api_same_desc, similar_api_same_funcname = get_ambiguous_pairs(args.LIB)
+
+async def process_prompt_async(desc_retriever,API_init, api_name, api, llm, tokenizer, tmp_docstring, progress):
+    prompt1, prompt2 = make_instruction_generation_prompt(api_name, tmp_docstring)
+    retrieved_apis = desc_retriever.retrieving(query=API_init[api_name]['description'].split('\n')[0],top_k=20)
+    assert len(retrieved_apis) == len(set(retrieved_apis)), retrieved_apis
+    # remove target api
+    if api_name in retrieved_apis:
+        retrieved_apis.remove(api_name)
+    assert api_name not in retrieved_apis, json.dumps(retrieved_apis) + ', ' + api_name
+    # remove compositeAPI and classAPI
+    # remove same description type ambiguous API
+    #filtered_apis = [api for api in retrieved_apis if not is_pair_in_merged_pairs(api_name, api, similar_api_same_desc)]
+    filtered_apis = [api for api in retrieved_apis if (not is_pair_in_merged_pairs(api_name, api, similar_api_same_funcname)) and (not is_pair_in_merged_pairs(api_name, api, similar_api_same_desc))]
+    #if len(filtered_apis)<len(retrieved_apis):
+    #    print('remove some apis: ', set(retrieved_apis)-set(filtered_apis))
+    filtered_apis = filtered_apis[:5]
+    assert len(filtered_apis)==5
+    retrieved_descriptions = [API_init[i]['description'].split('\n')[0].replace('\n',' ') for i in filtered_apis]
+    unique_descriptions = list(set(retrieved_descriptions))
+    target_description = API_init[api_name]['description'].split('\n')[0].replace('\n',' ')
+    #return
+    retrieved_desc_apis = ''
+    index = 0
+    for tmp_i in unique_descriptions:
+        #retrieved_desc_apis+=str(index)+': '+tmp_i+'\n'
+        retrieved_desc_apis+='"'+tmp_i+'",'
+        index+=1
+    #prompt_ans = compress_api_str_from_list(api)
+    descriptions = f"""Target description:{target_description}\nContrasting descriptions: \n[{retrieved_desc_apis}]."""
+    prompt = f"""{prompt1}\nNow I provide my target and contrasting descriptions to you, {descriptions}\n{prompt2} Now generate the 10 examples following the Instruction."""
+    #prompt = f"""{prompt_template}Target description:{target_description}. Now generate the 10 examples following the Instruction."""
     retry_count = 0
     MAX_trial = 3
     valid_response = None
     while retry_count < MAX_trial:
-        #response, history = LLM_response(llm, tokenizer, prompt, history=[], kwargs={})
         response, _ = await async_LLM_response(llm, tokenizer, prompt)
         try:
-            response_list = unify_response_format(response)
-            if response_list and isinstance(response_list, list) and isinstance(response_list[0], dict) and all('Query' in response for response in response_list):
+            response_list = parse_json_response(response)
+            if response_list and isinstance(response_list, list) and isinstance(response_list[0], dict) and all('instruction' in response for response in response_list) and len(response_list)>=10:
                 valid_response = response_list
                 break
         except:
             pass
         retry_count += 1
-    print('GPT response:', response)
+    #print('Prompt: ', prompt)
+    #print('GPT response:', response)
     if not valid_response:
         return []
     results = []
     for response_dict in response_list:
         api_tmp = copy.deepcopy(api)
-        if api_name not in response_dict['Query']:  # filter out the response which contains API
-            query = response_dict['Query']
-            api_tmp['query'] = query
+        if api_name not in response_dict['instruction']:  # filter out the response which contains API
+            api_tmp['query'] = response_dict['instruction']
+            api_tmp['query_code'] = response_dict['code']
             results.append(api_tmp)
         del api_tmp
     # update progress bar
     progress.update(1)
     return results
 
-async def preprocess_instruction_generation(API_composite, QUERY_FILE):
-    # step1: Instruction Generation, compress API, build prompt
-    with open(API_composite, 'r') as f:
-        ori_data = json.load(f)
-    print('The length of api_data is: ',len(ori_data))
-    # filter and remove class API
-    ori_data = {api: details for api, details in ori_data.items() if details['type'] != 'class'}
-    print('The length of api_data after filtering class type API is: ',len(ori_data))
-    # Convert the output data dict to a list of dicts
-    llm, tokenizer = LLM_model()
-    results = []
-    #tasks = [process_api_async(api_name, ori_data[api_name], llm, tokenizer) for api_name in tqdm(ori_data)]
-    all_tasks = []
-    print('Start instruction generation ...')
-    print('Num. of Tasks is one times of the num. of APIs ...')
-    progress = tqdm_asyncio(total=len(ori_data))
-    for api_name in tqdm_asyncio(ori_data):
-        async with semaphore:
-            all_tasks.append(process_prompt_async(api_name, ori_data[api_name], llm, tokenizer, prompt_oneapi_whole, progress))
-    # Run the tasks and collect results
-    results_from_tasks = await asyncio.gather(*(all_tasks))
-    # close progres bar
-    progress.close()
-    # Process the ordered results
-    results = copy.deepcopy([item for sublist in results_from_tasks for item in sublist])
-    for i in range(len(results)):
-        results[i]['query_id'] = i
-    retained_apis_from_results = set([entry['api_calling'][0].split('(')[0] for entry in results])
-    retained_proportion = len(retained_apis_from_results) / len(ori_data)
-    print(f'the retained proportion is {retained_proportion}')
-    print(f'the retained proportion num of apis is {len(retained_apis_from_results)}')
-    with open(QUERY_FILE, 'w') as f:
-        json.dump(results, f, indent=4)
+def process_parameters(parameters, max_parameters=6):
+    for param_data in parameters.values():
+        param_data.pop('optional_value', None)
+    sorted_parameters = sorted(parameters.items(), key=lambda x: (x[1]['optional'], x[0]))
+    processed_parameters = {}
+    required_count = 0
+    optional_count = 0
+    for param_name, param_data in sorted_parameters:
+        if not param_data['optional']:
+            if required_count < max_parameters:
+                processed_parameters[param_name] = param_data
+                required_count += 1
+        else:
+            if optional_count < max_parameters - required_count:
+                processed_parameters[param_name] = param_data
+                optional_count += 1
+    return processed_parameters
+
+def json_to_docstring(api_name, description, parameters):
+    params_list = ', '.join([
+        f"{param}: {parameters[param]['type']} = {parameters[param]['default']}" if parameters[param]['optional'] else f"{param}: {parameters[param]['type']}"
+        for param in parameters
+    ])
+    function_signature = f"def {api_name}({params_list}):"
+    docstring = f"\"\"\"{description}\n\n"
+    if len(parameters) > 0:
+        docstring += "Parameters\n----------\n"
+    for parameter in parameters:
+        info = parameters[parameter]
+        if info['description'] is not None:  # Skip empty descriptions
+            if info['description'].strip():
+                docstring += f"{parameter}\n    {info['description']}\n"
+    docstring += "\"\"\""
+    return function_signature + "\n" + docstring.strip()
 
 def preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE):
     with open(QUERY_FILE, 'r') as f:
@@ -129,8 +247,10 @@ def preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX
         if api_calling == current_api_calling:
             current_duration += 1
         else:
+            if current_duration<10:
+                print(api_calling, current_duration)
             # If the API calling changes, consider the first and last indices for validation
-            if current_duration >= 10:
+            if current_duration >= 3:
                 val_index_set.append(i - current_duration )  # First index
                 val_index_set.append(i-1)  # Last index
             else:
@@ -138,7 +258,10 @@ def preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX
             current_api_calling = api_calling
             current_duration = 1
     # remaining 10
-    if current_duration >= 10:
+    if current_duration<10:
+        print(api_calling, current_duration)
+    if current_duration >= 3:
+        print(len(query_data_ori) - current_duration, len(query_data_ori)-1)
         val_index_set.append(len(query_data_ori) - current_duration )  # First index
         val_index_set.append(len(query_data_ori)-1)  # Last index
     else:
@@ -206,14 +329,137 @@ def preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX
     val_labels_df.to_csv(OUTPUT_DIR + '/qrels.val.tsv', sep='\t', index=False, header=False)
     documents_df.to_csv(OUTPUT_DIR + '/corpus.tsv', sep='\t', index=False)
 
+def preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE):
+    with open(QUERY_FILE, 'r') as f:
+        query_data_ori = json.load(f)
+    start_idx_for_test = max([i['query_id'] for i in query_data_ori])
+    # code from toolbench retriever train.py
+    with open(QUERY_ANNOTATE_FILE, 'r') as f:
+        query_data = json.load(f)
+    idx = len(query_data)
+    ############# fixed split
+    test_indices = [i['query_id'] for i in query_data if i['query_id']>start_idx_for_test]
+    test_index_set = list(set(test_indices))
+    val_index_set = []
+    # Track the current consecutive duration and API calling
+    current_duration = 1
+    current_api_calling = query_data[0]['api_calling']
+    # Iterate through the data
+    for i in range(1, len(query_data_ori)):
+        api_calling = query_data[i]['api_calling']
+        if api_calling == current_api_calling:
+            current_duration += 1
+        else:
+            if current_duration<10:
+                print(api_calling, current_duration)
+            # If the API calling changes, consider the first and last indices for validation
+            if current_duration >= 3:
+                val_indices = random.sample(list(range(i - current_duration, i)), 2)
+                """if val_indices[0]>val_indices[1]:
+                    val_index_set.append(val_indices[1])
+                    val_index_set.append(val_indices[0])
+                else:
+                    val_index_set.append(val_indices[0])
+                    val_index_set.append(val_indices[1])"""
+                val_index_set.append(val_indices[0])
+                val_index_set.append(val_indices[1])
+                #val_index_set.append(i - current_duration)  # First index
+                #val_index_set.append(i-1)  # Last index
+            else:
+                val_index_set.append(i-1)
+            current_api_calling = api_calling
+            current_duration = 1
+    # remaining 10
+    if current_duration<10:
+        print(api_calling, current_duration)
+    if current_duration >= 3:
+        print(len(query_data_ori) - current_duration, len(query_data_ori)-1)
+        val_indices = random.sample(list(range(len(query_data_ori) - current_duration, len(query_data_ori))), 2)
+        """if val_indices[0]>val_indices[1]:
+            val_index_set.append(val_indices[1])
+            val_index_set.append(val_indices[0])
+        else:
+            val_index_set.append(val_indices[0])
+            val_index_set.append(val_indices[1])"""
+        val_index_set.append(val_indices[0])
+        val_index_set.append(val_indices[1])
+        #val_index_set.append(len(query_data_ori) - current_duration)  # First index
+        #val_index_set.append(len(query_data_ori)-1)  # Last index
+    else:
+        val_index_set.append(len(query_data_ori)-1)
+    ### CHANGE 2: Update the logic to select every fifth data point for validation ###
+    final_index_data = {'test':test_index_set, 'val':val_index_set}
+    assert len(set(test_index_set).intersection(set(val_index_set))) == 0, f"Test and Val sets overlap.{set(test_index_set).intersection(set(val_index_set))}"
+    #assert len(query_data) not in test_index_set, "Test set is empty or contains the last index."
+    with open(INDEX_FILE, 'w') as f:
+        json.dump(final_index_data, f, indent=4)
+    query_train = [i for i in query_data if i['query_id'] not in test_index_set and i['query_id'] not in val_index_set]
+    query_val = [i for i in query_data if i['query_id'] in val_index_set]
+    query_test = [i for i in query_data if i['query_id'] in test_index_set]
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    with open(f"{OUTPUT_DIR}/train.json", 'w') as f:
+        json.dump(query_train, f, indent=4)
+    with open(f"{OUTPUT_DIR}/val.json", 'w') as f:
+        json.dump(query_val, f, indent=4)
+    with open(f"{OUTPUT_DIR}/test.json", 'w') as f:
+        json.dump(query_test, f, indent=4)
+    ### For dataset preprocess ###
+    documents = []
+    doc_id_map = {}  # Create a mapping from doc to doc_id
+    train_pairs = []
+    test_pairs = []
+    val_pairs = []
+    def process_data(data, pairs):
+        for doc in tqdm_normal(data):
+            doc_content = {
+                "api_calling": doc['api_calling'],
+                "api_name": doc['api_calling'][0].split('(')[0],
+                "api_description": doc["description"],
+                "required_parameters": [{"name": param, "info": param_info} for param, param_info in doc["Parameters"].items() if not param_info["optional"]],
+                "optional_parameters": [{"name": param, "info": param_info} for param, param_info in doc["Parameters"].items() if param_info["optional"]],
+                "Returns": doc["Returns"],
+            }
+            #api = {key:doc[key] for key in doc if key not in ['query', 'query_id']}
+            doc_id = doc_id_map.setdefault(json.dumps(doc_content), len(doc_id_map))
+            pairs.append(([doc['query_id'], doc['query']], [doc['query_id'], 0, doc_id, 1]))
+            documents.append((doc_id, json.dumps(doc_content)))
+    process_data(query_train, train_pairs)
+    process_data(query_test, test_pairs)
+    process_data(query_val, val_pairs)
+    # Shuffle the data using the shuffle function
+    train_pairs = shuffle(train_pairs, random_state=42)
+    test_pairs = shuffle(test_pairs, random_state=42)
+    val_pairs = shuffle(val_pairs, random_state=42)
+    # Split the shuffled data into queries and labels
+    train_queries, train_labels = zip(*train_pairs)
+    test_queries, test_labels = zip(*test_pairs)
+    val_queries, val_labels = zip(*val_pairs)
+    train_queries_df = pd.DataFrame(train_queries, columns=['qid', 'query_text'])
+    train_labels_df = pd.DataFrame(train_labels, columns=['qid', 'useless', 'docid', 'label'])
+    test_queries_df = pd.DataFrame(test_queries, columns=['qid', 'query_text'])
+    test_labels_df = pd.DataFrame(test_labels, columns=['qid', 'useless', 'docid', 'label'])
+    val_queries_df = pd.DataFrame(val_queries, columns=['qid', 'query_text'])
+    val_labels_df = pd.DataFrame(val_labels, columns=['qid', 'useless', 'docid', 'label'])
+    documents_df = pd.DataFrame(documents, columns=['docid', 'document_content'])
+    # Save as .tsv and .txt files
+    train_queries_df.to_csv(OUTPUT_DIR + '/train.query.txt', sep='\t', index=False, header=False)
+    test_queries_df.to_csv(OUTPUT_DIR + '/test.query.txt', sep='\t', index=False, header=False)
+    val_queries_df.to_csv(OUTPUT_DIR + '/val.query.txt', sep='\t', index=False, header=False)
+    train_labels_df.to_csv(OUTPUT_DIR + '/qrels.train.tsv', sep='\t', index=False, header=False)
+    test_labels_df.to_csv(OUTPUT_DIR + '/qrels.test.tsv', sep='\t', index=False, header=False)
+    val_labels_df.to_csv(OUTPUT_DIR + '/qrels.val.tsv', sep='\t', index=False, header=False)
+    documents_df.to_csv(OUTPUT_DIR + '/corpus.tsv', sep='\t', index=False)
+
+
 def get_all_path(lib_name):
     os.makedirs(f"data/standard_process/{lib_name}/retriever_train_data", exist_ok=True)
     API_composite = f'./data/standard_process/{lib_name}/API_composite.json'
+    API_init = f'./data/standard_process/{lib_name}/API_init.json'
     OUTPUT_DIR = f"data/standard_process/{lib_name}/retriever_train_data"
     QUERY_FILE = f"data/standard_process/{lib_name}/API_inquiry.json"
     QUERY_ANNOTATE_FILE = f"data/standard_process/{lib_name}/API_inquiry_annotate.json"
     INDEX_FILE = f"data/standard_process/{lib_name}/API_instruction_testval_query_ids.json"
-    return API_composite, OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE
+    return API_init, API_composite, OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE
 
 def preprocess_fake_test_data(QUERY_FILE, QUERY_ANNOTATE_FILE):
     with open(QUERY_FILE, 'r') as f:
@@ -235,14 +481,126 @@ def preprocess_fake_test_data(QUERY_FILE, QUERY_ANNOTATE_FILE):
     with open(QUERY_ANNOTATE_FILE, "w") as file:
         json.dump(datadata, file, ensure_ascii=False, indent=4)
 
+def create_corpus_from_json(API_init_json, corpus_tsv_path):
+    documents = []
+    doc_id_map = {}
+    #pairs = []
+    for api_name, details in API_init_json.items():
+        if details['api_type'] != 'class':
+            doc_content = {
+                #"doc_id": api_name,
+                "api_name": api_name,
+                "api_description": str(details.get('description', '')),
+                #"parameters": ', '.join([f"{param}: {info.get('description', '')}" for param, info in details.get('Parameters', {}).items()]),
+                #"returns": details.get('Returns', {}).get('description', '')
+            }
+            #corpus_entries.append(doc_content)
+            doc_id = doc_id_map.setdefault(json.dumps(doc_content), len(doc_id_map))
+            #pairs.append(([details['api_name'], details['description']], [details['api_name'], 0, doc_id, 1]))
+            documents.append((doc_id, json.dumps(doc_content)))
+    documents_df = pd.DataFrame(documents, columns=["docid", "document_content"])
+    documents_df.to_csv(corpus_tsv_path, sep='\t', index=False)
+
+async def preprocess_instruction_d(desc_retriever, API_init, QUERY_FILE):
+    print('The length of api_data is: ',len(API_init))
+    # filter and remove class API
+    ori_data = {api: details for api, details in API_init.items() if details['api_type'] != 'class'}
+    print('The length of api_data after filtering class type API is: ',len(ori_data))
+    # Convert the output data dict to a list of dicts
+    llm, tokenizer = LLM_model()
+    results = []
+    #tasks = [process_api_async(api_name, ori_data[api_name], llm, tokenizer) for api_name in tqdm(ori_data)]
+    all_tasks = []
+    print('Num. of instruction generation Tasks is one times of the num. of APIs ...')
+    progress = tqdm_asyncio(total=len(ori_data))
+    idx = 0
+    for api_name in tqdm_asyncio(ori_data):
+        async with semaphore:
+            if True:
+                #if api_name in ['scanpy.datasets.paul15']:#, 'scanpy.pl.matrixplot', 'scanpy.external.pl.sam', 'scanpy.external.tl.phate', 'scanpy.pl.MatrixPlot.make_figure', 'scanpy.external.pl.phate', 'scanpy.pl.heatmap', 'scanpy.pl.pca_overview', 'scanpy.pl.sim', 'scanpy.datasets.visium_sge', 'scanpy.pp.recipe_zheng17', 'scanpy.pl.scatter', 'scanpy.pl.draw_graph']:# 'scanpy.pp.subsample' ['scanpy.pp.filter_genes_dispersion', 'scanpy.pl.rank_genes_groups_stacked_violin', 'scanpy.external.pp.bbknn', 'scanpy.read_10x_mtx'] #['scanpy.tl.ingest', 'scanpy.pl.clustermap', 'scanpy.external.tl.palantir_results', 'scanpy.external.tl.wishbone'] #, 'scanpy.pl.DotPlot.add_dendrogram', 'scanpy.tl.diffmap', 'scanpy.pl.highest_expr_genes'
+                tmp_doc = json_to_docstring(api_name, API_init[api_name]['description'].replace('\n',' '), process_parameters(API_init[api_name]['Parameters']))
+                all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], llm, tokenizer, tmp_doc, progress)) # .split('\n')[0]
+            else:
+                pass
+    # Run the tasks and collect results
+    first_round_results = await asyncio.gather(*(all_tasks))
+    # close progres bar
+    progress.close()
+    first_results = copy.deepcopy([item for sublist in first_round_results for item in sublist])
+    
+    async def process_api_async(api_name, api_data, api_ori_data, llm, tokenizer, max_retries = 3):
+        for _ in range(max_retries):
+            tmp_doc = json_to_docstring(api_name, api_data['description'].replace('\n', ' '), process_parameters(api_data['Parameters']))
+            task_results = await process_prompt_async(desc_retriever, API_init, api_name, api_ori_data, llm, tokenizer, tmp_doc, progress)
+            if len(task_results) == 10:
+                return task_results
+        return task_results
+    # filter api which inquiries < 10
+    ########
+    api_inquiries_count = {}
+    for i, result in enumerate(first_results):
+        api_name = result['api_calling'][0].split('(')[0]
+        if api_name not in api_inquiries_count:
+            api_inquiries_count[api_name] = 1
+        else:
+            api_inquiries_count[api_name] += 1
+    insufficient_apis = [api_name for api_name, count in api_inquiries_count.items() if count < 10]
+    print('insufficient_apis: ', insufficient_apis)
+    # combine the first results and second results
+    if len(insufficient_apis)>0:
+        all_tasks = []
+        progress = tqdm_asyncio(total=len(insufficient_apis))
+        """for api_name in tqdm_asyncio(ori_data):
+            async with semaphore:
+                if api_name in insufficient_apis:
+                    tmp_doc = json_to_docstring(api_name, API_init[api_name]['description'].replace('\n',' '), process_parameters(API_init[api_name]['Parameters']))
+                    all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], llm, tokenizer, tmp_doc, progress)) # .split('\n')[0]
+                else:
+                    pass"""
+        retry_tasks = [process_api_async(api_name, API_init[api_name], ori_data[api_name], llm, tokenizer, max_retries=3) for api_name in insufficient_apis]
+        second_round_results = await asyncio.gather(*(retry_tasks))
+        progress.close()
+        retry_results = copy.deepcopy([item for sublist in second_round_results for item in sublist])
+        # remove those inquiries from results
+        print('first_results:', len(first_results))
+        results = [res for i, res in enumerate(first_results) if res['api_calling'][0].split('(')[0] not in insufficient_apis]
+        print('filter_results:', len(results))
+        results.extend(retry_results)
+        print('second_results:', len(results))
+    else:
+        results = first_results
+    for i, result in enumerate(results):
+        result['query_id'] = i
+    # Process the ordered results
+    with open(QUERY_FILE, 'w') as f:
+        json.dump(results, f, indent=4)
+    retained_apis_from_results = set([entry['api_calling'][0].split('(')[0] for entry in results])
+    retained_proportion = len(retained_apis_from_results) / len(ori_data)
+    print(f'the retained proportion is {retained_proportion}')
+    print(f'the retained proportion num of apis is {len(retained_apis_from_results)}')
+    #print(results, 'results==>')
+
 if __name__=='__main__':
-    API_composite, OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE = get_all_path(args.LIB)
+    API_init, API_composite, OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE = get_all_path(args.LIB)
+    with open(API_init, 'r') as f:
+        API_init_json = json.load(f)
+    from inference.utils import process_retrieval_desc
+    # prepare desc_prompt corpus
+    print('preparing desc_prompt corpus')
+    os.makedirs(f"./data/standard_process/{args.LIB}/prompt_desc/", exist_ok=True)
+    print('preparing API corpus')
+    create_corpus_from_json(API_init_json,f"./data/standard_process/{args.LIB}/prompt_desc/corpus.tsv")
+    # load pretrained bert model, prepare corpus
+    desc_retriever = ToolRetriever(LIB = args.LIB, corpus_tsv_path=f"./data/standard_process/{args.LIB}/prompt_desc/corpus.tsv", model_path="all-MiniLM-L6-v2", add_base=False,shuffle_data=False, process_func=process_retrieval_desc)
+    # bert-base-uncased
     t1 = time.time()
-    asyncio.run(preprocess_instruction_generation(API_composite, QUERY_FILE))
+    asyncio.run(preprocess_instruction_d(desc_retriever, API_init_json, QUERY_FILE))
     print('step1 cost:', time.time()-t1)
     t1 = time.time()
     preprocess_fake_test_data(QUERY_FILE, QUERY_ANNOTATE_FILE)
     print('step2 cost:', time.time()-t1)
     t1 = time.time()
-    preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE)
+    #preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE)
+    preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE)
     print('step3 cost:', time.time()-t1)
+

@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 
 from collections import defaultdict
 from configs.model_config import LIB
+from gpt.utils import get_all_api_json, find_similar_api_pairs, is_pair_in_merged_pairs
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import linear_kernel
 
 def find_similar_two_pairs(lib_name):
     from collections import defaultdict
@@ -11,20 +14,6 @@ def find_similar_two_pairs(lib_name):
         api_data = json.load(file)
     api_data = {key:api_data[key] for key in api_data if api_data[key]['api_type']!='class'}
     # 1: description
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.metrics.pairwise import linear_kernel
-    def find_similar_api_pairs(api_descriptions):
-        descriptions = list(api_descriptions.values())
-        api_names = list(api_descriptions.keys())
-        vectorizer = TfidfVectorizer(stop_words='english')
-        tfidf_matrix = vectorizer.fit_transform(descriptions)
-        cosine_similarities = linear_kernel(tfidf_matrix, tfidf_matrix)
-        similar_pairs = []
-        for i in range(len(api_names)):
-            for j in range(i+1, len(api_names)):
-                if cosine_similarities[i, j] > 0.999:  # threshold can be adjusted
-                    similar_pairs.append((api_names[i], api_names[j]))
-        return similar_pairs
     import re, os
     from string import punctuation
     end_of_docstring_summary = re.compile(r'[{}\n]+'.format(re.escape(punctuation)))
@@ -99,7 +88,7 @@ def save_plot_with_timestamp(folder="./tmp/images", prefix="img", format="webp",
     timestamp = current_time.strftime("%Y%m%d%H%M%S")
     # save 
     temp_png_path = os.path.join(folder, f"{prefix}_{timestamp}.png")
-    plt.savefig(temp_png_path)
+    plt.savefig(temp_png_path, bbox_inches='tight')
     # compress
     if format == 'webp':
         webp_path = os.path.join(folder, f"{prefix}_{timestamp}.webp")
@@ -127,13 +116,27 @@ def compress_api_str_from_list_query_version(api):
     compressed_str = f"{api_name}, {api_desc_truncated}, required_params: {req_params}, optional_params: {opt_params}"
     return compressed_str
 
+def process_retrieval_desc(documents_df):
+    ir_corpus = {}
+    corpus2tool = {}
+    for row in documents_df.itertuples():
+        doc = json.loads(row.document_content)
+        ir_corpus[row.docid] = compress_desc(doc)
+        corpus2tool[row.docid] = doc['api_name']
+    return ir_corpus, corpus2tool
+
+def compress_desc(doc):
+    api_description = doc['api_description'].split('\n')[0]
+    compressed_str = f"{api_description}"
+    return compressed_str
+
 def process_retrieval_document_query_version(documents_df):
     ir_corpus = {}
     corpus2tool = {}
     for row in documents_df.itertuples():
         doc = json.loads(row.document_content)
         ir_corpus[row.docid] = compress_api_str_from_list_query_version(doc)
-        corpus2tool[compress_api_str_from_list_query_version(doc)] = doc['api_calling'][0].split('(')[0]
+        corpus2tool[row.docid] = doc['api_calling'][0].split('(')[0]
     return ir_corpus, corpus2tool
 
 def compress_tut_version(doc):
@@ -148,7 +151,7 @@ def process_tut_version(documents_df):
     for row in documents_df.itertuples():
         doc = json.loads(row.document_content)
         ir_corpus[row.docid] = compress_tut_version(doc)
-        corpus2tool[compress_tut_version(doc)] = doc['relevant_API']
+        corpus2tool[row.docid] = doc['relevant_API']
     return ir_corpus, corpus2tool
 
 def compress_api_str_from_list(api):
@@ -171,7 +174,7 @@ def process_retrieval_document(documents_df):
     for row in documents_df.itertuples():
         doc = json.loads(row.document_content)
         ir_corpus[row.docid] = compress_api_str_from_list(doc)
-        corpus2tool[compress_api_str_from_list(doc)] = doc['api_calling'][0].split('(')[0]
+        corpus2tool[row.docid] = doc['api_calling'][0].split('(')[0]
     return ir_corpus, corpus2tool
 
 def get_all_types_in_API(LIB):
@@ -199,6 +202,7 @@ def fast_get_environment(pre_code):
 
 def sentence_transformer_embed(model, texts):
     embeddings = model.encode(texts, convert_to_tensor=True)
+    embeddings = embeddings.cpu().detach().numpy()
     return embeddings
 
 def bert_embed(model,tokenizer,text, device='cpu'):
@@ -207,7 +211,8 @@ def bert_embed(model,tokenizer,text, device='cpu'):
     return outputs.last_hidden_state.mean(1).squeeze().detach().cpu().numpy()
 
 if __name__=='__main__':
-    pre_code = """
+    a, b = get_all_api_json(f"./data/standard_process/scanpy/API_init.json")
+    '''pre_code = """
 import squidpy as sq\n
 a = sq.datasets.four_i()\n
 b = sq.datasets.visium()\n
@@ -220,4 +225,5 @@ img = sq.im.ImageContainer(arr, layer="img1")\n
     executor.load_environment()
     executor.load_variables_to_json()
     print(executor.variables)
-    executor.execute_api_call('print(a)')
+    executor.execute_api_call('print(a)')'''
+

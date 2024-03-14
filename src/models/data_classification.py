@@ -203,7 +203,7 @@ def main(
     with open(API_composite_dir, 'r') as json_file:
         data = json.load(json_file)
     API_composite = data
-    fabric = L.Fabric(accelerator="cuda", devices=device_count, precision="bf16-true")
+    fabric = L.Fabric(accelerator="cuda", devices=device_count, precision="bf16") # bf16-true
     fabric.launch()
     fabric.seed_everything(1337 + fabric.global_rank)
     if fabric.global_rank == 0:

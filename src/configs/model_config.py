@@ -97,7 +97,7 @@ llm_model_dict = {
 }
 LLM_MODEL = "openai"
 EMBEDDING_MODEL = "text-embedding-ada-002"
-MAX_NEW_TOKENS = 300
+MAX_NEW_TOKENS = 800
 TEMPERATURE = 0.01
 LLM_HISTORY_LEN = 20
 FP16 = True

@@ -67,9 +67,7 @@ def main():
     os.makedirs(model_save_path, exist_ok=True)
 
     # Model definition
-    word_embedding_model = models.Transformer(args.model_name, max_seq_length=args.max_seq_length)
-    pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension())
-    model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
+    model = SentenceTransformer(args.model_name)
 
     ir_corpus, train_samples, corpus_config = get_data(args.data_path,process_retrieval_document_query_version)
     train_dataloader = DataLoader(train_samples, shuffle=True, batch_size=args.train_batch_size, pin_memory=True)

@@ -89,7 +89,7 @@ python dataloader/preprocess_retriever_data.py --LIB ${LIB}
 
 (Optional) You can validate of your annotated API_inquiry_annotate.json with 
 ```bash
-python dataloader/check_valid_API_annotate.py ${LIB}
+python dataloader/check_valid_API_annotate.py --LIB ${LIB}
 ```
 
 Tips:
@@ -99,7 +99,7 @@ Tips:
 
 5. Train the api/non-api classification model.
 ```bash
-python models/chitchat_classification.py --LIB ${LIB} --ratio_1_to_3 1.0 --ratio_2_to_3 1.0 --embed_method st_trained
+python models/chitchat_classification.py --LIB ${LIB} --ratio_1_to_3 1.0 --ratio_2_to_3 1.0 --embed_method st_untrained
 # or train a classification model on multicorpus of 12 bio-tools.
 # python models/chitchat_classification_multicorpus.py
 ```
@@ -117,17 +117,19 @@ You can finetune the retriever based on the [bert-base-uncased](https://huggingf
 mkdir ./hugging_models/retriever_model_finetuned/${LIB}
 python models/train_retriever.py \
     --data_path ./data/standard_process/${LIB}/retriever_train_data/ \
-    --model_name bert-base-uncased \
+    --model_name all-MiniLM-L6-v2 \
     --output_path ./hugging_models/retriever_model_finetuned/${LIB} \
-    --num_epochs 25 \
+    --num_epochs 20 \
     --train_batch_size 32 \
     --learning_rate 1e-5 \
     --warmup_steps 500 \
     --max_seq_length 256 \
     --optimize_top_k 3 \
     --plot_dir ./plot/${LIB}/retriever/ \
-    --gpu "1"
+    --gpu "0"
 ```
+
+# bert-base-uncased
 
 You can check the training performance curve under `./src/plot/${LIB}/` to determine whether you need more number of epochs.
 
@@ -143,7 +145,7 @@ python inference/retriever_finetune_inference.py  \
     --retrieved_api_nums 3 \
     --LIB ${LIB} \
     --filter_composite 
-```
+``` 
 
 You can refer to `src/plot/${LIB}/error_train.json` for detailed error case.
 
@@ -171,7 +173,7 @@ python models/data_classification.py \
     --out_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
     --plot_dir ./plot/${LIB}/classification \
     --device_count 1 \
-    --top_k 10 \
+    --top_k 3 \
     --debug_mode "1" \
     --save_path ./data/standard_process/${LIB}/classification_train \
     --idx_file ./data/standard_process/${LIB}/API_instruction_testval_query_ids.json \
@@ -196,7 +198,8 @@ Finally, check the performance:
 python models/inference_classification.py \
     --data_dir ./data/standard_process/${LIB}/classification_train/ \
     --checkpoint_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/combined_model_checkpoint.pth \
-    --batch_size 1
+    --batch_size 1 \
+    --LIB ${LIB}
 ```
 
 Next you may want to check the performance by generating reports in [Report_Generation](./Report_Generation.md)

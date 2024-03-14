@@ -73,7 +73,7 @@ def print_parameters(model):
         if param.requires_grad:
             print(name, param.shape)
 
-def evaluate_model(model, loader, criterion, mode='Validation'):
+def evaluate_model(model, loader, criterion, mode='Validation', LIB=''):
     model.eval()
     total_loss = 0
     correct = 0
@@ -86,6 +86,7 @@ def evaluate_model(model, loader, criterion, mode='Validation'):
             llama_output, retrieved_embeddings, labels = llama_output.to('cuda'), retrieved_embeddings.to('cuda'), labels.to('cuda')
             outputs = model(llama_output, retrieved_embeddings)
             loss = criterion(outputs, labels)
+            #print(labels)
             total_loss += loss.item()
             max_logits, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
@@ -101,7 +102,7 @@ def evaluate_model(model, loader, criterion, mode='Validation'):
             for i in wrong_idx:
                 error_j = {'Query':queries[i],'gold':retrieved_names[i][labels[i].item()],'pred':retrieved_names[i][predicted[i].item()],'Logits': max_logits[i].item()}
                 error_json.append(error_j)
-    with open(f'./plot/API_error_{mode}.json', 'w') as f:
+    with open(f'./plot/{LIB}/API_error_{mode}.json', 'w') as f:
         json.dump(error_json, f, indent=4)
     print(f'{mode} Loss: {total_loss / len(loader):.4f}')
     print(f'{mode} Accuracy: {100 * correct / total:.2f}%\n')
@@ -120,6 +121,7 @@ def main(
     data_dir: str = "data/alpaca", 
     batch_size: int=4,
     checkpoint_dir: str = "out/lora/alpaca",
+    LIB: str = "",
 ):
     # model
     model = CombinedModel().to('cuda')
@@ -141,11 +143,11 @@ def main(
     model.load_state_dict(checkpoint["linear_weights"])
     
     os.makedirs("./plot",exist_ok=True)
-    total_train_loss, correct_train, total, train_correct_logits, train_wrong_logits = evaluate_model(model, train_loader, criterion, mode='Train')
+    total_train_loss, correct_train, total, train_correct_logits, train_wrong_logits = evaluate_model(model, train_loader, criterion, mode='Train', LIB=LIB)
     plot_boxplot(train_correct_logits, train_wrong_logits, 'Train')
-    total_val_loss, correct_val, total, val_correct_logits, val_wrong_logits = evaluate_model(model, val_loader, criterion, mode='Validation')
+    total_val_loss, correct_val, total, val_correct_logits, val_wrong_logits = evaluate_model(model, val_loader, criterion, mode='Validation', LIB=LIB)
     plot_boxplot(val_correct_logits, val_wrong_logits, 'Validation')
-    total_test_loss, correct_test, total, test_correct_logits, test_wrong_logits = evaluate_model(model, test_loader, criterion, mode='Test')
+    total_test_loss, correct_test, total, test_correct_logits, test_wrong_logits = evaluate_model(model, test_loader, criterion, mode='Test', LIB=LIB)
     plot_boxplot(test_correct_logits, test_wrong_logits, 'Test')
     
 class CustomDataset(Dataset):

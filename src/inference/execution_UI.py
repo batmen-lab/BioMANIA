@@ -1,12 +1,5 @@
-import pickle
-import types
 import pandas as pd
-import importlib
-import json
-import inspect
-import os
-import io
-import sys
+import pickle, types, importlib, json, inspect, os, io, sys
 
 class CodeExecutor:
     def __init__(self):
@@ -102,7 +95,7 @@ class CodeExecutor:
             if param_info["value"] in ['@']:
                 try:
                     value = next(input_iterator)
-                    #value = self.format_value(param_info['value'], param_info['type'])
+                    value = self.format_value(param_info['value'], param_info['type'])
                     params[param_name] = {
                         "type": param_info["type"],
                         "value": value,
@@ -138,7 +131,7 @@ class CodeExecutor:
         param_info = params[param_name_to_update]
         value = user_input  # Since user_input is for a single parameter, we directly use it
         # we didn't need to add '' for the value, its from namespace variable
-        #value = self.format_value(value, param_info['type'])
+        value = self.format_value(value, param_info['type'])
         # Update the parameter information
         params[param_name_to_update] = {
             "type": param_info["type"],
@@ -173,17 +166,21 @@ class CodeExecutor:
     def is_str_at_first_level(self, type_str):
         print('change a stype for ensuring str type')
         import re
+        # remove "Optional[" and "]", to solve the internal type
+        def remove_outer_optional(s):
+            if s.startswith("Optional[") and s.endswith("]"):
+                return s[9:-1]
+            return s
         # remove "Union[" and "]", to solve the internal type
         def remove_outer_union(s):
             if s.startswith("Union[") and s.endswith("]"):
                 return s[6:-1]
             return s
-
         # split top level types
         def split_top_level_types(s):
             return re.split(r',\s*(?![^[\]]*\])', s)
-
         # check whether top level contains 'str'
+        type_str = remove_outer_optional(type_str)
         s = remove_outer_union(type_str)
         top_level_types = split_top_level_types(s)
         return 'str' in top_level_types
@@ -262,6 +259,7 @@ class CodeExecutor:
         #print('selected_params', selected_params)
         params_formatted = self.format_arguments(selected_params)
         class_params_formatted = self.format_arguments(class_selected_params)
+        print('params_formatted:', params_formatted, 'class_params_formatted: ', class_params_formatted)
         if type_api == "class":
             print('==>Class type API need to be initialized first, then used')
             # double check for API type
@@ -287,15 +285,18 @@ class CodeExecutor:
             print('==>no Class type API')
             final_api_name = api_parts[-1]
             api_call = f"{final_api_name}({params_formatted})"
-        # generate return information
+        print('generate return information')
         if (return_type not in ["NoneType", None, "None"]) and (not return_type.startswith('Optional')):
             self.counter += 1
             tmp_api_call = api_call.split('\n')[-1]
-            if '=' in tmp_api_call:
-                #print('debugging1 for return class API:', api_name, return_type, api_call, '--end')
+            index_equal = tmp_api_call.find("=")
+            index_parenthesis = tmp_api_call.find("(")
+            comparison_result = index_equal < index_parenthesis
+            if comparison_result:
+                print('debugging1 for return class API:', api_name, return_type, api_call, '--end')
                 return import_code+'\n'+f"{api_call}"
             else:
-                #print('debugging2 for return class API:', api_name, return_type, api_call, '--end')
+                print('debugging2 for return class API:', api_name, return_type, api_call, '--end')
                 return_var = f"result_{self.counter} = "
                 new_code = f"{return_var}{tmp_api_call}"
                 # TODO: note this step assumes the lastline is the class.attribute line
@@ -304,7 +305,7 @@ class CodeExecutor:
                 self.generate_code.append(new_code)
                 return import_code+'\n'+new_code
         else:
-            #print('debugging3 for return class API:', api_name, return_type, api_call, '--end')
+            print('debugging3 for return class API:', api_name, return_type, api_call, '--end')
             self.generate_code.append(f"{api_call}")
             return import_code+'\n'+f"{api_call}"
     def split_tuple_variable(self, last_code_status):

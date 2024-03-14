@@ -2,7 +2,7 @@ version: '3.10'
 
 services:
   biomania-frontend:
-    image: chatbotuibiomania/biomania-frontend:v1.1.3
+    image: chatbotuibiomania/biomania-frontend:v1.1.9
     environment:
       - BACKEND_URL=http://biomania-backend:5000
     ports:
@@ -13,7 +13,7 @@ services:
 
 
   biomania-backend:
-    image: chatbotuibiomania/biomania-backend:v1.1.3
+    image: chatbotuibiomania/biomania-backend:v1.1.9
     environment:
       - OPENAI_API_KEY=""
     ports:
