@@ -168,6 +168,7 @@ def correct_pred(pred, lib_name):
         ans = pred[pred.find(lib_name):]
     else:
         ans = pred
+    ans = ans.strip()
     return ans
 
 def generate_custom_val_indices(api_ranges):
