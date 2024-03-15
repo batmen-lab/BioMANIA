@@ -58,7 +58,7 @@ from deploy.utils import dataframe_to_markdown, convert_image_to_base64
 from prompt.parameters import prepare_parameters_prompt
 from prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
 
-basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'List', 'Dict', 'Any', 'any']
+basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'List', 'Dict', 'Any', 'any', 'Path', 'path', 'Pathlike']
 basic_types.extend(['_AvailShapes']) # extend for squidpy `shape` type
 
 def generate_api_calling(api_name, api_details, returned_content_str):
@@ -1397,6 +1397,21 @@ class Model:
         self.user_states = "initial"
         self.executor.save_environment(filename)
         self.save_state()
+    def modify_code_add_tmp(self, code, add_tmp = "tmp"):
+        """
+        sometimes author make 'return' information wrong
+        we want to make up for it automatically by adding `tmp`
+        """
+        if not code.strip().startswith("result_"):
+            find_pos = code.find("(")
+            equal_pos = code.find("=")
+            if find_pos != -1:
+                if equal_pos != -1 and equal_pos < find_pos:
+                    return code, False
+                elif (equal_pos != -1 and equal_pos > find_pos) or equal_pos == -1:
+                    modified_code = add_tmp + " = " + code
+                    return modified_code, True
+        return code, False
     def run_pipeline_execution_code_list(self, execution_code_list, output_file):
         # initialize the text
         with open(output_file, 'w') as test_file:
@@ -1404,9 +1419,28 @@ class Model:
         #sys.stdout = open(output_file, 'a')
         output_list = []
         for code in execution_code_list:
-            #print(f'start executing code: {code}')
-            #ans = self.executor.execute_api_call(code, "code")
+            ori_code = code
+            print(f'start executing code: {code}')
+            if 'import' in code:
+                add_tmp = None
+                pass
+            else:
+                code, add_tmp = self.modify_code_add_tmp(code) # add `tmp =`
             ans = self.executor.execute_api_call(code, "code", output_file=output_file)
+            # process tmp variable, if not None, add it to the 
+            if add_tmp:
+                print('add tmp!')
+                print('tmp' in self.executor.variables)
+                if ('tmp' in self.executor.variables):
+                    self.executor.counter+=1
+                    self.executor.variables['result_'+str(self.executor.counter+1)] = {
+                        "type": self.executor.variables['tmp']['type'],
+                        "value": self.executor.variables['tmp']['value']
+                    }
+                    print('added tmp to ', 'result_'+str(self.executor.counter+1))
+                    code, _ = self.modify_code_add_tmp(ori_code, 'result_'+str(self.executor.counter+1)) # add `tmp =`
+                    print('add normal variable :', code)
+                    ans = self.executor.execute_api_call(code, "code", output_file=output_file)
             print('%s, %s', str(code), str(ans))
             if ans:
                 output_list.append(ans)
@@ -1417,6 +1451,8 @@ class Model:
             else:
                 pass
         #sys.stdout.close()
+        print('variables keys: ', self.executor.variables.keys())
+        print(self.executor.variables)
         result = json.dumps({'code': code, 'output_list': output_list})
         self.executor.save_environment("./tmp/tmp_output_run_pipeline_execution_code_variables.pkl")
         with open("./tmp/tmp_output_run_pipeline_execution_code_list.txt", 'w') as file:

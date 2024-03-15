@@ -1,5 +1,6 @@
 import pandas as pd
 import pickle, types, importlib, json, inspect, os, io, sys
+from anndata import AnnData
 
 class CodeExecutor:
     def __init__(self):
@@ -12,18 +13,59 @@ class CodeExecutor:
         self.callbacks = []
         self.session_id = ""
     def is_picklable(self, obj):
-        """Check if an object is picklable."""
+        """Check if an object is picklable, with a special case for AnnData."""
+        if isinstance(obj, AnnData):  # Assuming AnnData is imported from anndata
+            return False  # Handle AnnData separately
         try:
             pickle.dumps(obj)
             return True
         except Exception:
             return False
     def filter_picklable_variables(self, ):
+        nonok_var = {k: v for k, v in self.variables.items() if not self.is_picklable(v)} 
+        print('not ok var:', nonok_var.keys())
         return_var = {k: v for k, v in self.variables.items() if self.is_picklable(v)} #  if isinstance(v, (pd.DataFrame, pd.Series, int, float, str, bool))
         print('return_var save :', list(return_var.keys()))
         return return_var
-    def save_environment(self,file_name) -> None:
+    def load_object(self,load_info):
+        if load_info['type'] == 'AnnData':
+            return AnnData.read(load_info['file'])
+        else:
+            with open(load_info['file'], 'rb') as file:
+                return pickle.load(file)
+    def save_object(self,obj, file_name):
+        if isinstance(obj, AnnData):
+            obj.write(file_name)
+            return {'type': 'AnnData', 'file': file_name}
+        else:
+            with open(file_name, 'wb') as file:
+                pickle.dump(obj, file)
+            return {'type': 'pickle', 'file': file_name}
+    def save_special_objects(self, obj, file_name):
+        if isinstance(obj, AnnData):
+            obj.write(file_name)
+            return {'type': 'AnnData', 'file': file_name}
+        return None
+    '''def filter_picklable_variables(self):
+        return_var = {}
+        special_objects = {}
+        for k, v in self.variables.items():
+            special_obj_info = self.save_special_objects(v, f"{k}.pkl")
+            if special_obj_info:
+                special_objects[k] = special_obj_info
+            elif self.is_picklable(v):
+                return_var[k] = v
+        print('return_var save :', list(return_var.keys()))
+        return return_var, special_objects'''
+
+    def save_environment(self, file_name):
+        """Save environment, with special handling for AnnData objects."""
+        print('current variables are: ', self.variables.keys())
         serializable_vars = self.filter_picklable_variables()
+        # Handle AnnData objects separately
+        ann_data_vars = {k: v for k, v in self.variables.items() if isinstance(v, AnnData)}
+        for k, ann_data in ann_data_vars.items():
+            ann_data.write_h5ad(f"{file_name}_{k}.h5ad")  # Save each AnnData object to a separate file
         data_to_save = {
             "variables": serializable_vars,
             "execute_code": self.execute_code,
@@ -31,13 +73,19 @@ class CodeExecutor:
         }
         with open(file_name, "wb") as file:
             pickle.dump(data_to_save, file)
-    def load_environment(self, file_name) -> None:
+
+    def load_environment(self, file_name):
+        """Load environment, with special handling for AnnData objects."""
         with open(file_name, "rb") as file:
             loaded_data = pickle.load(file)
             self.variables.update(loaded_data.get("variables", {}))
+            # Load AnnData objects
+            for k in list(self.variables.keys()):
+                if k.endswith("_AnnData"):  # Assuming you have a way to recognize AnnData objects
+                    self.variables[k] = read_h5ad(f"{file_name}_{k}.h5ad")  # Load AnnData object from file
             self.execute_code = loaded_data.get("execute_code", [])
             self.counter = loaded_data.get("counter", 1)
-            tmp_variables = {k:self.variables[k]['value'] for k in self.variables}
+            tmp_variables = {k: self.variables[k]['value'] for k in self.variables if not k.endswith("_AnnData")}
             globals().update(tmp_variables)
             locals().update(tmp_variables)
     def select_parameters(self, params):
@@ -183,7 +231,7 @@ class CodeExecutor:
         type_str = remove_outer_optional(type_str)
         s = remove_outer_union(type_str)
         top_level_types = split_top_level_types(s)
-        return 'str' in top_level_types
+        return ('str' in top_level_types)
 
     def format_value(self, value, value_type):
         try:
@@ -292,7 +340,7 @@ class CodeExecutor:
             index_equal = tmp_api_call.find("=")
             index_parenthesis = tmp_api_call.find("(")
             comparison_result = index_equal < index_parenthesis
-            if comparison_result:
+            if index_equal!=-1 and comparison_result:
                 print('debugging1 for return class API:', api_name, return_type, api_call, '--end')
                 return import_code+'\n'+f"{api_call}"
             else:
@@ -316,6 +364,7 @@ class CodeExecutor:
             code = last_code_status['code'].split('\n')[-1].strip()
             # Check if the last code snippet ends with 'result'
             if code.startswith('result'):
+                print('code is start with result:', code)
                 # Extract the variable name that starts with 'result'
                 result_name_tuple = code.strip().split('=')[0].strip()
                 #print(f'self.variables: {self.variables},')
@@ -378,13 +427,17 @@ class CodeExecutor:
                 captured_output_value = captured_output.getvalue()
             globals_after = set(globals().keys())
             new_vars = globals_after - globals_before
+            if 'tmp' in globals_before:
+                new_vars=set(list(new_vars)+['tmp'])
             #print('globals_before:',globals_before)
             #print('globals_after:',globals_after)
+            #print('new_vars:', new_vars)
             if len(new_vars)<=0:
                 #print('oops, there is no new vars even executed successfully')
                 if len(api_call_code.split('(')[0].split('='))>1:
                     new_vars = [api_call_code.split('(')[0].split('=')[0].strip()] # need to substitute result_*
             for var_name in new_vars: # this depends on the difference between two globals status
+                #print('added var_name:', var_name)
                 var_value = globals()[var_name]
                 var_type = type(var_value).__name__
                 self.variables[var_name] = {

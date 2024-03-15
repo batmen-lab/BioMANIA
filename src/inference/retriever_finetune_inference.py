@@ -53,6 +53,7 @@ class ToolRetriever:
             combined_corpus_df = pd.concat([original_corpus_df, additional_corpus_df], ignore_index=True)
             combined_corpus_df.reset_index(drop=True, inplace=True)
         else:
+            print('--------> not add base!')
             combined_corpus_df = original_corpus_df
         corpus, self.corpus2tool = self.process_func(combined_corpus_df)
         corpus_ids = list(corpus.keys())
