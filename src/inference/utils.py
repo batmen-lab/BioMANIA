@@ -7,6 +7,12 @@ from configs.model_config import LIB
 from gpt.utils import get_all_api_json, find_similar_api_pairs, is_pair_in_merged_pairs
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
+
+def predict_by_similarity(user_query_vector, centroids, labels):
+    similarities = [cosine_similarity(user_query_vector, centroid.reshape(1, -1)) for centroid in centroids]
+    return labels[np.argmax(similarities)]
 
 def find_similar_two_pairs(lib_name):
     from collections import defaultdict

@@ -1,11 +1,10 @@
 import argparse, os, json, torch, glob, time, pickle
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer, models
-from inference.utils import sentence_transformer_embed, bert_embed
+from inference.utils import sentence_transformer_embed, bert_embed, predict_by_similarity
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
@@ -79,10 +78,6 @@ def calculate_centroid(data, model_chosen):
     ans = np.mean(embeddings, axis=0)
     #print('ans', ans.shape)
     return ans
-
-def predict_by_similarity(user_query_vector, centroids, labels):
-    similarities = [cosine_similarity(user_query_vector, centroid.reshape(1, -1)) for centroid in centroids]
-    return labels[np.argmax(similarities)]
 
 def plot_tsne_distribution_modified(lib_name, train_data, test_data, model, labels, c2_accuracy,embed_method):
     # Combine train and test data for t-SNE

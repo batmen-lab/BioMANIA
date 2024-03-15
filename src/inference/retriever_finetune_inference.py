@@ -78,7 +78,7 @@ class ToolRetriever:
         query_embedding = self.embedder.encode(query, convert_to_tensor=True)
         hits = util.semantic_search(query_embedding, self.shuffled_query_embeddings, top_k=shot_k, score_function=util.cos_sim)
         #similar_queries = [shuffled_data[hit['corpus_id']] for hit in hits[0]]
-        similar_queries = ["\nExample Instruction: " + self.shuffled_data[hit['corpus_id']]['query'] + "\nExample Function: " + self.shuffled_data[hit['corpus_id']]['gold'] for hit in hits[0]]
+        similar_queries = ["\nInstruction: " + self.shuffled_data[hit['corpus_id']]['query'] + "\nFunction: " + self.shuffled_data[hit['corpus_id']]['gold'] for hit in hits[0]]
         return ''.join(similar_queries)
 
 def compute_accuracy(retriever, data, args,name='train'):

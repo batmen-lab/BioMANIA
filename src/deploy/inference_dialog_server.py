@@ -18,7 +18,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 from typing import Any
 import multiprocessing
 from sentence_transformers import SentenceTransformer, models
-
+from inference.utils import predict_by_similarity
+from tqdm import tqdm
 from deploy.utils import change_format
 
 import logging
@@ -125,11 +126,6 @@ def generate_api_calling(api_name, api_details, returned_content_str):
     }
     return api_name, api_calling, output
 
-def predict_by_similarity(user_query_vector, centroids, labels):
-    similarities = [cosine_similarity(user_query_vector, centroid.reshape(1, -1)) for centroid in centroids]
-    return labels[np.argmax(similarities)]
-
-from tqdm import tqdm
 def infer(query, model, centroids, labels):
     # 240125 modified chitchat model
     user_query_vector = np.array([sentence_transformer_embed(model, query)])
@@ -362,7 +358,6 @@ class Model:
             subprocess.run(['pip', 'install', f'{lib_alias}'])
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Lib downloaded...",task_title="0") for callback in self.callbacks]
         self.indexxxx+=1
-        
         if doc_url and api_html:
             download_readthedoc(doc_url, api_html)
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Preparing API_init.json ...",task_title="26") for callback in self.callbacks]
@@ -377,7 +372,6 @@ class Model:
         shutil.copy(f'./data/standard_process/{self.LIB}/API_init.json', f'./data/standard_process/{self.LIB}/API_composite.json')
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Finished API_composite.json ...",task_title="39") for callback in self.callbacks]
         self.indexxxx+=1
-        
         ###########
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Preparing instruction generation API_inquiry.json ...",task_title="52") for callback in self.callbacks]
         self.indexxxx+=1
@@ -423,7 +417,6 @@ class Model:
         #from configs.model_config import get_all_variable_from_cheatsheet
         #info_json = get_all_variable_from_cheatsheet(lib_name)
         #API_HTML, TUTORIAL_GITHUB = [info_json[key] for key in ['API_HTML', 'TUTORIAL_GITHUB']]
-        
         self.LIB = lib_name
         self.args_retrieval_model_path = f'./hugging_models/retriever_model_finetuned/{lib_name}/assigned'
         from configs.model_config import GITHUB_PATH, ANALYSIS_PATH, READTHEDOC_PATH
@@ -492,15 +485,16 @@ class Model:
             "python",
             "models/train_retriever.py",
             "--data_path", f"./data/standard_process/{self.LIB}/retriever_train_data/",
-            "--model_name", "bert-base-uncased",
+            "--model_name", "all-MiniLM-L6-v2",
             "--output_path", f"./hugging_models/retriever_model_finetuned/{self.LIB}",
-            "--num_epochs", "25",
+            "--num_epochs", "20",
             "--train_batch_size", "32",
             "--learning_rate", "1e-5",
             "--warmup_steps", "500",
             "--max_seq_length", "256",
             "--optimize_top_k", "3",
             "--plot_dir", f"./plot/{self.LIB}/retriever/"
+            "--gpu '0'"
         ]
         subprocess.run(command)
         base64_image = convert_image_to_base64(f"./plot/{self.LIB}/retriever/ndcg_plot.png")
@@ -681,13 +675,10 @@ class Model:
             else:
                 sampled_shuffled = random.sample(self.retriever.shuffled_data, 5)
                 instruction_shot_example = "".join(["\nInstruction: " + ex['query'] + "\nFunction: " + ex['gold'] for ex in sampled_shuffled])
-            api_predict_prompt = f"""
-            Task: choose one of the following APIs to use for the instruction. 
-            {json.dumps(description_jsons)}
-            {instruction_shot_example}
-            Instruction: {user_input}
-            API:
-            """
+            # 240315: substitute prompt
+            from gpt.utils import get_retrieved_prompt, get_nonretrieved_prompt
+            api_predict_init_prompt = get_retrieved_prompt()
+            api_predict_prompt = api_predict_init_prompt.format(query=user_input, retrieved_apis=json.dumps(description_jsons), similar_queries=instruction_shot_example)
             success = False
             for attempt in range(3):
                 try:
@@ -1420,7 +1411,6 @@ class Model:
         output_list = []
         for code in execution_code_list:
             ori_code = code
-            print(f'start executing code: {code}')
             if 'import' in code:
                 add_tmp = None
                 pass
@@ -1429,17 +1419,13 @@ class Model:
             ans = self.executor.execute_api_call(code, "code", output_file=output_file)
             # process tmp variable, if not None, add it to the 
             if add_tmp:
-                print('add tmp!')
-                print('tmp' in self.executor.variables)
                 if ('tmp' in self.executor.variables):
                     self.executor.counter+=1
                     self.executor.variables['result_'+str(self.executor.counter+1)] = {
                         "type": self.executor.variables['tmp']['type'],
                         "value": self.executor.variables['tmp']['value']
                     }
-                    print('added tmp to ', 'result_'+str(self.executor.counter+1))
                     code, _ = self.modify_code_add_tmp(ori_code, 'result_'+str(self.executor.counter+1)) # add `tmp =`
-                    print('add normal variable :', code)
                     ans = self.executor.execute_api_call(code, "code", output_file=output_file)
             print('%s, %s', str(code), str(ans))
             if ans:
@@ -1451,8 +1437,6 @@ class Model:
             else:
                 pass
         #sys.stdout.close()
-        print('variables keys: ', self.executor.variables.keys())
-        print(self.executor.variables)
         result = json.dumps({'code': code, 'output_list': output_list})
         self.executor.save_environment("./tmp/tmp_output_run_pipeline_execution_code_variables.pkl")
         with open("./tmp/tmp_output_run_pipeline_execution_code_list.txt", 'w') as file:
