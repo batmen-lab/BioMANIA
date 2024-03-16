@@ -907,8 +907,13 @@ class Model:
                 api_name_tmp = list(api_name_tmp_list.keys())[0]
                 apis_name+=f"{api_name_tmp}"
                 apis_description+=f"{self.API_composite[api_name_tmp]['description']}."
-        api_docstring = json_to_docstring(apis_name, apis_description, api_parameters_information)
-        parameters_prompt = prepare_parameters_prompt(self.user_query, api_docstring, parameters_name_list)
+        try:
+            tmp_api_parameters_information = self.API_composite[apis_name]['Parameters']
+            api_docstring = json_to_docstring(apis_name, apis_description, tmp_api_parameters_information)###TODO: here only works for one api, if we add compositeAPI or classAPI in the future, we need to buildup a parameters selection for multiple API!!!
+            parameters_prompt = prepare_parameters_prompt(self.user_query, api_docstring, parameters_name_list)
+            print('parameters_prompt:', parameters_prompt)
+        except Exception as e:
+            print('error for parameters: ', e)
         if len(parameters_name_list)==0:
             # if there is no required parameters, skip using gpt
             response = "[]"
