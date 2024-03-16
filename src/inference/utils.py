@@ -10,6 +10,23 @@ from sklearn.metrics.pairwise import linear_kernel
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
+def json_to_docstring(api_name, description, parameters):
+    params_list = ', '.join([
+        f"{param}: {parameters[param]['type']} = {parameters[param]['default']}" if parameters[param]['optional'] else f"{param}: {parameters[param]['type']}"
+        for param in parameters
+    ])
+    function_signature = f"def {api_name}({params_list}):"
+    docstring = f"\"\"\"{description}\n\n"
+    if len(parameters) > 0:
+        docstring += "Parameters\n----------\n"
+    for parameter in parameters:
+        info = parameters[parameter]
+        if info['description'] is not None:  # Skip empty descriptions
+            if info['description'].strip():
+                docstring += f"{parameter}\n    {info['description']}\n"
+    docstring += "\"\"\""
+    return function_signature + "\n" + docstring.strip()
+
 def predict_by_similarity(user_query_vector, centroids, labels):
     similarities = [cosine_similarity(user_query_vector, centroid.reshape(1, -1)) for centroid in centroids]
     return labels[np.argmax(similarities)]

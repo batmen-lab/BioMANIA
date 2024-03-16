@@ -65,6 +65,27 @@ def load_errors(fname):
     random.Random(0).shuffle(wrong)
     return wrong
 
+def correct_pred(pred, lib_name):
+    """
+    Extracts the library name from the prediction string.
+    """
+    if '(' in pred and lib_name in pred:
+        pred = pred.split('(')[0]
+    #if (pred.startswith('candidate') or pred.startswith('Candidate') or pred.startswith('Function')) and (lib_name in pred):
+    #    if lib_name in pred:
+    #        ans = pred[pred.find(lib_name):]
+    #else:
+    #    if lib_name in pred:
+    #        ans = pred[pred.find(lib_name):]
+    if lib_name in pred:
+        ans = pred[pred.find(lib_name):]
+    else:
+        ans = pred
+    ans = ans.strip()
+    if ans.endswith(']'):
+        ans = ans.replace(']','')
+    return ans
+
 def correct_entries(res, lib_name):
     for entry in res:
         # Directly obtaining the substring starting from "scanpy"
@@ -151,25 +172,6 @@ def get_sampled_shuffled(api_name, shuffled_list, num_samples=5):
     random.seed(seed)
     sampled_shuffled = random.sample(shuffled_list, num_samples)
     return sampled_shuffled
-
-def correct_pred(pred, lib_name):
-    """
-    Extracts the library name from the prediction string.
-    """
-    if '(' in pred and lib_name in pred:
-        pred = pred.split('(')[0]
-    #if (pred.startswith('candidate') or pred.startswith('Candidate') or pred.startswith('Function')) and (lib_name in pred):
-    #    if lib_name in pred:
-    #        ans = pred[pred.find(lib_name):]
-    #else:
-    #    if lib_name in pred:
-    #        ans = pred[pred.find(lib_name):]
-    if lib_name in pred:
-        ans = pred[pred.find(lib_name):]
-    else:
-        ans = pred
-    ans = ans.strip()
-    return ans
 
 def generate_custom_val_indices(api_ranges):
     """

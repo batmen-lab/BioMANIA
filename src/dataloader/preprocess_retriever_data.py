@@ -23,6 +23,7 @@ args = parser.parse_args()
 semaphore = asyncio.Semaphore(args.concurrency)
 
 from inference.retriever_finetune_inference import ToolRetriever
+from inference.utils import json_to_docstring
 
 def unify_response_format(response):
     try:
@@ -208,23 +209,6 @@ def process_parameters(parameters, max_parameters=6):
                 processed_parameters[param_name] = param_data
                 optional_count += 1
     return processed_parameters
-
-def json_to_docstring(api_name, description, parameters):
-    params_list = ', '.join([
-        f"{param}: {parameters[param]['type']} = {parameters[param]['default']}" if parameters[param]['optional'] else f"{param}: {parameters[param]['type']}"
-        for param in parameters
-    ])
-    function_signature = f"def {api_name}({params_list}):"
-    docstring = f"\"\"\"{description}\n\n"
-    if len(parameters) > 0:
-        docstring += "Parameters\n----------\n"
-    for parameter in parameters:
-        info = parameters[parameter]
-        if info['description'] is not None:  # Skip empty descriptions
-            if info['description'].strip():
-                docstring += f"{parameter}\n    {info['description']}\n"
-    docstring += "\"\"\""
-    return function_signature + "\n" + docstring.strip()
 
 def preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE):
     with open(QUERY_FILE, 'r') as f:

@@ -18,7 +18,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from typing import Any
 import multiprocessing
 from sentence_transformers import SentenceTransformer, models
-from inference.utils import predict_by_similarity
+from inference.utils import predict_by_similarity, json_to_docstring
 from tqdm import tqdm
 from deploy.utils import change_format
 from gpt.utils import get_all_api_json, correct_pred
@@ -699,6 +699,8 @@ class Model:
                     response = response.split(':')[0]# for robustness, sometimes gpt will return api:description"""
                     response = correct_pred(response, self.LIB)
                     response = response.strip()
+                    print('self.all_apis_json keys: ', self.all_apis_json.keys())
+                    print('response in self.all_apis_json: ', response in self.all_apis_json)
                     self.all_apis_json[response]
                     self.predicted_api_name = response 
                     success = True
@@ -905,8 +907,8 @@ class Model:
                 api_name_tmp = list(api_name_tmp_list.keys())[0]
                 apis_name+=f"{api_name_tmp}"
                 apis_description+=f"{self.API_composite[api_name_tmp]['description']}."
-        parameters_prompt = prepare_parameters_prompt(self.user_query, apis_description, apis_name, 
-        json.dumps(api_parameters_information), json.dumps(parameters_name_list))  # prompt
+        api_docstring = json_to_docstring(apis_name, apis_description, api_parameters_information)
+        parameters_prompt = prepare_parameters_prompt(self.user_query, api_docstring, parameters_name_list)
         if len(parameters_name_list)==0:
             # if there is no required parameters, skip using gpt
             response = "[]"

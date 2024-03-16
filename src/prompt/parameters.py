@@ -1,5 +1,12 @@
 # prompt
-def prepare_parameters_prompt(user_query, api_description, api_name, api_parameters_information, parameters_name_list):
+def prepare_parameters_prompt(user_query, api_docstring, parameters_name_list):
+    return f"""
+USER QUERY: {user_query}
+API Docstring: {api_docstring}
+You are tasked with extracting parameter values from a USER QUERY and API DOCSTRING. Your focus is on parameters that are explicitly mentioned or implied within the query. Parameters not mentioned should not be included, even if they have default values. Return the identified parameters with their assigned values in the format [{{"param_name": "name", "value": "assigned value"}}], only considering those listed in {parameters_name_list}. If no specific values can be assigned to these mentioned parameters, return an empty list. Prioritize parameters critical to the specific API call, aligning with user intent and API requirements."""
+
+def bak_prepare_parameters_prompt(user_query, api_description, api_name, api_parameters_information, parameters_name_list):
+    # before 240315
     return f"""
     USER QUERY: {user_query}
     API DESCRIPTION: {api_description}
