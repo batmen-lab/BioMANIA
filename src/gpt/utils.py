@@ -2,6 +2,8 @@ import random, json, re, os, hashlib
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 from string import punctuation
+from collections import defaultdict
+from string import punctuation
 
 def get_retrieved_prompt():
     prompt = """Task: Select the candidate that conveys the most information from the given instruction, and return it as a list in the format [function1]. """
@@ -53,6 +55,36 @@ def find_similar_api_pairs(api_descriptions):
             if cosine_similarities[i, j] >= 1:  # threshold can be adjusted
                 similar_pairs.append((api_names[i], api_names[j]))
     return similar_pairs
+
+def find_similar_two_pairs(API_init_path=f"./data/standard_process/scanpy/API_init.json"):
+    with open(API_init_path, "r") as file:
+        api_data = json.load(file)
+    api_data = {key:api_data[key] for key in api_data if api_data[key]['api_type']!='class'}
+    # 1: description
+    end_of_docstring_summary = re.compile(r'[{}\n]+'.format(re.escape(punctuation)))
+    all_apis = {x: end_of_docstring_summary.split(api_data[x]['Docstring'])[0].strip() for x in api_data}
+    all_apis = list(all_apis.items())
+    all_apis_json = {i[0]:i[1] for i in all_apis}
+    #all_apis_json = {api_name:api_data[api_name]['Docstring'].split('.')[0] for api_name in api_data}
+    similar_api_pairs = find_similar_api_pairs(all_apis_json)
+    # 2: 
+    require_same_depth=False
+    api_list = list(api_data.keys())
+    groups = defaultdict(list)
+    for api in api_list:
+        parts = api.split('.')
+        if require_same_depth:
+            key = (parts[-1], len(parts))
+        else:
+            key = parts[-1]
+        groups[key].append(api)
+    similar_pairs = [group for group in groups.values() if len(group) > 1]
+    list_1 = similar_api_pairs
+    list_2 = similar_pairs
+    pairs_from_list_2 = [(apis[i], apis[j]) for apis in list_2 for i in range(len(apis)) for j in range(i+1, len(apis))]
+    print('information of the ambiguous pair:', len(list_1), len(list_2), len(pairs_from_list_2))
+    merged_pairs = list(set(list_1 + pairs_from_list_2))
+    return merged_pairs
 
 def is_pair_in_merged_pairs(gold, pred, merged_pairs):
     # Check if the pair (gold, pred) or (pred, gold) exists in merged_pairs
@@ -226,3 +258,7 @@ def find_matching_api_pairs(api_data, threshold=5):
                 if standardized_apis[api_names[i]] == standardized_apis[api_names[j]]:
                     matching_pairs.append((api_names[i], api_names[j]))
     return matching_pairs
+
+if __name__ == '__main__':
+    merged_pairs = find_similar_two_pairs()
+    print(len(merged_pairs))

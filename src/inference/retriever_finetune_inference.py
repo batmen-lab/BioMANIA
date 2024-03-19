@@ -82,10 +82,11 @@ class ToolRetriever:
         return ''.join(similar_queries)
 
 def compute_accuracy(retriever, data, args,name='train'):
-    merged_pairs = find_similar_two_pairs(args.LIB)
+    merged_pairs = find_similar_two_pairs(f"./data/standard_process/{args.LIB}/API_init.json")
     correct_predictions = 0
     ambiguous_correct_predictions = 0  # Additional metric for ambiguous matches
     error_predictions = 0
+    total_api_non_ambiguous = 0
     data_to_save = []
     scores_rank_1 = []
     scores_rank_2 = []
@@ -97,6 +98,7 @@ def compute_accuracy(retriever, data, args,name='train'):
         true_api = query_data['api_name']
         # changed the acc count
         success = False
+        ambiguous = False
         for pred_api in retrieved_apis:
             if true_api == pred_api:
                 correct_predictions += 1
@@ -105,7 +107,10 @@ def compute_accuracy(retriever, data, args,name='train'):
             elif is_pair_in_merged_pairs(true_api, pred_api, merged_pairs):
                 ambiguous_correct_predictions += 1
                 success = True
+                ambiguous = True
                 break
+        if not ambiguous:
+            total_api_non_ambiguous += 1
         if not success:
             error_predictions += 1
             data_to_save.append({
@@ -125,8 +130,9 @@ def compute_accuracy(retriever, data, args,name='train'):
             scores_rank_4.append(hits[0][3]['score'])
         if len(hits[0]) > 4:
             scores_rank_5.append(hits[0][4]['score'])
+    assert total_api_non_ambiguous<len(data)
     accuracy = correct_predictions / len(data) * 100
-    ambiguous_accuracy = (correct_predictions + ambiguous_correct_predictions) / len(data) * 100
+    ambiguous_accuracy = (correct_predictions) / total_api_non_ambiguous * 100
     with open(f'./plot/{args.LIB}/error_{name}_topk_{args.retrieved_api_nums}.json', 'w') as json_file:
         json.dump(data_to_save, json_file, indent=4)
     # Compute average scores for each rank
@@ -137,12 +143,13 @@ def compute_accuracy(retriever, data, args,name='train'):
         "rank_4": scores_rank_4,
         "rank_5": scores_rank_5
     }
-    return accuracy, scores, ambiguous_accuracy
+    return accuracy, scores, ambiguous_accuracy, total_api_non_ambiguous
+
 def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train'):
     # remove class type API, and composite API from the data
     with open(f"./data/standard_process/{args.LIB}/API_composite.json", 'r') as file:
         API_composite = json.load(file)
-    merged_pairs = find_similar_two_pairs(args.LIB)
+    merged_pairs = find_similar_two_pairs(f"./data/standard_process/{args.LIB}/API_init.json")
     correct_predictions = 0
     ambiguous_correct_predictions = 0  # Additional metric for ambiguous matches
     error_predictions = 0
@@ -152,29 +159,37 @@ def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train'):
     scores_rank_3 = []
     scores_rank_4 = []
     scores_rank_5 = []
+    #filtered_data = [item for item in data if not is_pair_in_merged_pairs(item['api_name'], item['pred'], merged_pairs)]
+    #total_non_ambiguous_pairs = len(filtered_data)
     total_api_non_composite = 0
+    total_api_non_ambiguous = 0
     for query_data in tqdm(data):
         retrieved_apis = retriever.retrieving(query_data['query'], top_k=args.retrieved_api_nums+20)
         true_api = query_data['api_name']
-        if not true_api.startswith(args.LIB) or query_data['api_type']=='class':
+        if not true_api.startswith(args.LIB) or query_data['api_type']=='class' or query_data['api_type']=='unknown':
             # remove composite API, class API
             continue
         else:
             total_api_non_composite+=1
-        retrieved_apis = [i for i in retrieved_apis if i.startswith(args.LIB) and API_composite[i]['api_type']!='class']
+        retrieved_apis = [i for i in retrieved_apis if i.startswith(args.LIB) and API_composite[i]['api_type']!='class' and API_composite[i]['api_type']!='unknown']
         retrieved_apis = retrieved_apis[:args.retrieved_api_nums]
         assert len(retrieved_apis)==args.retrieved_api_nums
         # changed the acc count
         success = False
+        ambiguous = False
         for pred_api in retrieved_apis:
             if true_api == pred_api:
                 correct_predictions += 1
                 success = True
                 break
             elif is_pair_in_merged_pairs(true_api, pred_api, merged_pairs):
+                #total_api_non_ambiguous+=1
                 ambiguous_correct_predictions += 1
                 success = True
+                ambiguous = True
                 break
+        if not ambiguous:
+            total_api_non_ambiguous += 1
         if not success:
             error_predictions += 1
             data_to_save.append({
@@ -195,8 +210,9 @@ def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train'):
         if len(hits[0]) > 4:
             scores_rank_5.append(hits[0][4]['score'])
     assert error_predictions + correct_predictions + ambiguous_correct_predictions == total_api_non_composite
+    assert ambiguous_correct_predictions + total_api_non_ambiguous == total_api_non_composite
     accuracy = correct_predictions / total_api_non_composite * 100
-    ambiguous_accuracy = (correct_predictions + ambiguous_correct_predictions) / total_api_non_composite * 100
+    ambiguous_accuracy = (correct_predictions) / total_api_non_ambiguous * 100
     with open(f'./plot/{args.LIB}/error_{name}_topk_{args.retrieved_api_nums}.json', 'w') as json_file:
         json.dump(data_to_save, json_file, indent=4)
     # Compute average scores for each rank
@@ -207,13 +223,13 @@ def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train'):
         "rank_4": scores_rank_4,
         "rank_5": scores_rank_5
     }
-    return accuracy, scores, ambiguous_accuracy
+    return accuracy, scores, ambiguous_accuracy, total_api_non_ambiguous
 
 def compute_and_plot(data_set, set_name, retriever, args, compute_func):
     """Compute scores, visualize"""
-    accuracy, avg_scores, ambiguous_accuracy = compute_func(retriever, data_set, args, set_name)
+    accuracy, avg_scores, ambiguous_accuracy, total_api_non_ambiguous = compute_func(retriever, data_set, args, set_name)
     print(f"{set_name.capitalize()} Accuracy: {accuracy:.2f}%, #samples {len(data_set)}")
-    print(f"{set_name.capitalize()} ambiguous Accuracy: {ambiguous_accuracy:.2f}%, #samples {len(data_set)}")
+    print(f"{set_name.capitalize()} ambiguous Accuracy: {ambiguous_accuracy:.2f}%, #samples {total_api_non_ambiguous}")
     scores = [avg_scores[f'rank_{i+1}'] for i in range(5)]
     plot_boxplot(scores, set_name.capitalize())
 

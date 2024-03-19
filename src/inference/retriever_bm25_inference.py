@@ -55,7 +55,7 @@ bm25 = BM25Okapi(tokenized_corpus)
 retriever = BM25Retriever(index=bm25, corpus=corpus, query_kwargs={"similarity_top_k": args.top_k})
 
 import ast
-merged_pairs = find_similar_two_pairs(args.LIB)
+merged_pairs = find_similar_two_pairs(f"./data/standard_process/{args.LIB}/API_init.json")
 
 def evaluate_query_pairs(query_pairs_set, name):
     retriever_correct_list = []

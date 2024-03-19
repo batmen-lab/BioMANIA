@@ -25,10 +25,10 @@ for LIB in "${libs[@]}"; do
             --LIB $LIB \
             --filter_composite)
             
-        train_acc=$(echo "$output" | grep "Training Accuracy" | grep -oP "\d+\.\d+")
+        train_acc=$(echo "$output" | grep "Train Accuracy" | grep -oP "\d+\.\d+")
         val_acc=$(echo "$output" | grep "Val Accuracy" | grep -oP "\d+\.\d+")
         test_acc=$(echo "$output" | grep "Test Accuracy" | grep -oP "\d+\.\d+")
-        amb_train_acc=$(echo "$output" | grep "Training ambiguous Accuracy" | grep -oP "\d+\.\d+")
+        amb_train_acc=$(echo "$output" | grep "Train ambiguous Accuracy" | grep -oP "\d+\.\d+")
         amb_val_acc=$(echo "$output" | grep "Val ambiguous Accuracy" | grep -oP "\d+\.\d+")
         amb_test_acc=$(echo "$output" | grep "Test ambiguous Accuracy" | grep -oP "\d+\.\d+")
         echo "${LIB},${nums},${train_acc},${val_acc},${test_acc},${amb_train_acc},${amb_val_acc},${amb_test_acc}" >> $csv_file

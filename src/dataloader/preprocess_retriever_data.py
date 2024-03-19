@@ -106,7 +106,7 @@ def get_ambiguous_pairs(LIB):
         api_data = json.load(file)
     api_data = {key:api_data[key] for key in api_data if api_data[key]['api_type']!='class'}
     # 1: description
-    all_apis, all_apis_json = get_all_api_json(LIB)
+    all_apis, all_apis_json = get_all_api_json(f"data/standard_process/{LIB}/API_init.json")
     similar_api_pairs = find_similar_api_pairs(all_apis_json)
     # 2: 
     require_same_depth=False
@@ -323,6 +323,7 @@ def preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FIL
     idx = len(query_data)
     ############# fixed split
     test_indices = [i['query_id'] for i in query_data if i['query_id']>start_idx_for_test]
+    print('start_idx_for_test, idx: ', start_idx_for_test, idx)
     test_index_set = list(set(test_indices))
     val_index_set = []
     # Track the current consecutive duration and API calling
@@ -380,6 +381,7 @@ def preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FIL
     query_train = [i for i in query_data if i['query_id'] not in test_index_set and i['query_id'] not in val_index_set]
     query_val = [i for i in query_data if i['query_id'] in val_index_set]
     query_test = [i for i in query_data if i['query_id'] in test_index_set]
+    print('length of query: ', len(query_train), len(query_val), len(query_test))
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     with open(f"{OUTPUT_DIR}/train.json", 'w') as f:
         json.dump(query_train, f, indent=4)
@@ -415,6 +417,7 @@ def preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FIL
     test_pairs = shuffle(test_pairs, random_state=42)
     val_pairs = shuffle(val_pairs, random_state=42)
     # Split the shuffled data into queries and labels
+    print('length of train_pairs: ', len(train_pairs), len(test_pairs), len(val_pairs))
     train_queries, train_labels = zip(*train_pairs)
     test_queries, test_labels = zip(*test_pairs)
     val_queries, val_labels = zip(*val_pairs)
@@ -433,7 +436,6 @@ def preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FIL
     test_labels_df.to_csv(OUTPUT_DIR + '/qrels.test.tsv', sep='\t', index=False, header=False)
     val_labels_df.to_csv(OUTPUT_DIR + '/qrels.val.tsv', sep='\t', index=False, header=False)
     documents_df.to_csv(OUTPUT_DIR + '/corpus.tsv', sep='\t', index=False)
-
 
 def get_all_path(lib_name):
     os.makedirs(f"data/standard_process/{lib_name}/retriever_train_data", exist_ok=True)
@@ -470,7 +472,7 @@ def create_corpus_from_json(API_init_json, corpus_tsv_path):
     doc_id_map = {}
     #pairs = []
     for api_name, details in API_init_json.items():
-        if details['api_type'] != 'class':
+        if details['api_type'] != 'class' and details['api_type']!='unknown':
             doc_content = {
                 #"doc_id": api_name,
                 "api_name": api_name,
@@ -488,7 +490,7 @@ def create_corpus_from_json(API_init_json, corpus_tsv_path):
 async def preprocess_instruction_d(desc_retriever, API_init, QUERY_FILE):
     print('The length of api_data is: ',len(API_init))
     # filter and remove class API
-    ori_data = {api: details for api, details in API_init.items() if details['api_type'] != 'class'}
+    ori_data = {api: details for api, details in API_init.items() if details['api_type'] != 'class' and details['api_type']!='unknown'}
     print('The length of api_data after filtering class type API is: ',len(ori_data))
     # Convert the output data dict to a list of dicts
     llm, tokenizer = LLM_model()

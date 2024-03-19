@@ -282,7 +282,7 @@ class Model:
         try:
             # load the previous variables, execute_code, globals()
             self.args_retrieval_model_path = f'./hugging_models/retriever_model_finetuned/{lib_name}/assigned'
-            self.ambiguous_pair = find_similar_two_pairs(lib_name)
+            self.ambiguous_pair = find_similar_two_pairs(f"./data/standard_process/{lib_name}/API_init.json")
             self.ambiguous_api = list(set(api for api_pair in self.ambiguous_pair for api in api_pair))
             self.load_data(f"./data/standard_process/{lib_name}/API_composite.json")
             print('==>loaded API json done')

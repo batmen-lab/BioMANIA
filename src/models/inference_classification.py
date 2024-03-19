@@ -17,8 +17,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
-
 import matplotlib.pyplot as plt
+from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version, is_pair_in_merged_pairs, find_similar_two_pairs
 
 # support running without installing as a package
 wd = Path(__file__).parent.parent.resolve()
@@ -74,10 +74,12 @@ def print_parameters(model):
             print(name, param.shape)
 
 def evaluate_model(model, loader, criterion, mode='Validation', LIB=''):
+    merged_pairs = find_similar_two_pairs(LIB)
     model.eval()
     total_loss = 0
     correct = 0
     total = 0
+    non_ambiguous_total = 0
     error_json = []
     correct_logits = []
     wrong_logits = []
@@ -99,13 +101,18 @@ def evaluate_model(model, loader, criterion, mode='Validation', LIB=''):
             for i in correct_idx:
                 error_j = {'Query':queries[i],'gold':retrieved_names[i][labels[i].item()],'pred':retrieved_names[i][predicted[i].item()],'Logits': max_logits[i].item()}
                 error_json.append(error_j)
+                if not is_pair_in_merged_pairs(retrieved_names[i][labels[i].item()], retrieved_names[i][predicted[i].item()], merged_pairs):
+                    non_ambiguous_total += 1
             for i in wrong_idx:
                 error_j = {'Query':queries[i],'gold':retrieved_names[i][labels[i].item()],'pred':retrieved_names[i][predicted[i].item()],'Logits': max_logits[i].item()}
                 error_json.append(error_j)
+                if not is_pair_in_merged_pairs(retrieved_names[i][labels[i].item()], retrieved_names[i][predicted[i].item()], merged_pairs):
+                    non_ambiguous_total += 1
     with open(f'./plot/{LIB}/API_error_{mode}.json', 'w') as f:
         json.dump(error_json, f, indent=4)
     print(f'{mode} Loss: {total_loss / len(loader):.4f}')
-    print(f'{mode} Accuracy: {100 * correct / total:.2f}%\n')
+    print(f'{mode} Accuracy: {100 * correct / total:.2f}%')
+    print(f'{mode} ambiguous Accuracy: {100 * correct / non_ambiguous_total:.2f}%')
     return total_loss, correct, total, correct_logits, wrong_logits
 
 def plot_boxplot(correct_logits, wrong_logits, mode):

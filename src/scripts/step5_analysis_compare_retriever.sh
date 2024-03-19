@@ -7,7 +7,7 @@ libs=("scanpy" "squidpy" "ehrapy" "snapatac2")
 csv_file="output/retriever_accuracy_results.csv"
 
 # Header for CSV file
-echo "LIB,BM25 Train,BM25 Val,BM25 Test,BM25 Ambiguous Train,BM25 Ambiguous Val,BM25 Ambiguous Test,Un-Finetuned Train,Un-Finetuned Val,Un-Finetuned Test,Finetuned Train,Finetuned Val,Finetuned Test,Un-Finetuned Ambiguous Train,Un-Finetuned Ambiguous Val,Un-Finetuned Ambiguous Test,Finetuned Ambiguous Train,Finetuned Ambiguous Val,Finetuned Ambiguous Test" > $csv_file
+echo "LIB,BM25 Train,BM25 Val,BM25 Test,Un-Finetuned Train,Un-Finetuned Val,Un-Finetuned Test,Finetuned Train,Finetuned Val,Finetuned Test,BM25 Ambiguous Train,BM25 Ambiguous Val,BM25 Ambiguous Test,Un-Finetuned Ambiguous Train,Un-Finetuned Ambiguous Val,Un-Finetuned Ambiguous Test,Finetuned Ambiguous Train,Finetuned Ambiguous Val,Finetuned Ambiguous Test" > $csv_file
 
 # Loop through each library
 for LIB in "${libs[@]}"; do
@@ -37,7 +37,7 @@ for LIB in "${libs[@]}"; do
     unfinetuned_train=$(echo "$unfinetuned_output" | grep "Training Accuracy" | grep -oP "\d+\.\d+")
     unfinetuned_val=$(echo "$unfinetuned_output" | grep "Val Accuracy" | grep -oP "\d+\.\d+")
     unfinetuned_test=$(echo "$unfinetuned_output" | grep "Test Accuracy" | grep -oP "\d+\.\d+")
-    unfinetuned_train_amb=$(echo "$unfinetuned_output" | grep "Training ambiguous Accuracy" | grep -oP "\d+\.\d+")
+    unfinetuned_train_amb=$(echo "$unfinetuned_output" | grep "Train ambiguous Accuracy" | grep -oP "\d+\.\d+")
     unfinetuned_val_amb=$(echo "$unfinetuned_output" | grep "Val ambiguous Accuracy" | grep -oP "\d+\.\d+")
     unfinetuned_test_amb=$(echo "$unfinetuned_output" | grep "Test ambiguous Accuracy" | grep -oP "\d+\.\d+")
 
@@ -57,7 +57,7 @@ for LIB in "${libs[@]}"; do
     finetuned_train=$(echo "$finetuned_output" | grep "Training Accuracy" | grep -oP "\d+\.\d+")
     finetuned_val=$(echo "$finetuned_output" | grep "Val Accuracy" | grep -oP "\d+\.\d+")
     finetuned_test=$(echo "$finetuned_output" | grep "Test Accuracy" | grep -oP "\d+\.\d+")
-    finetuned_train_amb=$(echo "$finetuned_output" | grep "Training ambiguous Accuracy" | grep -oP "\d+\.\d+")
+    finetuned_train_amb=$(echo "$finetuned_output" | grep "Train ambiguous Accuracy" | grep -oP "\d+\.\d+")
     finetuned_val_amb=$(echo "$finetuned_output" | grep "Val ambiguous Accuracy" | grep -oP "\d+\.\d+")
     finetuned_test_amb=$(echo "$finetuned_output" | grep "Test ambiguous Accuracy" | grep -oP "\d+\.\d+")
 
