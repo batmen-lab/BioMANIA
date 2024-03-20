@@ -84,7 +84,7 @@ If you skip this step, ensure that you contain a file of `./data/standard_proces
 
 4. Following this, create instructions, and split the data for retriever training preparation.
 ```bash
-python dataloader/preprocess_retriever_data.py --LIB ${LIB}
+python dataloader/preprocess_retriever_data.py --LIB ${LIB} --GPT_model gpt3.5/gpt4
 ```
 
 (Optional) You can validate of your annotated API_inquiry_annotate.json with 

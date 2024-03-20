@@ -264,7 +264,7 @@ class Model:
             self.centroids = pickle.load(f)
         print('==>chitchat vectorizer loaded!')
         self.retrieve_query_mode = "similar"
-        self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{self.LIB}/API_init.json")
+        self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
         print("Server ready")
     def load_bert_model(self, load_mode='unfinetuned_bert'):
         if load_mode=='unfinetuned_bert':
@@ -315,7 +315,7 @@ class Model:
             self.executor.execute_api_call(f"np.seterr(under='ignore')", "import")
             self.executor.execute_api_call(f"import warnings", "import")
             self.executor.execute_api_call(f"warnings.filterwarnings('ignore')", "import")
-            self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{lib_name}/API_init.json")
+            self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{lib_name}/API_init.json", mode='single')
             print('==>Successfully loading model!')
             print('loading model cost: %s s', str(time.time()-t1))
             reset_result = "Success"

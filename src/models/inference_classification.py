@@ -74,7 +74,7 @@ def print_parameters(model):
             print(name, param.shape)
 
 def evaluate_model(model, loader, criterion, mode='Validation', LIB=''):
-    merged_pairs = find_similar_two_pairs(LIB)
+    merged_pairs = find_similar_two_pairs(f"./data/standard_process/{LIB}/API_init.json")
     model.eval()
     total_loss = 0
     correct = 0

@@ -98,40 +98,10 @@ async def async_LLM_response(llm, tokenizer, prompt, history=[], kwargs={}):
     response, history = await loop.run_in_executor(None, LLM_response, llm, tokenizer, prompt, model_version, history, kwargs)
     return response, history
 
-from inference.utils import is_pair_in_merged_pairs, get_all_api_json, find_similar_api_pairs
-def get_ambiguous_pairs(LIB):
-    # For accuracy without ambiguous pair
-    from collections import defaultdict
-    with open(f"data/standard_process/{LIB}/API_init.json", "r") as file:
-        api_data = json.load(file)
-    api_data = {key:api_data[key] for key in api_data if api_data[key]['api_type']!='class'}
-    # 1: description
-    all_apis, all_apis_json = get_all_api_json(f"data/standard_process/{LIB}/API_init.json")
-    similar_api_pairs = find_similar_api_pairs(all_apis_json)
-    # 2: 
-    require_same_depth=False
-    api_list = list(api_data.keys())
-    groups = defaultdict(list)
-    for api in api_list:
-        parts = api.split('.')
-        if require_same_depth:
-            key = (parts[-1], len(parts))
-        else:
-            key = parts[-1]
-        groups[key].append(api)
-    similar_pairs = [group for group in groups.values() if len(group) > 1]# Filter out groups that only contain 1 API (no similar pairs).
-    #for pair in similar_pairs:
-    #    print(pair)
-    list_1 = similar_api_pairs
-    list_2 = similar_pairs
-    pairs_from_list_2 = [(apis[i], apis[j]) for apis in list_2 for i in range(len(apis)) for j in range(i+1, len(apis))]
-    print(len(list_1), len(list_2), len(pairs_from_list_2))
-    merged_pairs = list(set(list_1 + pairs_from_list_2))
-    #merged_pairs = list_2
-    return merged_pairs, similar_api_pairs, pairs_from_list_2
+from inference.utils import is_pair_in_merged_pairs, get_all_api_json, find_similar_api_pairs, find_similar_two_pairs, get_ambiguous_pairs
 
 # get similar pairs
-merged_pairs, similar_api_same_desc, similar_api_same_funcname = get_ambiguous_pairs(args.LIB)
+merged_pairs, similar_api_same_desc, similar_api_same_funcname = get_ambiguous_pairs(f"./data/standard_process/{args.LIB}/API_init.json")
 
 async def process_prompt_async(desc_retriever,API_init, api_name, api, llm, tokenizer, tmp_docstring, progress):
     prompt1, prompt2 = make_instruction_generation_prompt(api_name, tmp_docstring)

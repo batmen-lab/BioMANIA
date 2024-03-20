@@ -23,27 +23,46 @@ def get_nonretrieved_prompt():
 Function: """
     return prompt
 
-def get_all_api_json(API_init_path):
+def get_first_sentence(text):
+    sentence_end_pattern = re.compile(r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|!)\s')
+    sentences = sentence_end_pattern.split(text, 1)
+    return sentences[0] if sentences else ''
+
+def get_all_api_json(API_init_path, mode='full'):
     with open(API_init_path, 'r') as file:
         API_init = json.load(file)
     end_of_docstring_summary = re.compile(r'[{}\n]+'.format(re.escape(punctuation)))
     all_apis = {}
     for api_name in API_init:
         x = API_init[api_name]
-        if x['api_type']=='class':
+        if x['api_type']=='class' or x['api_type']=='unknown':
             continue
-        if x['description']:
-            #description = x['description'].split('\n')[0]
-            description = x['description']
+        if mode == 'full':
+            # design for generate instructions, as more information will help for accurate instruction
+            if x['description']:
+                #description = x['description'].split('\n')[0]
+                description = x['description']
+            else:
+                # 240320: we filter out the API from the data prepare period, so we assume we won't include API for the evaluation
+                #description = end_of_docstring_summary.split(x['Docstring'])[0].strip()
+                description = ""
         else:
-            description = end_of_docstring_summary.split(x['Docstring'])[0].strip()
+            # design for ambiguity check
+            #description = end_of_docstring_summary.split(x['Docstring'])[0].strip()
+            description = get_first_sentence(x['description'])
+        # notice that sometimes we will obtain `Parameters` if author didn't write any description in docstring
         all_apis[api_name] = description
     all_apis = list(all_apis.items())
     all_apis_json = {i[0]:i[1] for i in all_apis}
-    #print('len', len(all_apis), len(all_apis_json))
     return all_apis, all_apis_json
 
 def find_similar_api_pairs(api_descriptions):
+    # filter out apis with empty descriptions and not meaningful descriptions
+    filtered_api_descriptions = {api: desc for api, desc in api_descriptions.items() if desc.strip() and desc.strip()!='Parameters'}
+    print(len(api_descriptions), len(filtered_api_descriptions))
+    if len(filtered_api_descriptions) <= 1:
+        return []
+    api_descriptions = filtered_api_descriptions
     descriptions = list(api_descriptions.values())
     api_names = list(api_descriptions.keys())
     vectorizer = TfidfVectorizer(stop_words='english')
@@ -56,19 +75,15 @@ def find_similar_api_pairs(api_descriptions):
                 similar_pairs.append((api_names[i], api_names[j]))
     return similar_pairs
 
-def find_similar_two_pairs(API_init_path=f"./data/standard_process/scanpy/API_init.json"):
+def get_ambiguous_pairs(API_init_path=f"./data/standard_process/scanpy/API_init.json"):
+    # For accuracy without ambiguous pair
+    from collections import defaultdict
     with open(API_init_path, "r") as file:
         api_data = json.load(file)
-    api_data = {key:api_data[key] for key in api_data if api_data[key]['api_type']!='class'}
-    # 1: description
-    end_of_docstring_summary = re.compile(r'[{}\n]+'.format(re.escape(punctuation)))
-    all_apis = {x: end_of_docstring_summary.split(api_data[x]['Docstring'])[0].strip() for x in api_data}
-    all_apis = list(all_apis.items())
-    all_apis_json = {i[0]:i[1] for i in all_apis}
-    #all_apis_json = {api_name:api_data[api_name]['Docstring'].split('.')[0] for api_name in api_data}
+    api_data = {key:api_data[key] for key in api_data if api_data[key]['api_type']!='class' and api_data[key]['api_type']!='unknown'}
+    all_apis, all_apis_json = get_all_api_json(API_init_path, mode='single')
     similar_api_pairs = find_similar_api_pairs(all_apis_json)
-    # 2: 
-    require_same_depth=False
+    require_same_depth = False
     api_list = list(api_data.keys())
     groups = defaultdict(list)
     for api in api_list:
@@ -84,6 +99,10 @@ def find_similar_two_pairs(API_init_path=f"./data/standard_process/scanpy/API_in
     pairs_from_list_2 = [(apis[i], apis[j]) for apis in list_2 for i in range(len(apis)) for j in range(i+1, len(apis))]
     print('information of the ambiguous pair:', len(list_1), len(list_2), len(pairs_from_list_2))
     merged_pairs = list(set(list_1 + pairs_from_list_2))
+    return merged_pairs, similar_api_pairs, pairs_from_list_2
+
+def find_similar_two_pairs(API_init_path=f"./data/standard_process/scanpy/API_init.json"):
+    merged_pairs, _, _ = get_ambiguous_pairs(API_init_path)
     return merged_pairs
 
 def is_pair_in_merged_pairs(gold, pred, merged_pairs):
@@ -260,5 +279,18 @@ def find_matching_api_pairs(api_data, threshold=5):
     return matching_pairs
 
 if __name__ == '__main__':
-    merged_pairs = find_similar_two_pairs()
-    print(len(merged_pairs))
+    #merged_pairs = find_similar_two_pairs()
+    #print(len(merged_pairs))
+    #all_apis, all_apis_json = get_all_api_json(, mode='single')
+    #print(len(all_apis), len(all_apis_json))
+    for lib in ['scanpy', 'squidpy', 'ehrapy', 'snapatac2']: #
+        all_apis, all_apis_json = get_all_api_json(f"data/standard_process/{lib}/API_init.json", mode='single')
+        #print(all_apis_json['ehrapy.tools.tsne'], all_apis_json['ehrapy.tools.test_kmf_logrank'])
+        merged_pairs,a,b = get_ambiguous_pairs(f"data/standard_process/{lib}/API_init.json")
+        print('-'*10)
+        for item in a:
+            print(item[0], ':',  all_apis_json[item[0]])
+            print(item[1], ':',  all_apis_json[item[1]])
+        """print('-'*10)
+        print(b)"""
+    
