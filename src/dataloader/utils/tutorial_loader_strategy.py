@@ -4,13 +4,17 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from datetime import datetime
 
-from configs.model_config import ANALYSIS_PATH
+from configs.model_config import READTHEDOC_PATH, ANALYSIS_PATH, get_all_variable_from_cheatsheet
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
 parser.add_argument('--file_type', type=str, default='ipynb', help='tutorial files type')
+parser.add_argument('--source', type=str, default='Git', help='transfer file from Git or Readthedoc')
 args = parser.parse_args()
-LIB_ANALYSIS_PATH = os.path.join(ANALYSIS_PATH, args.LIB)
+info_json = get_all_variable_from_cheatsheet(args.LIB)
+API_HTML, TUTORIAL_GITHUB, TUTORIAL_HTML, LIB_ANALYSIS_PATH = [info_json[key] for key in ['API_HTML', 'TUTORIAL_GITHUB', 'TUTORIAL_HTML', 'LIB_ANALYSIS_PATH']]
+
 
 # base
 class CodeLoader(ABC):
@@ -33,15 +37,17 @@ class HtmlCodeLoader(CodeLoader):
         return html_dict
 
     def _generate_html_dict(self, filepath):
-        directory = os.path.dirname(filepath)
+        base_directory = os.path.dirname(filepath)
         html_dict = {}
-        print('-------', directory, os.listdir(directory))
-        for filename in os.listdir(directory):
-            if filename.endswith(".html"):
-                key = filename.split('.')[0]
-                html_dict[key] = self._extract_code_and_output_from_html(os.path.join(directory, filename))
-        # Save the dictionary into a json file
-        with open(os.path.join(directory, 'html_code_dict.json'), 'w') as f:
+        for root, dirs, files in os.walk(base_directory):
+            for filename in files:
+                if filename.endswith(".html"):
+                    full_path = os.path.join(root, filename)
+                    relative_path = os.path.relpath(full_path, start=base_directory)
+                    key = relative_path.replace(os.path.sep, "_dot_")
+                    html_dict[key] = self._extract_code_and_output_from_html(full_path)
+        json_output_path = os.path.join(base_directory, 'html_code_dict.json')
+        with open(json_output_path, 'w') as f:
             json.dump(html_dict, f, indent=4)
         return html_dict
 
@@ -139,7 +145,8 @@ class HtmlCodeLoader(CodeLoader):
         for key, value in json_input.items():
             file_name = key.replace(' ', '_').replace('\\u2014', '-') + '.py'
             code_snippets = [item['code'] for item in value if 'code' in item]
-            with open(os.path.join(directory, file_name), 'w') as f:
+            py_filepath = os.path.join(directory, file_name)
+            with open(py_filepath, 'w') as f:
                 for snippet in code_snippets:
                     for code_line in snippet.split('\n'):
                         # check if code_line is valid
@@ -246,7 +253,7 @@ class CodeLoaderContext:
         if count==0:
             print(f'Empty input folder, no files found in type {self.file_types}')
         else:
-            print(f'Have successfully turned files in type {self.file_types} to python code!')
+            print(f'Have successfully turned files in type {self.file_types} to python code to path {self.output_folder}!')
     
     def execute(self):
         import os
@@ -273,15 +280,20 @@ class CodeLoaderContext:
         print(f"Successful files: {success_files}")
         print(f"Files with errors: {error_files}")
 
-def main_convert_tutorial_to_py(LIB_ANALYSIS_PATH, strategy_type='ipynb', file_types=['ipynb'], execute = False):
-    input_folder = os.path.join(LIB_ANALYSIS_PATH,"Git_Tut")
-    output_folder = os.path.join(LIB_ANALYSIS_PATH,"Git_Tut_py")
-
+def main_convert_tutorial_to_py(LIB_ANALYSIS_PATH, subpath='Git_Tut', strategy_type='ipynb', file_types=['ipynb'], execute = False):
+    input_folder = os.path.join(LIB_ANALYSIS_PATH, subpath)
+    output_folder = os.path.join(LIB_ANALYSIS_PATH, subpath+'_py')
     context = CodeLoaderContext(input_folder, output_folder, strategy_type,file_types)
     context.load_and_save()
-    if execute: # if check each ipynb can run, this will cost a lot of time!
+    if execute: # if check each ipynb is runable, this will cost a lot of time!
         context.execute()
     return context
 
 if __name__=='__main__':
-    main_convert_tutorial_to_py(LIB_ANALYSIS_PATH, strategy_type=args.file_type, file_types=[args.file_type])
+    if args.source=="Readthedoc":
+        readthedoc_realpath = os.path.join(READTHEDOC_PATH, TUTORIAL_HTML)
+        main_convert_tutorial_to_py(readthedoc_realpath, subpath='', strategy_type=args.file_type, file_types=[args.file_type])
+    elif args.source=="Git":
+        main_convert_tutorial_to_py(LIB_ANALYSIS_PATH, subpath='Git_Tut', strategy_type=args.file_type, file_types=[args.file_type])
+    else:
+        raise NotImplementedError
