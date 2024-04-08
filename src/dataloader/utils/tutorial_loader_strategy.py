@@ -44,7 +44,7 @@ class HtmlCodeLoader(CodeLoader):
                 if filename.endswith(".html"):
                     full_path = os.path.join(root, filename)
                     relative_path = os.path.relpath(full_path, start=base_directory)
-                    key = relative_path.replace(os.path.sep, "_dot_")
+                    key = relative_path.replace(os.path.sep, "_dot_").replace('.html','')
                     html_dict[key] = self._extract_code_and_output_from_html(full_path)
         json_output_path = os.path.join(base_directory, 'html_code_dict.json')
         with open(json_output_path, 'w') as f:
@@ -74,14 +74,16 @@ class HtmlCodeLoader(CodeLoader):
             if block[0] == current_type:
                 current_content.append(block[1])
             else:
-                current_dict[current_type] = ' '.join(current_content)
+                separator = '\n' if current_type == 'code' else ' '
+                current_dict[current_type] = separator.join(current_content)
                 if len(current_dict) == 2:  # both 'text' and 'code' are found
                     combined_blocks.append(current_dict)
                     current_dict = {}
                 current_type = block[0]
                 current_content = [block[1]]
         if current_content:  # append the last block
-            current_dict[current_type] = ' '.join(current_content)
+            separator = '\n' if current_type == 'code' else ' '
+            current_dict[current_type] = separator.join(current_content)
         if current_dict:  # append the last dict if it's not empty
             combined_blocks.append(current_dict)
         return combined_blocks
@@ -146,17 +148,31 @@ class HtmlCodeLoader(CodeLoader):
             file_name = key.replace(' ', '_').replace('\\u2014', '-') + '.py'
             code_snippets = [item['code'] for item in value if 'code' in item]
             py_filepath = os.path.join(directory, file_name)
+            # 240407: add support for multiple line code
             with open(py_filepath, 'w') as f:
+                accumulate_code = ''
+                accumulate_flag = False
+                brackets = {'curly': 0, 'square': 0, 'round': 0}
                 for snippet in code_snippets:
                     for code_line in snippet.split('\n'):
-                        # check if code_line is valid
                         if code_line.startswith('['):
                             continue
-                        try:
-                            ast.parse(code_line)
-                            f.write(code_line + '\n\n')
-                        except:
+                        brackets['curly'] += code_line.count('{') - code_line.count('}')
+                        brackets['square'] += code_line.count('[') - code_line.count(']')
+                        brackets['round'] += code_line.count('(') - code_line.count(')')
+                        all_closed = all(b == 0 for b in brackets.values())
+                        if not all_closed:
+                            accumulate_code += code_line + '\n'
                             continue
+                        else:
+                            accumulate_code += code_line + '\n'
+                            try:
+                                ast.parse(accumulate_code)
+                                f.write(accumulate_code + '\n\n')
+                            except:
+                                pass
+                            accumulate_code = ''
+                            brackets = {'curly': 0, 'square': 0, 'round': 0}
 
 # url
 class URLCodeLoader(CodeLoader):
@@ -173,11 +189,11 @@ class IpynbCodeLoader(CodeLoader):
         result = []
         for cell in notebook_content.cells:
             if cell.cell_type == "markdown":
-                markdown_text = cell.source
+                markdown_text = cell.source + '\n'
             elif cell.cell_type == "code":
                 code_with_text = {}
                 code_with_text['code'] = ['import subprocess']
-                code_with_text['code'] = [self.process_line(i) for i in cell.source.split('\n') if i]
+                code_with_text['code'] = [self.process_line(i) + '\n' for i in cell.source.split('\n') if i]
                 if markdown_text is not None:
                     code_with_text['text'] = markdown_text
                     markdown_text = None
