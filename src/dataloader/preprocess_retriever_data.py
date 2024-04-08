@@ -12,12 +12,12 @@ from sklearn.utils import shuffle
 from models.model import LLM_response, LLM_model
 #from configs.model_config import LIB
 from prompt.instruction import make_instruction_generation_prompt
-
 from inference.utils import process_retrieval_document, compress_api_str_from_list
 parser = argparse.ArgumentParser()
 parser.add_argument('--LIB', type=str, help='PyPI tool')
 parser.add_argument('--concurrency', type=int, default=80, help='adjust the maximum concurrency according to the rate limit of OpenAI API account')
 parser.add_argument('--GPT_model', type=str, default='gpt3.5', choices=['gpt4', 'gpt3.5'], help='GPT model version')
+parser.add_argument('--api_txt_path', type=str, default=None, help='Your self-defined api txt path')
 args = parser.parse_args()
 
 semaphore = asyncio.Semaphore(args.concurrency)
@@ -100,10 +100,7 @@ async def async_LLM_response(llm, tokenizer, prompt, history=[], kwargs={}):
 
 from inference.utils import is_pair_in_merged_pairs, get_all_api_json, find_similar_api_pairs, find_similar_two_pairs, get_ambiguous_pairs
 
-# get similar pairs
-merged_pairs, similar_api_same_desc, similar_api_same_funcname = get_ambiguous_pairs(f"./data/standard_process/{args.LIB}/API_init.json")
-
-async def process_prompt_async(desc_retriever,API_init, api_name, api, llm, tokenizer, tmp_docstring, progress):
+async def process_prompt_async(desc_retriever,API_init, api_name, api, llm, tokenizer, tmp_docstring, progress, similar_api_same_desc, similar_api_same_funcname):
     prompt1, prompt2 = make_instruction_generation_prompt(api_name, tmp_docstring)
     retrieved_apis = desc_retriever.retrieving(query=API_init[api_name]['description'].split('\n')[0],top_k=20)
     assert len(retrieved_apis) == len(set(retrieved_apis)), retrieved_apis
@@ -283,13 +280,41 @@ def preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX
     val_labels_df.to_csv(OUTPUT_DIR + '/qrels.val.tsv', sep='\t', index=False, header=False)
     documents_df.to_csv(OUTPUT_DIR + '/corpus.tsv', sep='\t', index=False)
 
-def preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE):
+def filter_and_update_query_id(query_data, api_list):
+    filtered_queries = []
+    for query in query_data:
+        api_name = query['api_calling'][0].split('(')[0]
+        if api_name in api_list:
+            filtered_queries.append(query)
+    for i, query in enumerate(filtered_queries):
+        query['query_id'] = i
+    return filtered_queries
+
+from dataloader.get_API_init_from_sourcecode import parse_content_list
+def preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE, api_txt_path=None):
     with open(QUERY_FILE, 'r') as f:
         query_data_ori = json.load(f)
+    if api_txt_path:
+        content_list = []
+        try:
+            with open(api_txt_path, 'r', encoding='latin') as file:
+                content_list = file.readlines()
+            api_list = parse_content_list(content_list)
+        except FileNotFoundError:
+            print(f"Error: File '{api_txt_path}' not found.")
+        except Exception as e:
+            print(f"Error: {e}")
+    print('previous query length:', len(query_data_ori))
+    query_data_ori = filter_and_update_query_id(query_data_ori, api_list)
+    print('filtered query length:', len(query_data_ori))
     start_idx_for_test = max([i['query_id'] for i in query_data_ori])
+    assert start_idx_for_test==len(query_data_ori)-1
     # code from toolbench retriever train.py
     with open(QUERY_ANNOTATE_FILE, 'r') as f:
         query_data = json.load(f)
+    print('previous query length:', len(query_data))
+    query_data = filter_and_update_query_id(query_data, api_list)
+    print('filtered query length:', len(query_data))
     idx = len(query_data)
     ############# fixed split
     test_indices = [i['query_id'] for i in query_data if i['query_id']>start_idx_for_test]
@@ -387,7 +412,7 @@ def preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FIL
     test_pairs = shuffle(test_pairs, random_state=42)
     val_pairs = shuffle(val_pairs, random_state=42)
     # Split the shuffled data into queries and labels
-    print('length of train_pairs: ', len(train_pairs), len(test_pairs), len(val_pairs))
+    print('length of train_pairs: ', len(train_pairs), len(val_pairs), len(test_pairs))
     train_queries, train_labels = zip(*train_pairs)
     test_queries, test_labels = zip(*test_pairs)
     val_queries, val_labels = zip(*val_pairs)
@@ -470,12 +495,13 @@ async def preprocess_instruction_d(desc_retriever, API_init, QUERY_FILE):
     print('Num. of instruction generation Tasks is one times of the num. of APIs ...')
     progress = tqdm_asyncio(total=len(ori_data))
     idx = 0
+    # get similar pairs
+    merged_pairs, similar_api_same_desc, similar_api_same_funcname = get_ambiguous_pairs(f"./data/standard_process/{args.LIB}/API_init.json")
     for api_name in tqdm_asyncio(ori_data):
         async with semaphore:
             if True:
-                #if api_name in ['scanpy.datasets.paul15']:#, 'scanpy.pl.matrixplot', 'scanpy.external.pl.sam', 'scanpy.external.tl.phate', 'scanpy.pl.MatrixPlot.make_figure', 'scanpy.external.pl.phate', 'scanpy.pl.heatmap', 'scanpy.pl.pca_overview', 'scanpy.pl.sim', 'scanpy.datasets.visium_sge', 'scanpy.pp.recipe_zheng17', 'scanpy.pl.scatter', 'scanpy.pl.draw_graph']:# 'scanpy.pp.subsample' ['scanpy.pp.filter_genes_dispersion', 'scanpy.pl.rank_genes_groups_stacked_violin', 'scanpy.external.pp.bbknn', 'scanpy.read_10x_mtx'] #['scanpy.tl.ingest', 'scanpy.pl.clustermap', 'scanpy.external.tl.palantir_results', 'scanpy.external.tl.wishbone'] #, 'scanpy.pl.DotPlot.add_dendrogram', 'scanpy.tl.diffmap', 'scanpy.pl.highest_expr_genes'
                 tmp_doc = json_to_docstring(api_name, API_init[api_name]['description'].replace('\n',' '), process_parameters(API_init[api_name]['Parameters']))
-                all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], llm, tokenizer, tmp_doc, progress)) # .split('\n')[0]
+                all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], llm, tokenizer, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname)) # .split('\n')[0]
             else:
                 pass
     # Run the tasks and collect results
@@ -487,7 +513,7 @@ async def preprocess_instruction_d(desc_retriever, API_init, QUERY_FILE):
     async def process_api_async(api_name, api_data, api_ori_data, llm, tokenizer, max_retries = 3):
         for _ in range(max_retries):
             tmp_doc = json_to_docstring(api_name, api_data['description'].replace('\n', ' '), process_parameters(api_data['Parameters']))
-            task_results = await process_prompt_async(desc_retriever, API_init, api_name, api_ori_data, llm, tokenizer, tmp_doc, progress)
+            task_results = await process_prompt_async(desc_retriever, API_init, api_name, api_ori_data, llm, tokenizer, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname)
             if len(task_results) == 10:
                 return task_results
         return task_results
@@ -510,7 +536,7 @@ async def preprocess_instruction_d(desc_retriever, API_init, QUERY_FILE):
             async with semaphore:
                 if api_name in insufficient_apis:
                     tmp_doc = json_to_docstring(api_name, API_init[api_name]['description'].replace('\n',' '), process_parameters(API_init[api_name]['Parameters']))
-                    all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], llm, tokenizer, tmp_doc, progress)) # .split('\n')[0]
+                    all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], llm, tokenizer, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname)) # .split('\n')[0]
                 else:
                     pass"""
         retry_tasks = [process_api_async(api_name, API_init[api_name], ori_data[api_name], llm, tokenizer, max_retries=3) for api_name in insufficient_apis]
@@ -548,7 +574,6 @@ if __name__=='__main__':
     create_corpus_from_json(API_init_json,f"./data/standard_process/{args.LIB}/prompt_desc/corpus.tsv")
     # load pretrained bert model, prepare corpus
     desc_retriever = ToolRetriever(LIB = args.LIB, corpus_tsv_path=f"./data/standard_process/{args.LIB}/prompt_desc/corpus.tsv", model_path="all-MiniLM-L6-v2", add_base=False,shuffle_data=False, process_func=process_retrieval_desc)
-    # bert-base-uncased
     t1 = time.time()
     asyncio.run(preprocess_instruction_d(desc_retriever, API_init_json, QUERY_FILE))
     print('step1 cost:', time.time()-t1)
@@ -557,6 +582,7 @@ if __name__=='__main__':
     print('step2 cost:', time.time()-t1)
     t1 = time.time()
     #preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE)
-    preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE)
+    preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE, api_txt_path=args.api_txt_path)
     print('step3 cost:', time.time()-t1)
+    # usage: python dataloader/preprocess_retriever_data.py --LIB scanpy_subset --api_txt_path ./data/standard_process/scanpy_subset/api_txt_path.txt
 

@@ -601,7 +601,7 @@ def filter_specific_apis(data, lib_name):
             filter_API["api_type_unknown"].append(api)
             continue"""
         # Filter by empty docstring
-        if not docstring:
+        if (not docstring) or (not details['description']):
             filter_counts["empty_docstring"] += 1
             filter_API["empty_docstring"].append(api)
             continue
@@ -633,22 +633,31 @@ def filter_specific_apis(data, lib_name):
     assert sum(filter_counts.values())+len(filtered_data)==len(data)
     return filtered_data
 
+def parse_content_list(content_list):
+    """
+    Parses the content list to handle various separators and formats.
+    """
+    parsed_list = []
+    for item in content_list:
+        # Split by comma first, then split each resulting item by spaces and strip whitespace
+        sub_items = item.strip().split(',')
+        for sub_item in sub_items:
+            parsed_list.extend(sub_item.strip().split())
+    return [item for item in parsed_list if item]  # Remove any empty strings
+
+
 def main_get_API_init(lib_name,lib_alias,analysis_path,api_html_path=None,api_txt_path=None):
     # STEP1
-    if api_txt_path:  # or you can provide a self-defined API path
+    if api_txt_path:
         content_list = []
         try:
             with open(api_txt_path, 'r', encoding='latin') as file:
                 content_list = file.readlines()
+            ori_content_keys = parse_content_list(content_list)
         except FileNotFoundError:
             print(f"Error: File '{api_txt_path}' not found.")
         except Exception as e:
             print(f"Error: {e}")
-        if ',' in content_list[0]:
-            ori_content_keys = content_list[0].strip().split(',')
-        else:
-            ori_content_keys = content_list
-        ori_content_keys = [i.strip() for i in ori_content_keys]
     elif api_html_path:  # if you provide API page
         if os.path.isdir(api_html_path):
             print('processing API subset dir')

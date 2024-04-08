@@ -121,10 +121,10 @@ def main():
     # Apply the checks
     check_api_coverage_and_uniqueness(train_data, test_data, args.LIB)
     check_for_query_text_overlap(train_data, test_data)
-    print("All checks passed successfully.")
     check_all_queries_unique(annotated_data)
     check_api_presence_in_inquiry(single_data, inquiry_data)
     compare_inquiries_in_datasets(inquiry_data, annotated_data)
+    print("All checks passed successfully.")
 
 if __name__ == "__main__":
     main()
