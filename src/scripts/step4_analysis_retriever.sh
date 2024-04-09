@@ -3,11 +3,11 @@
 # usage: bash -x scripts/step4_analysis_retriever.sh
 
 export HUGGINGPATH=./hugging_models
-libs=("scanpy" "squidpy" "ehrapy" "snapatac2")
+libs=("scanpy" "squidpy" "ehrapy" "snapatac2") # "scanpy_subset"
 
 mkdir -p output
-mkdir -p plot/
-csv_file="plot/retriever_topk_results.csv"
+mkdir -p output/
+csv_file="output/retriever_topk_results.csv"
 
 echo "LIB,retrieved_api_nums,Training Accuracy,Validation Accuracy,Test Accuracy,Training ambiguous Accuracy,val ambiguous Accuracy,test ambiguous Accuracy" > $csv_file
 
