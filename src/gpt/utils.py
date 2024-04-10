@@ -81,7 +81,7 @@ def get_ambiguous_pairs(API_init_path=f"./data/standard_process/scanpy/API_init.
     with open(API_init_path, "r") as file:
         api_data = json.load(file)
     api_data = {key:api_data[key] for key in api_data if api_data[key]['api_type']!='class' and api_data[key]['api_type']!='unknown'}
-    all_apis, all_apis_json = get_all_api_json(API_init_path, mode='single')
+    all_apis, all_apis_json = get_all_api_json(API_init_path, mode='full') # single
     similar_api_pairs = find_similar_api_pairs(all_apis_json)
     require_same_depth = False
     api_list = list(api_data.keys())
@@ -97,7 +97,7 @@ def get_ambiguous_pairs(API_init_path=f"./data/standard_process/scanpy/API_init.
     list_1 = similar_api_pairs
     list_2 = similar_pairs
     pairs_from_list_2 = [(apis[i], apis[j]) for apis in list_2 for i in range(len(apis)) for j in range(i+1, len(apis))]
-    print('information of the ambiguous pair:', len(list_1), len(list_2), len(pairs_from_list_2))
+    print('information of the ambiguous pair:', len(list_1), len(pairs_from_list_2))
     merged_pairs = list(set(list_1 + pairs_from_list_2))
     return merged_pairs, similar_api_pairs, pairs_from_list_2
 
@@ -147,6 +147,7 @@ def correct_entries(res, lib_name):
                 pred_substrings = [pred[pred.find(lib_name):] for pred in entry['pred'] if lib_name in pred]
                 # Updating 'correct' based on whether modified 'gold' substring is in modified 'pred' substrings
                 if len(pred_substrings)>0:
+                    # we only consider the first candidate
                     entry['correct'] = entry['gold'] == pred_substrings[0]
                 else:
                     entry['correct'] = False

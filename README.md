@@ -7,18 +7,19 @@
 
 <p align="center">
   <a target="_blank" href="https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1">
-    <img style="height:22pt" src="https://img.shields.io/badge/-Paper-burgundy?style=flat&logo=arxiv">
+    <img src="https://img.shields.io/badge/Paper-v1.0-burgundy?style=flat&logo=arxiv">
   </a>
   <a target="_blank" href="https://github.com/batmen-lab/BioMANIA">
-    <img style="height:22pt" src="https://img.shields.io/badge/-Code-black?style=flat&logo=github">
+    <img src="https://img.shields.io/badge/Code-v1.0-black?style=flat&logo=github">
   </a>
   <a target="_blank" href="https://railway.app/template/qaQEvv">
-    <img style="height:22pt" src="https://img.shields.io/badge/-Railway-purple?style=flat&logo=railway">
+    <img src="https://img.shields.io/badge/Railway-v1.0-purple?style=flat&logo=railway">
   </a>
   <a target="_blank" href="https://hub.docker.com/repositories/chatbotuibiomania">
-    <img style="height:22pt" src="https://img.shields.io/badge/-Docker-blue?style=flat&logo=docker">
+    <img src="https://img.shields.io/badge/Docker-v1.0-blue?style=flat&logo=docker">
   </a>
 </p>
+
 
 Welcome to the BioMANIA! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
 

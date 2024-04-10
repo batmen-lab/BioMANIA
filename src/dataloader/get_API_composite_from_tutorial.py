@@ -14,13 +14,6 @@ from dataloader.utils.code_analyzer import extract_io_variables
 from models.model import LLM_model, LLM_response
 from prompt.composite import build_prompt_for_composite_docstring, build_prompt_for_composite_name
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
-parser.add_argument('--file_type', type=str, default='ipynb', help='tutorial files type')
-args = parser.parse_args()
-info_json = get_all_variable_from_cheatsheet(args.LIB)
-LIB_ALIAS, LIB_ANALYSIS_PATH = [info_json['LIB_ALIAS'], info_json['LIB_ANALYSIS_PATH']]
-
 def load_json(filename):
     with open(filename, 'r') as file:
         data = json.load(file)
@@ -233,7 +226,7 @@ def filter_line(code_block: str) -> str:
         lines+=[f'plt.savefig({filepath})']
     return "\n".join(lines)
 
-def individual_tut(tut, html_dict, output_folder_pyjson, pre_code_list):
+def individual_tut(tut, html_dict, output_folder_pyjson, pre_code_list, lib_alias):
     local_namespace = {}
     api_new_tmp = []
     print('-'*10)
@@ -265,7 +258,7 @@ def individual_tut(tut, html_dict, output_folder_pyjson, pre_code_list):
         if block['type'] == 'import':
             imports.update(extract_imports(block['code']))
         else:
-            current_apis = extract_api_calls(block['code'], imports, LIB_ALIAS)
+            current_apis = extract_api_calls(block['code'], imports, lib_alias)
             # remove duplicate API inside code block
             current_apis_set = set(current_apis)
             # remove same code block API subsets
@@ -374,9 +367,9 @@ def process_name_with_LLM(llm,tokenizer,sub_API_names,llm_docstring):
         count+=1
     return "function"
 
-def main_get_API_composite(LIB_ANALYSIS_PATH, output_folder_json):
+def main_get_API_composite(lib_analysis_path, output_folder_json, lib_alias):
     # get text&code from tutorials
-    context = main_convert_tutorial_to_py(LIB_ANALYSIS_PATH, strategy_type=args.file_type, file_types=[args.file_type])
+    context = main_convert_tutorial_to_py(lib_analysis_path, strategy_type=args.file_type, file_types=[args.file_type])
     html_dict = context.code_json
     # load json files
     pre_code_list = ["import warnings","warnings.filterwarnings('ignore')","import matplotlib","matplotlib.use('Agg')","import matplotlib.pyplot as plt","plt.interactive(False)"]# ,"import os" ,"os.environ['OMP_NUM_THREADS'] = '1'"]
@@ -387,7 +380,7 @@ def main_get_API_composite(LIB_ANALYSIS_PATH, output_folder_json):
     # combine the code blocks from different tutorial
     code_blocks_total = []
     for tut in html_dict:
-        code_blocks_total.extend(individual_tut(tut, html_dict, output_folder_json, pre_code_list))
+        code_blocks_total.extend(individual_tut(tut, html_dict, output_folder_json, pre_code_list, lib_alias))
     # remove duplicate code block regarding their APIs set.
     seen_api_sets = set()
     unique_code_blocks = []
@@ -399,11 +392,11 @@ def main_get_API_composite(LIB_ANALYSIS_PATH, output_folder_json):
     print('get unique_code_blocks from tutorials:', unique_code_blocks)
     return unique_code_blocks
     
-def main_get_LLM_docstring(unique_code_blocks):
+def main_get_LLM_docstring(unique_code_blocks, LIB):
     # LLM model
     llm, tokenizer = LLM_model()
     # load API_init.json
-    API_init = load_json(os.path.join('data','standard_process',args.LIB,"API_init.json"))
+    API_init = load_json(os.path.join('data','standard_process',LIB,"API_init.json"))
     API_composite = API_init.copy()
     idxxxxx = 1
     for code_blocks in unique_code_blocks:
@@ -453,7 +446,7 @@ def main_get_LLM_docstring(unique_code_blocks):
     API_composite = generate_api_callings(API_composite, basic_types=['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict'])
     # save API_composite.json
     #with open(os.path.join(LIB_ANALYSIS_PATH, 'API_composite.json'), 'w') as f: # test path
-    with open(os.path.join("data","standard_process",args.LIB, 'API_composite.json'), 'w') as f: # correct path
+    with open(os.path.join("data","standard_process",LIB, 'API_composite.json'), 'w') as f: # correct path
         json.dump(API_composite, f, indent=4)
 
 def generate_api_callings(results, basic_types=['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict']):
@@ -491,6 +484,13 @@ def generate_api_calling_simple(api_name, parameters):
     return api_calling
 
 if __name__=='__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
+    parser.add_argument('--file_type', type=str, default='ipynb', help='tutorial files type')
+    args = parser.parse_args()
+    info_json = get_all_variable_from_cheatsheet(args.LIB)
+    LIB_ALIAS, LIB_ANALYSIS_PATH = [info_json['LIB_ALIAS'], info_json['LIB_ANALYSIS_PATH']]
+    
     output_folder = os.path.join(ANALYSIS_PATH,args.LIB,"Git_Tut_py")
     output_folder_json = os.path.join(ANALYSIS_PATH,args.LIB,"Git_Tut_py2json")
     if not os.path.exists(output_folder):
@@ -501,5 +501,5 @@ if __name__=='__main__':
     all_files = [i for i in all_files if not i.endswith('_tmp.py') and not i.endswith('_remain.py')]
     print(all_files)
     
-    unique_code_blocks = main_get_API_composite(os.path.join(ANALYSIS_PATH,args.LIB), output_folder_json)
-    main_get_LLM_docstring(unique_code_blocks)
+    unique_code_blocks = main_get_API_composite(os.path.join(ANALYSIS_PATH,args.LIB), output_folder_json, LIB_ALIAS)
+    main_get_LLM_docstring(unique_code_blocks, args.LIB)

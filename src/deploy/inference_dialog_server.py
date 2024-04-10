@@ -39,9 +39,10 @@ if torch.cuda.is_available():
     gpu_index = 2
     torch.cuda.set_device(gpu_index)
     device = torch.device('cuda')
+    print("Current GPU Index: %s", torch.cuda.current_device())
 else:
     device = torch.device('cpu')
-print("Current GPU Index: %s", torch.cuda.current_device())
+    print("Current Using CPU")
 
 # 
 import concurrent.futures

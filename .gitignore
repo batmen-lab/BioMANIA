@@ -27,6 +27,15 @@ src/plot_tmp/*
 src/plot_server/*
 src/bak/*
 src/ambiguous_results/*
+src/analysis/*
+src/filtered_errors/*
+test_env/*
+src/output/*
+examples/bak/*
+src/gpt/**/*.json
+src/**/*.png
+src/**/*.jpg
+src/**/*.pdf
 
 # Distribution / packaging
 .Python

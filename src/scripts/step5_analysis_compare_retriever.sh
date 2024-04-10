@@ -3,7 +3,7 @@
 # Usage: bash -x scripts/step5_analysis_compare_retriever.sh
 
 export HUGGINGPATH=./hugging_models
-libs=("scanpy" "squidpy" "ehrapy" "snapatac2") # scanpy_subset
+libs=("scanpy" "squidpy" "ehrapy" "snapatac2") #   # "scanpy_subset"
 csv_file="output/retriever_accuracy_results.csv"
 
 # Header for CSV file

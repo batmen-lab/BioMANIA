@@ -15,7 +15,25 @@
         "GITHUB_LINK": "https://github.com/scverse/scanpy",
         "READTHEDOC_LINK": "https://scanpy.readthedocs.io/",
         "TUTORIAL_HTML_PATH":"scanpy.readthedocs.io/en/latest/tutorials",
-        "TUTORIAL_GITHUB":"https://github.com/scverse/scanpy-tutorials"
+        "TUTORIAL_GITHUB":["https://github.com/scverse/scanpy_usage", "https://github.com/scverse/scanpy-tutorials"]
+    },
+    "scanpy_subset":{
+        "LIB":"scanpy_subset",
+        "LIB_ALIAS":"scanpy",
+        "API_HTML_PATH": "scanpy.readthedocs.io/en/latest/api/index.html",
+        "GITHUB_LINK": "https://github.com/scverse/scanpy",
+        "READTHEDOC_LINK": "https://scanpy.readthedocs.io/",
+        "TUTORIAL_HTML_PATH":"scanpy.readthedocs.io/en/latest/tutorials",
+        "TUTORIAL_GITHUB":["https://github.com/scverse/scanpy_usage", "https://github.com/scverse/scanpy-tutorials"]
+    },
+    "dynamo":{
+        "LIB":"dynamo-release",
+        "LIB_ALIAS":"dynamo",
+        "API_HTML_PATH": "dynamo-release.readthedocs.io/en/latest/API.html",
+        "GITHUB_LINK": "https://github.com/aristoteleo/dynamo-release",
+        "READTHEDOC_LINK": "https://dynamo-release.readthedocs.io/",
+        "TUTORIAL_HTML_PATH":"dynamo-release.readthedocs.io/en/latest/notebooks/Differential_geometry.html",
+        "TUTORIAL_GITHUB":"https://github.com/aristoteleo/dynamo-tutorials"
     },
     "scvi-tools": {
         "LIB": "scvi-tools",

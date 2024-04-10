@@ -8,22 +8,6 @@ from inference.utils import sentence_transformer_embed, bert_embed, predict_by_s
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f'using device: {device}')
-
-# load args
-parser = argparse.ArgumentParser(description="Process data with a specified library.")
-parser.add_argument("--LIB", type=str, default="scanpy", required=True, help="Library to use for data processing.")
-parser.add_argument("--ratio_1_to_3", type=float, default=1.0, help="Ratio of data1 to data3.")
-parser.add_argument("--ratio_2_to_3", type=float, default=1.0, help="Ratio of data2 to data3.")
-parser.add_argument("--embed_method", type=str, choices=["st_untrained", "st_trained"], default="st_untrained", help="The method for embeddings: st_untrained, or st_trained")
-args = parser.parse_args()
-
-# load model
-print('loading models')
-unpretrained_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
-pretrained_model = SentenceTransformer(f"./hugging_models/retriever_model_finetuned/{args.LIB}/assigned", device=device)
-
 def process_topicalchat():
     with open('./data/conversations/train.json', 'r') as file:
         data = json.load(file)
@@ -117,28 +101,32 @@ def plot_tsne_distribution_modified(lib_name, train_data, test_data, model, labe
     plt.legend()
     plt.savefig(f'./plot/{lib_name}/chitchat_test_tsne_modified_{embed_method}.pdf')
 
-def main():
+def main(LIB, ratio_1_to_3, ratio_2_to_3, embed_method, device):
+    # load model
+    print('loading models')
+    unpretrained_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
+    pretrained_model = SentenceTransformer(f"./hugging_models/retriever_model_finetuned/{LIB}/assigned", device=device)
     process_topicalchat()
     process_chitchat()
-    tmp_data = process_apiquery(args.LIB)
-    with open(f'./data/standard_process/{args.LIB}/API_inquiry.json', 'r') as file:
+    tmp_data = process_apiquery(LIB)
+    with open(f'./data/standard_process/{LIB}/API_inquiry.json', 'r') as file:
         json_data = json.load(file)
     max_query_id = max(entry['query_id'] for entry in json_data)
-    test_data3 = process_apiquery(args.LIB, 'API_inquiry_annotate.json', start_id=max_query_id + 1, index_save=False)
-    with open(f'./data/standard_process/{args.LIB}/API_inquiry_annotate.json', 'r') as file:
+    test_data3 = process_apiquery(LIB, 'API_inquiry_annotate.json', start_id=max_query_id + 1, index_save=False)
+    with open(f'./data/standard_process/{LIB}/API_inquiry_annotate.json', 'r') as file:
         json_data = json.load(file)
     assert len(test_data3)+len(tmp_data)==len(json_data)
     data1 = pd.read_csv('./data/others-data/dialogue_questions.csv')
     data2 = pd.read_csv('./data/others-data/combined_data.csv')
-    data3 = pd.read_csv(f'./data/standard_process/{args.LIB}/api_data.csv')
+    data3 = pd.read_csv(f'./data/standard_process/{LIB}/api_data.csv')
 
     min_length_train = len(data3)
     min_length_test = len(test_data3)
     #train_ratio = 0.8 # no need to split now
-    train_sample_num1 = int(min_length_train*args.ratio_1_to_3)
-    train_sample_num2 = int(min_length_train*args.ratio_2_to_3)
-    test_sample_num1 = int(min_length_test*args.ratio_1_to_3)
-    test_sample_num2 = int(min_length_test*args.ratio_2_to_3)
+    train_sample_num1 = int(min_length_train*ratio_1_to_3)
+    train_sample_num2 = int(min_length_train*ratio_2_to_3)
+    test_sample_num1 = int(min_length_test*ratio_1_to_3)
+    test_sample_num2 = int(min_length_test*ratio_2_to_3)
     
     sampledata_combine(data1, data2, data3, test_data3, train_count_data1=train_sample_num1, train_count_data2=train_sample_num2, train_count_data3=min_length_train, test_count_data1=test_sample_num1, test_count_data2=test_sample_num2, test_count_data3=min_length_test)
     train_data = pd.read_csv('./data/others-data/train_data.csv')
@@ -150,9 +138,9 @@ def main():
     print('length of train_data1, train_data2, train_data3: ', len(train_data1), len(train_data2), len(train_data3))
     print('The real ratio for data1, data2 based on API data is: ', len(train_data1)/len(train_data3), len(train_data2)/len(train_data3))
     all_data = pd.concat([train_data1, train_data2, train_data3], ignore_index=True)
-    if args.embed_method == "st_untrained":
+    if embed_method == "st_untrained":
         model_chosen=unpretrained_model
-    elif args.embed_method == "st_trained":
+    elif embed_method == "st_trained":
         model_chosen=pretrained_model
     centroid1 = calculate_centroid(train_data1['Question'],model_chosen)
     centroid2 = calculate_centroid(train_data2['Question'],model_chosen)
@@ -198,14 +186,23 @@ def main():
 
     start_time = time.time()
     print('centroids shape: ', [i.shape for i in centroids])
-    with open(f'./data/standard_process/{args.LIB}/centroids.pkl', 'wb') as f:
+    with open(f'./data/standard_process/{LIB}/centroids.pkl', 'wb') as f:
         pickle.dump(centroids, f)
     start_time = time.time()
-    os.makedirs(f"./plot/{args.LIB}", exist_ok=True)
+    os.makedirs(f"./plot/{LIB}", exist_ok=True)
     print(f"Centroids saved. Time taken: {time.time() - start_time:.2f} seconds")
     start_time = time.time()
-    plot_tsne_distribution_modified(args.LIB, train_data, test_data, model_chosen, labels, accuracy_c2,args.embed_method)
+    plot_tsne_distribution_modified(LIB, train_data, test_data, model_chosen, labels, accuracy_c2,embed_method)
     print(f"Plot. Time taken: {time.time() - start_time:.2f} seconds")
 
 if __name__=='__main__':
-    main()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f'using device: {device}')
+    # load args
+    parser = argparse.ArgumentParser(description="Process data with a specified library.")
+    parser.add_argument("--LIB", type=str, default="scanpy", required=True, help="Library to use for data processing.")
+    parser.add_argument("--ratio_1_to_3", type=float, default=1.0, help="Ratio of data1 to data3.")
+    parser.add_argument("--ratio_2_to_3", type=float, default=1.0, help="Ratio of data2 to data3.")
+    parser.add_argument("--embed_method", type=str, choices=["st_untrained", "st_trained"], default="st_untrained", help="The method for embeddings: st_untrained, or st_trained")
+    args = parser.parse_args()
+    main(args.LIB, args.ratio_1_to_3, args.ratio_2_to_3, args.embed_method, device)

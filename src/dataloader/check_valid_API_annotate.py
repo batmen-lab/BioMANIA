@@ -94,15 +94,12 @@ def compare_inquiries_in_datasets(inquiry_data, annotated_data):
     else:
         print("All matching query_ids have consistent inquiries between inquiry_data and annotated_data.")
 
-def main():
-    parser = argparse.ArgumentParser(description="Check data integrity for training and testing datasets.")
-    parser.add_argument("--LIB", type=str, help="Library name for the JSON data.")
-    args = parser.parse_args()
-
-    inquiry_data = load_data(f'./data/standard_process/{args.LIB}/API_inquiry.json')
-    annotated_data = load_data(f'./data/standard_process/{args.LIB}/API_inquiry_annotate.json')
-    composite_data = load_data(f'./data/standard_process/{args.LIB}/API_composite.json')
-    single_data = load_data(f'./data/standard_process/{args.LIB}/API_init.json')
+def main(LIB):
+    
+    inquiry_data = load_data(f'./data/standard_process/{LIB}/API_inquiry.json')
+    annotated_data = load_data(f'./data/standard_process/{LIB}/API_inquiry_annotate.json')
+    composite_data = load_data(f'./data/standard_process/{LIB}/API_composite.json')
+    single_data = load_data(f'./data/standard_process/{LIB}/API_init.json')
 
     train_data, test_data = get_training_and_test_sets(inquiry_data, annotated_data)
     
@@ -119,7 +116,7 @@ def main():
     print('missing_apis: ', missing_apis)
 
     # Apply the checks
-    check_api_coverage_and_uniqueness(train_data, test_data, args.LIB)
+    check_api_coverage_and_uniqueness(train_data, test_data, LIB)
     check_for_query_text_overlap(train_data, test_data)
     check_all_queries_unique(annotated_data)
     check_api_presence_in_inquiry(single_data, inquiry_data)
@@ -127,4 +124,8 @@ def main():
     print("All checks passed successfully.")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Check data integrity for training and testing datasets.")
+    parser.add_argument("--LIB", type=str, help="Library name for the JSON data.")
+    args = parser.parse_args()
+
+    main(args.LIB)

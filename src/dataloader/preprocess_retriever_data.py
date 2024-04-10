@@ -1,29 +1,18 @@
 # instruction_generation
 # prepare for retriever data
 import json, os, re, copy, ast, random, time, cProfile, pstats, argparse, asyncio
-from dotenv import load_dotenv
-load_dotenv()
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
-
 from tqdm import tqdm as tqdm_normal
 from tqdm.asyncio import tqdm_asyncio
 import pandas as pd
 from sklearn.utils import shuffle
+from dotenv import load_dotenv
 from models.model import LLM_response, LLM_model
 #from configs.model_config import LIB
 from prompt.instruction import make_instruction_generation_prompt
-from inference.utils import process_retrieval_document, compress_api_str_from_list
-parser = argparse.ArgumentParser()
-parser.add_argument('--LIB', type=str, help='PyPI tool')
-parser.add_argument('--concurrency', type=int, default=80, help='adjust the maximum concurrency according to the rate limit of OpenAI API account')
-parser.add_argument('--GPT_model', type=str, default='gpt3.5', choices=['gpt4', 'gpt3.5'], help='GPT model version')
-parser.add_argument('--api_txt_path', type=str, default=None, help='Your self-defined api txt path')
-args = parser.parse_args()
-
-semaphore = asyncio.Semaphore(args.concurrency)
-
+from inference.utils import process_retrieval_document, compress_api_str_from_list, json_to_docstring, process_retrieval_desc
+from dataloader.get_API_init_from_sourcecode import parse_content_list
 from inference.retriever_finetune_inference import ToolRetriever
-from inference.utils import json_to_docstring
+from inference.utils import is_pair_in_merged_pairs, get_all_api_json, find_similar_api_pairs, find_similar_two_pairs, get_ambiguous_pairs
 
 def unify_response_format(response):
     try:
@@ -92,22 +81,20 @@ def parse_json_response(response):
         valid_responses.append(d)
     return valid_responses
 
-async def async_LLM_response(llm, tokenizer, prompt, history=[], kwargs={}):
+async def async_LLM_response(llm, tokenizer, prompt, GPT_model, history=[], kwargs={}):
     model_version = "gpt-4-0125-preview" if args.GPT_model == 'gpt4' else "gpt-3.5-turbo-0125"
     loop = asyncio.get_event_loop()
     response, history = await loop.run_in_executor(None, LLM_response, llm, tokenizer, prompt, model_version, history, kwargs)
     return response, history
 
-from inference.utils import is_pair_in_merged_pairs, get_all_api_json, find_similar_api_pairs, find_similar_two_pairs, get_ambiguous_pairs
-
-async def process_prompt_async(desc_retriever,API_init, api_name, api, llm, tokenizer, tmp_docstring, progress, similar_api_same_desc, similar_api_same_funcname):
+async def process_prompt_async(desc_retriever,API_init, api_name, api, llm, tokenizer, tmp_docstring, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model):
     prompt1, prompt2 = make_instruction_generation_prompt(api_name, tmp_docstring)
     retrieved_apis = desc_retriever.retrieving(query=API_init[api_name]['description'].split('\n')[0],top_k=20)
-    assert len(retrieved_apis) == len(set(retrieved_apis)), retrieved_apis
+    assert len(retrieved_apis) == len(set(retrieved_apis)), 'repeated apis in retrieved_apis'+retrieved_apis
     # remove target api
     if api_name in retrieved_apis:
         retrieved_apis.remove(api_name)
-    assert api_name not in retrieved_apis, json.dumps(retrieved_apis) + ', ' + api_name
+    assert api_name not in retrieved_apis, 'api name not in retrieved apis: '+json.dumps(retrieved_apis) + ', ' + api_name
     # remove compositeAPI and classAPI
     # remove same description type ambiguous API
     #filtered_apis = [api for api in retrieved_apis if not is_pair_in_merged_pairs(api_name, api, similar_api_same_desc)]
@@ -134,7 +121,7 @@ async def process_prompt_async(desc_retriever,API_init, api_name, api, llm, toke
     MAX_trial = 3
     valid_response = None
     while retry_count < MAX_trial:
-        response, _ = await async_LLM_response(llm, tokenizer, prompt)
+        response, _ = await async_LLM_response(llm, tokenizer, prompt, GPT_model)
         try:
             response_list = parse_json_response(response)
             if response_list and isinstance(response_list, list) and isinstance(response_list[0], dict) and all('instruction' in response for response in response_list) and len(response_list)>=10:
@@ -280,17 +267,19 @@ def preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX
     val_labels_df.to_csv(OUTPUT_DIR + '/qrels.val.tsv', sep='\t', index=False, header=False)
     documents_df.to_csv(OUTPUT_DIR + '/corpus.tsv', sep='\t', index=False)
 
-def filter_and_update_query_id(query_data, api_list):
+def filter_and_update_query_id(query_data, api_list=[]):
     filtered_queries = []
     for query in query_data:
         api_name = query['api_calling'][0].split('(')[0]
-        if api_name in api_list:
+        if api_list:
+            if api_name in api_list:
+                filtered_queries.append(query)
+        else:
             filtered_queries.append(query)
     for i, query in enumerate(filtered_queries):
         query['query_id'] = i
     return filtered_queries
 
-from dataloader.get_API_init_from_sourcecode import parse_content_list
 def preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE, api_txt_path=None):
     with open(QUERY_FILE, 'r') as f:
         query_data_ori = json.load(f)
@@ -304,17 +293,23 @@ def preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FIL
             print(f"Error: File '{api_txt_path}' not found.")
         except Exception as e:
             print(f"Error: {e}")
+    else:
+        api_list = []
     print('previous query length:', len(query_data_ori))
     query_data_ori = filter_and_update_query_id(query_data_ori, api_list)
     print('filtered query length:', len(query_data_ori))
+    #with open('data/standard_process/scanpy_subset/API_inquiry.json', 'w') as file:
+    #    json.dump(query_data_ori, file, indent=4)
     start_idx_for_test = max([i['query_id'] for i in query_data_ori])
-    assert start_idx_for_test==len(query_data_ori)-1
+    assert start_idx_for_test==len(query_data_ori)-1, 'start_idx_for_test is not the last index of query_data_ori'
     # code from toolbench retriever train.py
     with open(QUERY_ANNOTATE_FILE, 'r') as f:
         query_data = json.load(f)
     print('previous query length:', len(query_data))
     query_data = filter_and_update_query_id(query_data, api_list)
     print('filtered query length:', len(query_data))
+    #with open('data/standard_process/scanpy_subset/API_inquiry_annotate.json', 'w') as file:
+    #    json.dump(query_data, file, indent=4)
     idx = len(query_data)
     ############# fixed split
     test_indices = [i['query_id'] for i in query_data if i['query_id']>start_idx_for_test]
@@ -482,7 +477,7 @@ def create_corpus_from_json(API_init_json, corpus_tsv_path):
     documents_df = pd.DataFrame(documents, columns=["docid", "document_content"])
     documents_df.to_csv(corpus_tsv_path, sep='\t', index=False)
 
-async def preprocess_instruction_d(desc_retriever, API_init, QUERY_FILE):
+async def preprocess_instruction_d(desc_retriever, API_init, QUERY_FILE, LIB, GPT_model):
     print('The length of api_data is: ',len(API_init))
     # filter and remove class API
     ori_data = {api: details for api, details in API_init.items() if details['api_type'] != 'class' and details['api_type']!='unknown'}
@@ -496,12 +491,12 @@ async def preprocess_instruction_d(desc_retriever, API_init, QUERY_FILE):
     progress = tqdm_asyncio(total=len(ori_data))
     idx = 0
     # get similar pairs
-    merged_pairs, similar_api_same_desc, similar_api_same_funcname = get_ambiguous_pairs(f"./data/standard_process/{args.LIB}/API_init.json")
+    merged_pairs, similar_api_same_desc, similar_api_same_funcname = get_ambiguous_pairs(f"./data/standard_process/{LIB}/API_init.json")
     for api_name in tqdm_asyncio(ori_data):
         async with semaphore:
             if True:
                 tmp_doc = json_to_docstring(api_name, API_init[api_name]['description'].replace('\n',' '), process_parameters(API_init[api_name]['Parameters']))
-                all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], llm, tokenizer, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname)) # .split('\n')[0]
+                all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], llm, tokenizer, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model)) # .split('\n')[0]
             else:
                 pass
     # Run the tasks and collect results
@@ -513,7 +508,7 @@ async def preprocess_instruction_d(desc_retriever, API_init, QUERY_FILE):
     async def process_api_async(api_name, api_data, api_ori_data, llm, tokenizer, max_retries = 3):
         for _ in range(max_retries):
             tmp_doc = json_to_docstring(api_name, api_data['description'].replace('\n', ' '), process_parameters(api_data['Parameters']))
-            task_results = await process_prompt_async(desc_retriever, API_init, api_name, api_ori_data, llm, tokenizer, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname)
+            task_results = await process_prompt_async(desc_retriever, API_init, api_name, api_ori_data, llm, tokenizer, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model)
             if len(task_results) == 10:
                 return task_results
         return task_results
@@ -536,7 +531,7 @@ async def preprocess_instruction_d(desc_retriever, API_init, QUERY_FILE):
             async with semaphore:
                 if api_name in insufficient_apis:
                     tmp_doc = json_to_docstring(api_name, API_init[api_name]['description'].replace('\n',' '), process_parameters(API_init[api_name]['Parameters']))
-                    all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], llm, tokenizer, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname)) # .split('\n')[0]
+                    all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], llm, tokenizer, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model)) # .split('\n')[0]
                 else:
                     pass"""
         retry_tasks = [process_api_async(api_name, API_init[api_name], ori_data[api_name], llm, tokenizer, max_retries=3) for api_name in insufficient_apis]
@@ -563,10 +558,20 @@ async def preprocess_instruction_d(desc_retriever, API_init, QUERY_FILE):
     #print(results, 'results==>')
 
 if __name__=='__main__':
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--LIB', type=str, help='PyPI tool')
+    parser.add_argument('--concurrency', type=int, default=80, help='adjust the maximum concurrency according to the rate limit of OpenAI API account')
+    parser.add_argument('--GPT_model', type=str, default='gpt3.5', choices=['gpt4', 'gpt3.5'], help='GPT model version')
+    parser.add_argument('--api_txt_path', type=str, default=None, help='Your self-defined api txt path')
+    args = parser.parse_args()
+    semaphore = asyncio.Semaphore(args.concurrency)
+    load_dotenv()
+    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
+    
     API_init, API_composite, OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE = get_all_path(args.LIB)
     with open(API_init, 'r') as f:
         API_init_json = json.load(f)
-    from inference.utils import process_retrieval_desc
     # prepare desc_prompt corpus
     print('preparing desc_prompt corpus')
     os.makedirs(f"./data/standard_process/{args.LIB}/prompt_desc/", exist_ok=True)
@@ -575,7 +580,7 @@ if __name__=='__main__':
     # load pretrained bert model, prepare corpus
     desc_retriever = ToolRetriever(LIB = args.LIB, corpus_tsv_path=f"./data/standard_process/{args.LIB}/prompt_desc/corpus.tsv", model_path="all-MiniLM-L6-v2", add_base=False,shuffle_data=False, process_func=process_retrieval_desc)
     t1 = time.time()
-    asyncio.run(preprocess_instruction_d(desc_retriever, API_init_json, QUERY_FILE))
+    asyncio.run(preprocess_instruction_d(desc_retriever, API_init_json, QUERY_FILE, args.LIB, args.GPT_model))
     print('step1 cost:', time.time()-t1)
     t1 = time.time()
     preprocess_fake_test_data(QUERY_FILE, QUERY_ANNOTATE_FILE)

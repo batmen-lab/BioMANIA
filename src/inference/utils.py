@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 from collections import defaultdict
 from configs.model_config import LIB
-from gpt.utils import get_all_api_json, find_similar_api_pairs, is_pair_in_merged_pairs, find_similar_two_pairs
+from gpt.utils import get_all_api_json, find_similar_api_pairs, is_pair_in_merged_pairs, find_similar_two_pairs, get_ambiguous_pairs
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
 from sklearn.metrics.pairwise import cosine_similarity

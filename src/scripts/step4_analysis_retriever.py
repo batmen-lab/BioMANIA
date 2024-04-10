@@ -20,12 +20,12 @@ labels = ['Synthetic instruction', 'Annotation instruction',
 libs = df['LIB'].unique()
 num_libs = len(libs)
 if num_libs <= 2:
-    fig, axs = plt.subplots(1, num_libs, figsize=(15 * num_libs, 6))
+    fig, axs = plt.subplots(1, num_libs, figsize=(6 * num_libs, 5), sharey=True)
     if num_libs == 1:
         axs = np.array([axs])
 else:
     num_rows = np.ceil(num_libs / 2).astype(int)
-    fig, axs = plt.subplots(num_rows, 2, figsize=(15, 6 * num_rows))
+    fig, axs = plt.subplots(num_rows, 2, figsize=(6, 5 * num_rows), sharey=True)
     axs = axs.flatten()
 for index, lib in enumerate(libs):
     ax = axs[index]

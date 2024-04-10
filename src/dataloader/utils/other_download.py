@@ -2,13 +2,6 @@ import subprocess, argparse, os
 from configs.model_config import READTHEDOC_PATH, ANALYSIS_PATH, get_all_variable_from_cheatsheet
 from urllib.parse import urlparse, unquote
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
-args = parser.parse_args()
-
-info_json = get_all_variable_from_cheatsheet(args.LIB)
-API_HTML, TUTORIAL_GITHUB, TUTORIAL_HTML = [info_json[key] for key in ['API_HTML', 'TUTORIAL_GITHUB', 'TUTORIAL_HTML']]
-
 def download_readthedoc(readthedoc_path, api_html, source_type='single'):
     """
     Download ReadTheDocs HTML pages for API documentation and tutorials.
@@ -85,6 +78,11 @@ def download_tutorial(tutorial_github, analysis_path, lib_name):
             print(f"Unable to extract repository details from URL: {github_url}")
     
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
+    args = parser.parse_args()
+    info_json = get_all_variable_from_cheatsheet(args.LIB)
+    API_HTML, TUTORIAL_GITHUB, TUTORIAL_HTML = [info_json[key] for key in ['API_HTML', 'TUTORIAL_GITHUB', 'TUTORIAL_HTML']]
     download_readthedoc(READTHEDOC_PATH, API_HTML, source_type='single')
     download_readthedoc(ANALYSIS_PATH, TUTORIAL_HTML, source_type='full')
     download_tutorial(TUTORIAL_GITHUB, ANALYSIS_PATH, args.LIB)

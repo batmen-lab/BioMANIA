@@ -46,7 +46,8 @@ def get_all_variable_from_cheatsheet(LIB):
         "TUTORIAL_HTML_PATH": TUTORIAL_HTML_PATH,
         "TUTORIAL_GITHUB": TUTORIAL_GITHUB,
         "LIB_ANALYSIS_PATH": LIB_ANALYSIS_PATH,
-        "LIB_GITHUB_PATH": LIB_GITHUB_PATH
+        "LIB_GITHUB_PATH": LIB_GITHUB_PATH,
+        "TUTORIAL_HTML": USER_INPUT[LIB]['TUTORIAL_HTML_PATH']
     }
     return info_json
 

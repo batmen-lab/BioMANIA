@@ -8,16 +8,6 @@ import argparse
 import os
 from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--model_path', type=str, help='Your trained model path')
-parser.add_argument('--dataset_path', type=str, help='The processed dataset files path')
-parser.add_argument('--top_k', type=int, help='The output files path')
-args = parser.parse_args()
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-model = SentenceTransformer(args.model_path).to(device)
-
 def load_query(dataset_type, data_path):
     queries_df = pd.read_csv(os.path.join(data_path, f'{dataset_type}.query.txt'), sep='\t', names=['qid', 'query'])
     labels_df = pd.read_csv(os.path.join(data_path, f'qrels.{dataset_type}.tsv'), sep='\t', names=['qid', 'useless', 'docid', 'label'])
@@ -29,7 +19,7 @@ def load_relevant_docs(labels_df):
         relevant_docs.setdefault(row.qid, set()).add(row.docid)
     return relevant_docs
 
-def retrieve_inference(dataset_path, dataset_type, top_k):
+def retrieve_inference(model, dataset_path, dataset_type, top_k, device):
     documents_df = pd.read_csv(os.path.join(dataset_path, 'corpus.tsv'), sep='\t')
     ir_corpus,_ = process_retrieval_document_query_version(documents_df)
     labels_df, ir_queries = load_query(dataset_type, dataset_path)
@@ -66,6 +56,13 @@ def retrieve_inference(dataset_path, dataset_type, top_k):
 
 
 if __name__=='__main__':
-    retrieve_inference(args.dataset_path, 'train', args.top_k)
-    retrieve_inference(args.dataset_path, 'test', args.top_k)
-    retrieve_inference(args.dataset_path, 'val', args.top_k)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_path', type=str, help='Your trained model path')
+    parser.add_argument('--dataset_path', type=str, help='The processed dataset files path')
+    parser.add_argument('--top_k', type=int, help='The output files path')
+    args = parser.parse_args()
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = SentenceTransformer(args.model_path).to(device)
+    retrieve_inference(model, args.dataset_path, 'train', args.top_k, device)
+    retrieve_inference(model, args.dataset_path, 'test', args.top_k, device)
+    retrieve_inference(model, args.dataset_path, 'val', args.top_k, device)

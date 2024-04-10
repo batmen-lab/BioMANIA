@@ -1,6 +1,4 @@
 from configs.model_config import *
-from langchain.llms import OpenAI
-from transformers import AutoTokenizer, AutoModel
 import requests, json
 
 def generate_completion_stream(model_name, prompt):

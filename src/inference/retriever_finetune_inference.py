@@ -2,17 +2,17 @@ import argparse, os, json, time, re
 from xml.etree.ElementTree import QName
 from tqdm import tqdm
 import pandas as pd
-from configs.model_config import HUGGINGPATH
+from configs.model_config import HUGGINGPATH, ANALYSIS_PATH, get_all_variable_from_cheatsheet, get_all_basic_func_from_cheatsheet
 from sentence_transformers import SentenceTransformer, util, models, InputExample, losses, LoggingHandler
 from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version, is_pair_in_merged_pairs, find_similar_two_pairs
 import torch
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # Print average scores for each rank
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 class ToolRetriever:
     def __init__(self, LIB, corpus_tsv_path = "", model_path="", base_corpus_tsv_path="./data/standard_process/base/retriever_train_data/corpus.tsv",add_base=False, shuffle_data=True, process_func=process_retrieval_document_query_version,max_seq_length=256):
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.process_func=process_func
         self.max_seq_length = max_seq_length
         self.model_path = model_path
@@ -61,10 +61,10 @@ class ToolRetriever:
         self.corpus = corpus
         if 'hugging_models' in self.model_path:
             print('running on pretrained model!!!')
-            self.embedder = SentenceTransformer(self.model_path, device=device)
+            self.embedder = SentenceTransformer(self.model_path, device=self.device)
         elif self.model_path=='all-MiniLM-L6-v2' or self.model_path=='bert-base-uncased':
             print('running on unpretrained model!!!')
-            self.embedder = SentenceTransformer(self.model_path, device=device)
+            self.embedder = SentenceTransformer(self.model_path, device=self.device)
         else:
             raise ValueError
         self.corpus_embeddings = self.embedder.encode(self.corpus, convert_to_tensor=True)
@@ -81,7 +81,7 @@ class ToolRetriever:
         similar_queries = ["\nInstruction: " + self.shuffled_data[hit['corpus_id']]['query'] + "\nFunction: " + self.shuffled_data[hit['corpus_id']]['gold'] for hit in hits[0]]
         return ''.join(similar_queries)
 
-def compute_accuracy(retriever, data, args,name='train'):
+def compute_accuracy(retriever, data, args,name='train', LIB_ALIAS='scanpy'):
     merged_pairs = find_similar_two_pairs(f"./data/standard_process/{args.LIB}/API_init.json")
     correct_predictions = 0
     ambiguous_correct_predictions = 0  # Additional metric for ambiguous matches
@@ -145,7 +145,7 @@ def compute_accuracy(retriever, data, args,name='train'):
     }
     return accuracy, scores, ambiguous_accuracy, total_api_non_ambiguous
 
-def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train'):
+def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train', LIB_ALIAS='scanpy'):
     # remove class type API, and composite API from the data
     with open(f"./data/standard_process/{args.LIB}/API_composite.json", 'r') as file:
         API_composite = json.load(file)
@@ -166,12 +166,12 @@ def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train'):
     for query_data in tqdm(data):
         retrieved_apis = retriever.retrieving(query_data['query'], top_k=args.retrieved_api_nums+20)
         true_api = query_data['api_name']
-        if not true_api.startswith(args.LIB) or query_data['api_type']=='class' or query_data['api_type']=='unknown':
+        if not true_api.startswith(LIB_ALIAS) or query_data['api_type']=='class' or query_data['api_type']=='unknown':
             # remove composite API, class API
             continue
         else:
             total_api_non_composite+=1
-        retrieved_apis = [i for i in retrieved_apis if i.startswith(args.LIB) and API_composite[i]['api_type']!='class' and API_composite[i]['api_type']!='unknown']
+        retrieved_apis = [i for i in retrieved_apis if i.startswith(LIB_ALIAS) and API_composite[i]['api_type']!='class' and API_composite[i]['api_type']!='unknown']
         retrieved_apis = retrieved_apis[:args.retrieved_api_nums]
         assert len(retrieved_apis)==args.retrieved_api_nums
         # changed the acc count
@@ -225,9 +225,9 @@ def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train'):
     }
     return accuracy, scores, ambiguous_accuracy, total_api_non_ambiguous
 
-def compute_and_plot(data_set, set_name, retriever, args, compute_func):
+def compute_and_plot(data_set, set_name, retriever, args, compute_func, LIB_ALIAS):
     """Compute scores, visualize"""
-    accuracy, avg_scores, ambiguous_accuracy, total_api_non_ambiguous = compute_func(retriever, data_set, args, set_name)
+    accuracy, avg_scores, ambiguous_accuracy, total_api_non_ambiguous = compute_func(retriever, data_set, args, set_name, LIB_ALIAS)
     print(f"{set_name.capitalize()} Accuracy: {accuracy:.2f}%, #samples {len(data_set)}")
     print(f"{set_name.capitalize()} ambiguous Accuracy: {ambiguous_accuracy:.2f}%, #samples {total_api_non_ambiguous}")
     scores = [avg_scores[f'rank_{i+1}'] for i in range(5)]
@@ -252,6 +252,8 @@ if __name__ == "__main__":
     parser.add_argument("--max_seq_length", default=256, type=int, required=True,help="Max sequence length.")
     parser.add_argument('--filter_composite', action='store_true', help='Use compute_accuracy_filter_compositeAPI instead of compute_accuracy')
     args = parser.parse_args()
+    info_json = get_all_variable_from_cheatsheet(args.LIB)
+    LIB_ALIAS, API_HTML, TUTORIAL_GITHUB, API_HTML_PATH = [info_json[key] for key in ['LIB_ALIAS', 'API_HTML', 'TUTORIAL_GITHUB','API_HTML_PATH']]
 
     # Step 1: Load API data from the JSON file
     with open(args.input_query_file, 'r') as file:
@@ -277,4 +279,4 @@ if __name__ == "__main__":
     compute_func = compute_accuracy_filter_compositeAPI if args.filter_composite else compute_accuracy
 
     for set_name, data_set in zip(['train', 'val', 'test'], [train_data, val_data, test_data]):
-        compute_and_plot(data_set, set_name, retriever, args, compute_func)
+        compute_and_plot(data_set, set_name, retriever, args, compute_func, LIB_ALIAS)

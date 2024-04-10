@@ -7,22 +7,13 @@ from datetime import datetime
 from configs.model_config import READTHEDOC_PATH, ANALYSIS_PATH, get_all_variable_from_cheatsheet
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
-parser.add_argument('--file_type', type=str, default='ipynb', help='tutorial files type')
-parser.add_argument('--source', type=str, default='Git', help='transfer file from Git or Readthedoc')
-args = parser.parse_args()
-info_json = get_all_variable_from_cheatsheet(args.LIB)
-API_HTML, TUTORIAL_GITHUB, TUTORIAL_HTML, LIB_ANALYSIS_PATH = [info_json[key] for key in ['API_HTML', 'TUTORIAL_GITHUB', 'TUTORIAL_HTML', 'LIB_ANALYSIS_PATH']]
-
-
 # base
 class CodeLoader(ABC):
     @abstractmethod
     def load_json(self, source):
         pass
 
-    def save_as_py(self, source, code):
+    def save_as_py(self, source, code, LIB_ANALYSIS_PATH):
         """Save the code to a .py file."""
         filename = os.path.basename(source)
         base = os.path.splitext(filename)[0]
@@ -306,6 +297,13 @@ def main_convert_tutorial_to_py(LIB_ANALYSIS_PATH, subpath='Git_Tut', strategy_t
     return context
 
 if __name__=='__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
+    parser.add_argument('--file_type', type=str, default='ipynb', help='tutorial files type')
+    parser.add_argument('--source', type=str, default='Git', help='transfer file from Git or Readthedoc')
+    args = parser.parse_args()
+    info_json = get_all_variable_from_cheatsheet(args.LIB)
+    API_HTML, TUTORIAL_GITHUB, TUTORIAL_HTML, LIB_ANALYSIS_PATH = [info_json[key] for key in ['API_HTML', 'TUTORIAL_GITHUB', 'TUTORIAL_HTML', 'LIB_ANALYSIS_PATH']]
     if args.source=="Readthedoc":
         readthedoc_realpath = os.path.join(READTHEDOC_PATH, TUTORIAL_HTML)
         main_convert_tutorial_to_py(readthedoc_realpath, subpath='', strategy_type=args.file_type, file_types=[args.file_type])
