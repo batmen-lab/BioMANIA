@@ -3,28 +3,41 @@ from docstring_parser import parse
 from langchain.document_loaders import BSHTMLLoader
 from configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet, get_all_basic_func_from_cheatsheet
 from dataloader.extract_function_from_sourcecode import get_returnparam_docstring
+from typing import Dict, List, Optional, Tuple, Union, Any
 
 # STEP1: get API from web
 # STEP2: get docstring/parameters from source code, based on API
 # STEP3: produce API calling
 
 def process_html(html_path: str) -> str:
-    """Loads HTML file content after removing excessive spaces."""
+    """
+    Loads HTML file content after removing excessive spaces.
+
+    Parameters
+    ----------
+    html_path : str
+        The file path of the HTML document to process.
+
+    Returns
+    -------
+    str
+        Processed HTML content as a single string with spaces normalized.
+    """
     loader = BSHTMLLoader(html_path)
     webcontent = loader.load()
     content = ' '.join([i.page_content for i in webcontent])
     content = re.sub(r'\s+', ' ', content) # remove large blanks
     return content
 
-def get_dynamic_types():
+def get_dynamic_types() -> List[type]:
     """
-    Retrieves a list of various basic and complex data types from Python's built-in, typing, 
+    Retrieves a list of various basic and complex data types from Python's built-in, typing,
     collections, and collections.abc modules.
-    
+
     Returns
     -------
-    List[Type]
-        A list containing types such as int, float, str, list, dict, and more specialized types 
+    List[type]
+        A list containing types such as int, float, str, list, dict, and more specialized types
         like typing.Union, collections.deque, collections.abc.Iterable, etc.
     """
     basic_types = [int, float, str, bool, list, tuple, dict, set, type(None)]
@@ -38,7 +51,7 @@ def get_dynamic_types():
     all_types = basic_types + useful_types_from_typing + useful_types_from_collections + useful_types_from_collections_abc
     return all_types
 
-def type_to_string(t):
+def type_to_string(t: type) -> str:
     """
     Convert a type to its string representation.
 
@@ -67,7 +80,7 @@ def type_to_string(t):
 type_strings = get_dynamic_types()
 typing_list = [type_to_string(t) for t in type_strings]
 
-def expand_types(param_type):
+def expand_types(param_type: str) -> List[str]:
     """
     Expands a string representing a type or multiple types separated by '|' or 'or' into a list 
     of individual type strings.
@@ -92,7 +105,7 @@ def expand_types(param_type):
         types = [param_type]
     return [t.strip() for t in types]
 
-def is_outer_level_separator(s, sep="|"):
+def is_outer_level_separator(s: str, sep: str = "|") -> bool:
     """
     Check if the separator (like '|' or 'or') is at the top level (not inside brackets).
     """
@@ -106,9 +119,19 @@ def is_outer_level_separator(s, sep="|"):
             return True
     return False
 
-def resolve_forwardref(forward_ref_str):
+def resolve_forwardref(forward_ref_str: str) -> Union[type, str]:
     """
     Resolve a string representation of a ForwardRef type into the actual type.
+
+    Parameters
+    ----------
+    forward_ref_str : str
+        The string that represents a forward reference.
+
+    Returns
+    -------
+    Union[type, str]
+        The resolved type if successful, or the original string if resolution fails.
     """
     namespace = {
         "int": int,
@@ -127,10 +150,20 @@ def resolve_forwardref(forward_ref_str):
         # Special type that failed to resolve forward ref
         return forward_ref_str
 
-def format_type_ori(annotation):
+def format_type_ori(annotation: Any) -> Optional[str]:
     """
     Formats a type annotation into a string representation, resolving forward references and
     handling various special cases like None, Optional, and Union types.
+
+    Parameters
+    ----------
+    annotation : Any
+        The type annotation to format.
+
+    Returns
+    -------
+    Optional[str]
+        The formatted type as a string, or None if the type cannot be formatted.
     """
     if not annotation:
         return None
@@ -166,22 +199,42 @@ def format_type_ori(annotation):
         return annotation.__name__
     return str(annotation).replace("typing.", "")
 
-def format_type(annotation):
+def format_type(annotation: Any) -> Optional[str]:
     """
     Formats a type annotation into a string representation with specific handling for NumPy's
     'NDArrayA' type, converting it into 'ndarray[Any, dtype[Any]]'.
+
+    Parameters
+    ----------
+    annotation : Any
+        The type annotation to format.
+
+    Returns
+    -------
+    Optional[str]
+        The formatted type as a string, or None if the type cannot be formatted.
     """
     ans = format_type_ori(annotation)
     if ans:
         ans = ans.replace("NDArrayA", "ndarray[Any, dtype[Any]]")
     return ans
 
-def is_valid_member(obj) -> bool:
+def is_valid_member(obj: Any) -> bool:
     """
     Determines whether the given object is a valid member based on its type.
     Valid members include callable objects, specific collections (dict, list, tuple, set),
     classes, functions, methods, modules, and objects with a '__call__' method that are
     identified as methods.
+
+    Parameters
+    ----------
+    obj : Any
+        The object to check.
+
+    Returns
+    -------
+    bool
+        True if the object is a valid member, False otherwise.
     """
     return (
         callable(obj) or 
@@ -193,11 +246,21 @@ def is_valid_member(obj) -> bool:
         (hasattr(obj, '__call__') and 'method' in str(obj))
     )
 
-def is_unwanted_api(member) -> bool:
+def is_unwanted_api(member: Any) -> bool:
     """
     Determines whether a member (typically a class) is considered an unwanted API.
     Unwanted APIs are identified as either subclasses of BaseException or classes whose 
     base classes are defined in a different module than the class itself.
+
+    Parameters
+    ----------
+    member : Any
+        The member to check.
+
+    Returns
+    -------
+    bool
+        True if the member is considered unwanted, False otherwise.
     """
     if get_api_type(member)=='class':
         if issubclass(member, BaseException):
@@ -208,8 +271,22 @@ def is_unwanted_api(member) -> bool:
                 return True
     return False
 
-def is_from_external_module(lib_name, member):
-    """Check if a member is from an external module with robustness checks."""
+def is_from_external_module(lib_name: str, member: Any) -> bool:
+    """
+    Check if a member is from an external module with robustness checks.
+
+    Parameters
+    ----------
+    lib_name : str
+        The name of the library to check against.
+    member : Any
+        The member to check.
+
+    Returns
+    -------
+    bool
+        True if the member is from an external module, False otherwise.
+    """
     if inspect.ismodule(member):
         module_name = getattr(member, '__name__', None)
         if module_name is None:
@@ -223,7 +300,7 @@ def is_from_external_module(lib_name, member):
         return LIB not in module_name"""
         return False
 
-def are_most_strings_modules(api_strings):
+def are_most_strings_modules(api_strings: List[str]) -> bool:
     """
     Determines whether the majority of strings in a given list represent valid Python modules.
     It tries to import each string as a module and counts the successful imports.
@@ -249,10 +326,28 @@ def are_most_strings_modules(api_strings):
             continue
     return valid_modules / total_strings > 0.5
 
-def recursive_member_extraction(module, prefix: str, lib_name: str, visited=None, depth=None) -> list:
+def recursive_member_extraction(module: Any, prefix: str, lib_name: str, visited: Optional[set] = None, depth: Optional[int] = None) -> List[Tuple[str, Any]]:
     """
     Recursively extracts members from a module, including classes and submodules, 
     while avoiding duplicates and unwanted members.
+
+    Parameters
+    ----------
+    module : Any
+        The module from which to extract members.
+    prefix : str
+        The prefix to append to member names.
+    lib_name : str
+        The name of the library being processed.
+    visited : Optional[set], optional
+        A set of visited modules to avoid duplicates. Default is None.
+    depth : Optional[int], optional
+        The depth of recursion. Default is None.
+
+    Returns
+    -------
+    List[Tuple[str, Any]]
+        A list of tuples containing the member name and the member itself.
     """
     if visited is None:
         visited = set()
@@ -285,7 +380,20 @@ def recursive_member_extraction(module, prefix: str, lib_name: str, visited=None
             members.append((full_name, member))
     return members
 
-def get_api_type(member):
+def get_api_type(member: Any) -> str:
+    """
+    Determine the API type of a member.
+
+    Parameters
+    ----------
+    member : Any
+        The member to classify.
+
+    Returns
+    -------
+    str
+        The type of the API as a string.
+    """
     try:
         member_str = str(member)
     except:
@@ -319,11 +427,25 @@ def get_api_type(member):
     else:
         return 'unknown'# TypeVar
 
-def import_member(api_string, lib_name, expand=True):
+def import_member(api_string: str, lib_name: str, expand: bool = True) -> List[Tuple[str, Any]]:
     """
     Given an API string, it tries to import the module or attribute iteratively.
     1. Iteratively try importing a part of the api_string and accessing the rest.
     2. The function returns a list of (name, module/attribute) pairs.
+
+    Parameters
+    ----------
+    api_string : str
+        The API string to process.
+    lib_name : str
+        The library name to consider during import.
+    expand : bool, optional
+        Whether to expand the import to include all sub-members. Default is True.
+
+    Returns
+    -------
+    List[Tuple[str, Any]]
+        A list of tuples containing the full API name and the imported module or attribute.
     """
     api_parts = api_string.split('.')
     all_members = []
@@ -361,7 +483,20 @@ def import_member(api_string, lib_name, expand=True):
                 continue
     return all_members
 
-def extract_return_type_and_description(return_block):
+def extract_return_type_and_description(return_block: str) -> Tuple[str, str]:
+    """
+    Extracts the return type and description from a formatted string block.
+
+    Parameters
+    ----------
+    return_block : str
+        The string block containing the return type and its description.
+
+    Returns
+    -------
+    Tuple[str, str]
+        A tuple containing the return type and its description.
+    """
     lines = return_block.strip().split("\n")
     lines = [i for i in lines if i]
     if len(lines)>=1:
@@ -374,7 +509,24 @@ def extract_return_type_and_description(return_block):
         description = ""
     return return_type, description
 
-def get_docparam_from_source(web_APIs, lib_name, expand=None):
+def get_docparam_from_source(web_APIs: List[str], lib_name: str, expand: Optional[bool] = None) -> Dict[str, Any]:
+    """
+    Retrieves documentation parameters from source code based on a list of web APIs.
+
+    Parameters
+    ----------
+    web_APIs : List[str]
+        A list of web API strings to process.
+    lib_name : str
+        The library name to use for context.
+    expand : Optional[bool], optional
+        Whether to expand the API search to include sub-modules. Default is None.
+
+    Returns
+    -------
+    Dict[str, Any]
+        A dictionary containing the processed API details.
+    """
     success_count = 0
     failure_count = 0
     results = {}
@@ -509,7 +661,20 @@ def get_docparam_from_source(web_APIs, lib_name, expand=None):
     print('Success count:', success_count, 'Failure count:', failure_count)
     return results
 
-def filter_optional_parameters(api_data):
+def filter_optional_parameters(api_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Filters out optional parameters from the API data.
+
+    Parameters
+    ----------
+    api_data : Dict[str, Any]
+        The API data to filter.
+
+    Returns
+    -------
+    Dict[str, Any]
+        The filtered API data with optional parameters removed.
+    """
     filtered_data = api_data.copy()
     for key, api_info in filtered_data.items():
         parameters = api_info.get("Parameters", {})
@@ -519,7 +684,22 @@ def filter_optional_parameters(api_data):
         api_info["Parameters"] = filtered_parameters
     return filtered_data
 
-def generate_api_callings(results, basic_types=['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict']):
+def generate_api_callings(results: Dict[str, Any], basic_types: List[str] = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict']) -> Dict[str, Any]:
+    """
+    Generates API callings for each API in the results.
+
+    Parameters
+    ----------
+    results : Dict[str, Any]
+        The API results to process.
+    basic_types : List[str], optional
+        A list of basic type strings used for filtering. Default includes common data types.
+
+    Returns
+    -------
+    Dict[str, Any]
+        The results with updated API callings.
+    """
     updated_results = {}
     for api_name, api_info in results.items():
         if api_info["api_type"]: #  in ['function', 'method', 'class', 'functools.partial']
@@ -537,7 +717,22 @@ def generate_api_callings(results, basic_types=['str', 'int', 'float', 'bool', '
         updated_results[api_name] = api_info
     return updated_results
 
-def generate_api_calling_simple(api_name, parameters):
+def generate_api_calling_simple(api_name: str, parameters: Dict[str, Any]) -> List[str]:
+    """
+    Generates a simple API calling structure based on the API name and its parameters.
+
+    Parameters
+    ----------
+    api_name : str
+        The name of the API to generate calling for.
+    parameters : Dict[str, Any]
+        The parameters of the API.
+
+    Returns
+    -------
+    List[str]
+        A list of strings representing simple API callings.
+    """
     api_calling = []
     if parameters:
         param_strs = []
@@ -553,17 +748,40 @@ def generate_api_calling_simple(api_name, parameters):
         api_calling.append(api_call)
     return api_calling
 
-def merge_jsons(json_list):
+def merge_jsons(json_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Merges multiple JSON dictionaries into a single dictionary.
+
+    Parameters
+    ----------
+    json_list : List[Dict[str, Any]]
+        A list of JSON dictionaries to merge.
+
+    Returns
+    -------
+    Dict[str, Any]
+        The merged JSON dictionary.
+    """
     merged_json = {}
     for json_dict in json_list:
         merged_json.update(json_dict)
     return merged_json
 
-def filter_specific_apis(data, lib_name):
-    #### TODO
-    # can modify the filtering here
+def filter_specific_apis(data: Dict[str, Any], lib_name: str) -> Dict[str, Any]:
     """
-    Remove APIs from the data based on specific criteria:
+    Filters out specific APIs from the data based on defined criteria.
+
+    Parameters
+    ----------
+    data : Dict[str, Any]
+        The API data to filter.
+    lib_name : str
+        The library name to use for filtering context.
+
+    Returns
+    -------
+    Dict[str, Any]
+        The filtered API data.
     """
     filtered_data = {}
     filter_counts = {
@@ -633,9 +851,19 @@ def filter_specific_apis(data, lib_name):
     assert sum(filter_counts.values())+len(filtered_data)==len(data)
     return filtered_data
 
-def parse_content_list(content_list):
+def parse_content_list(content_list: List[str]) -> List[str]:
     """
-    Parses the content list to handle various separators and formats.
+    Parses a list of content strings to handle various separators and formats.
+
+    Parameters
+    ----------
+    content_list : List[str]
+        The list of content strings to parse.
+
+    Returns
+    -------
+    List[str]
+        The parsed list of strings.
     """
     parsed_list = []
     for item in content_list:
@@ -646,7 +874,23 @@ def parse_content_list(content_list):
     return [item for item in parsed_list if item]  # Remove any empty strings
 
 
-def main_get_API_init(lib_name,lib_alias,analysis_path,api_html_path=None,api_txt_path=None):
+def main_get_API_init(lib_name: str, lib_alias: str, analysis_path: str, api_html_path: Optional[str] = None, api_txt_path: Optional[str] = None) -> None:
+    """
+    Main function to initialize API data collection from either HTML or text files.
+
+    Parameters
+    ----------
+    lib_name : str
+        The library name.
+    lib_alias : str
+        The alias for the library.
+    analysis_path : str
+        The path to save analysis results.
+    api_html_path : Optional[str], optional
+        The path to HTML API documentation. Default is None.
+    api_txt_path : Optional[str], optional
+        The path to a text file containing API documentation. Default is None.
+    """
     # STEP1
     if api_txt_path:
         content_list = []
@@ -697,7 +941,17 @@ def main_get_API_init(lib_name,lib_alias,analysis_path,api_html_path=None,api_tx
     with open(output_file, 'w') as file:
         file.write(json.dumps(tmp_results, indent=4))
 
-def main_get_API_basic(analysis_path,cheatsheet):
+def main_get_API_basic(cheatsheet: Dict[str, List[str]]) -> None:
+    """
+    Main function to extract basic API information from a cheatsheet.
+
+    Parameters
+    ----------
+    analysis_path : str
+        The path to save analysis results.
+    cheatsheet : Dict[str, List[str]]
+        A dictionary containing API information.
+    """
     # STEP1: get API from cheatsheet, save to basic_API.json
     #output_file = os.path.join(analysis_path,"API_base.json")
     os.makedirs(os.path.join('data','standard_process',"base"), exist_ok=True)
@@ -729,4 +983,4 @@ if __name__=='__main__':
     CHEATSHEET = get_all_basic_func_from_cheatsheet()
     main_get_API_init(args.LIB,LIB_ALIAS,ANALYSIS_PATH,API_HTML_PATH, api_txt_path=args.api_txt_path)
     # currently we do not need the API_base.json
-    main_get_API_basic(ANALYSIS_PATH,CHEATSHEET)
+    main_get_API_basic(CHEATSHEET)

@@ -10,19 +10,68 @@ from models.api_evaluator import APIEvaluator
 import argparse
 import os
 from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version
+from typing import Tuple, Dict, Callable, List, Any, Set
 
-def load_query(dataset_type, data_path):
+def load_query(dataset_type: str, data_path: str) -> Tuple[pd.DataFrame, Dict[int, str]]:
+    """
+    Load query data and labels from specified files.
+
+    Parameters
+    ----------
+    dataset_type : str
+        Specifies the type of dataset to load ('train', 'test', or 'val').
+    data_path : str
+        The path to the directory containing the dataset files.
+
+    Returns
+    -------
+    Tuple[pd.DataFrame, Dict[int, str]]
+        A tuple containing:
+        - DataFrame of labels.
+        - Dictionary mapping query IDs to their respective query text.
+    """
     queries_df = pd.read_csv(os.path.join(data_path, f'{dataset_type}.query.txt'), sep='\t', names=['qid', 'query'])
     labels_df = pd.read_csv(os.path.join(data_path, f'qrels.{dataset_type}.tsv'), sep='\t', names=['qid', 'useless', 'docid', 'label'])
     ir_queries = {row.qid: row.query for _, row in queries_df.iterrows()}
     return labels_df, ir_queries
-def load_relevant_docs(labels_df):
+def load_relevant_docs(labels_df: pd.DataFrame) -> Dict[int, Set[int]]:
+    """
+    Load relevant documents from the labels DataFrame.
+
+    Parameters
+    ----------
+    labels_df : pd.DataFrame
+        DataFrame containing labels with query IDs and document IDs.
+
+    Returns
+    -------
+    Dict[int, Set[int]]
+        Dictionary mapping query IDs to sets of relevant document IDs.
+    """
     relevant_docs = {}
     for row in labels_df.itertuples():
         relevant_docs.setdefault(row.qid, set()).add(row.docid)
     return relevant_docs
 
-def get_data(data_path, process_corpus_df):
+def get_data(data_path: str, process_corpus_df: Callable[[pd.DataFrame], Tuple[List[Dict[str, Any]], List[str]]]) -> Tuple[List[Dict[str, Any]], List[InputExample], Dict[str, Dict[str, Any]]]:
+    """
+    Get the data for model training and evaluation.
+
+    Parameters
+    ----------
+    data_path : str
+        Path to the data directory.
+    process_corpus_df : Callable
+        Function to process the corpus DataFrame and return a tuple of the corpus and its tokenized form.
+
+    Returns
+    -------
+    Tuple[List[Dict[str, Any]], List[InputExample], Dict[str, Dict[str, Any]]]
+        Tuple containing:
+        - List of processed corpus dictionaries.
+        - List of InputExample for training.
+        - Configuration dictionary containing query data and relevant documents for 'train', 'val', and 'test' sets.
+    """
     documents_df = pd.read_csv(os.path.join(data_path, 'corpus.tsv'), sep='\t')
     ir_corpus, _ = process_corpus_df(documents_df)
     labels_df_train, ir_train_queries = load_query("train", data_path)
@@ -41,7 +90,10 @@ def get_data(data_path, process_corpus_df):
     }
     return ir_corpus, train_samples, corpus_config
 
-def main():
+def main() -> None:
+    """
+    Main function to set up and train a sentence transformer model for information retrieval.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_path", default=None, type=str, required=True,help="The input data dir. Should contain the .tsv files for the task.")
     parser.add_argument("--model_name", default=None, type=str, required=True,help="The base model name.")

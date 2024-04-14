@@ -158,7 +158,28 @@ def main(
     plot_dir: str = "./plot/llama",
     max_iters: int=50,
     batch_size: int=4,
-):
+) -> None:
+    """
+    Main function for executing the training loop of a Siamese network model using the Alpaca dataset.
+    This includes data loading, model training, validation, and saving the trained model.
+
+    Parameters
+    ----------
+    data_dir : str
+        Path to the directory where the data files are stored.
+    out_dir : str
+        Directory where the trained model and other outputs will be saved.
+    plot_dir : str
+        Directory where plots will be saved.
+    max_iters : int
+        Maximum number of training iterations.
+    batch_size : int
+        Number of samples per batch during training.
+
+    Returns
+    -------
+    None
+    """
     os.makedirs(plot_dir, exist_ok=True)
     # model
     model = CombinedModel().to('cuda')

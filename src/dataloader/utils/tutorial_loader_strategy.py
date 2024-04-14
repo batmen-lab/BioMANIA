@@ -6,15 +6,41 @@ from datetime import datetime
 
 from configs.model_config import READTHEDOC_PATH, ANALYSIS_PATH, get_all_variable_from_cheatsheet
 
+from typing import Any, Dict, List, Optional, Union
+
 
 # base
 class CodeLoader(ABC):
     @abstractmethod
-    def load_json(self, source):
+    def load_json(self, source: str) -> Any:
+        """
+        Abstract method to load data from a given source.
+        
+        Parameters
+        ----------
+        source : str
+            The data source from which to load the data.
+        
+        Returns
+        -------
+        Any
+            The data loaded from the source.
+        """
         pass
 
-    def save_as_py(self, source, code, LIB_ANALYSIS_PATH):
-        """Save the code to a .py file."""
+    def save_as_py(self, source: str, code: str, LIB_ANALYSIS_PATH: str) -> None:
+        """
+        Save the code to a .py file in a specified directory.
+        
+        Parameters
+        ----------
+        source : str
+            The source path of the original data.
+        code : str
+            The Python code to save.
+        LIB_ANALYSIS_PATH : str
+            The directory path where the .py file will be saved.
+        """
         filename = os.path.basename(source)
         base = os.path.splitext(filename)[0]
         py_filepath = os.path.join(LIB_ANALYSIS_PATH, "Git_Tut_py", f"{base}.py")
@@ -23,11 +49,37 @@ class CodeLoader(ABC):
 
 # html
 class HtmlCodeLoader(CodeLoader):
-    def load_json(self, filepath):
+    def load_json(self, filepath: str) -> Dict[str, Any]:
+        """
+        Load JSON data from an HTML file.
+        
+        Parameters
+        ----------
+        filepath : str
+            The file path of the HTML file from which to load data.
+        
+        Returns
+        -------
+        Dict[str, Any]
+            A dictionary containing the loaded data.
+        """
         html_dict = self._generate_html_dict(filepath)
         return html_dict
 
-    def _generate_html_dict(self, filepath):
+    def _generate_html_dict(self, filepath: str) -> Dict[str, Any]:
+        """
+        Generate a dictionary from HTML file paths.
+        
+        Parameters
+        ----------
+        filepath : str
+            The base directory path to search for HTML files.
+        
+        Returns
+        -------
+        Dict[str, Any]
+            A dictionary mapping unique keys to extracted code and output from HTML files.
+        """
         base_directory = os.path.dirname(filepath)
         html_dict = {}
         for root, dirs, files in os.walk(base_directory):
@@ -38,11 +90,25 @@ class HtmlCodeLoader(CodeLoader):
                     key = relative_path.replace(os.path.sep, "_dot_").replace('.html','')
                     html_dict[key] = self._extract_code_and_output_from_html(full_path)
         json_output_path = os.path.join(base_directory, 'html_code_dict.json')
+        #print(f'save to {json_output_path}')
         with open(json_output_path, 'w') as f:
             json.dump(html_dict, f, indent=4)
         return html_dict
 
-    def _extract_code_and_output_from_html(self, filepath):
+    def _extract_code_and_output_from_html(self, filepath: str) -> List[Dict[str, str]]:
+        """
+        Extract code blocks and associated text outputs from an HTML file.
+        
+        Parameters
+        ----------
+        filepath : str
+            The path to the HTML file from which to extract code.
+        
+        Returns
+        -------
+        List[Dict[str, str]]
+            A list of dictionaries each containing 'text' and 'code' keys.
+        """
         with open(filepath, 'r') as file:
             contents = file.read()
         soup = BeautifulSoup(contents, 'html.parser')
@@ -56,6 +122,7 @@ class HtmlCodeLoader(CodeLoader):
                 code = block.get_text().strip()
                 code = self.clean_code_blocks(code) if self.check_ifcodeblock(code) else ''
                 ordered_blocks.append(('code', code))
+        #combined_blocks = ordered_blocks.copy()
         # Combine consecutive 'text' or 'code' blocks into one, and store in a list of dicts
         combined_blocks = []
         current_dict = {}
@@ -130,11 +197,30 @@ class HtmlCodeLoader(CodeLoader):
                 else:
                     return True
         return False
-    def save_as_json(self, directory, html_dict):
-        """Save the html_dict to a .json file."""
+    def save_as_json(self, directory: str, html_dict: Dict[str, Any]) -> None:
+        """
+        Save the html_dict data to a .json file.
+        
+        Parameters
+        ----------
+        directory : str
+            The directory where the .json file will be saved.
+        html_dict : Dict[str, Any]
+            The dictionary containing the data to be saved.
+        """
         with open(os.path.join(directory, 'html_code_dict.json'), 'w') as f:
             json.dump(html_dict, f, indent=4)
-    def save_as_code(self,json_input, directory):
+    def save_as_code(self, json_input: Dict[str, List[Dict[str, str]]], directory: str) -> None:
+        """
+        Save extracted code blocks from JSON input to .py files.
+        
+        Parameters
+        ----------
+        json_input : Dict[str, List[Dict[str, str]]]
+            The dictionary containing code blocks to be saved.
+        directory : str
+            The directory where the .py files will be saved.
+        """
         for key, value in json_input.items():
             file_name = key.replace(' ', '_').replace('\\u2014', '-') + '.py'
             code_snippets = [item['code'] for item in value if 'code' in item]
@@ -218,7 +304,21 @@ class IpynbCodeLoader(CodeLoader):
         return new_line
 
 class CodeLoaderContext:
-    def __init__(self, input_folder, output_folder, strategy_type='ipynb',file_types=['py','ipynb','html']):
+    def __init__(self, input_folder: str, output_folder: str, strategy_type: str = 'ipynb', file_types: List[str] = ['py', 'ipynb', 'html']) -> None:
+        """
+        Initialize a context for converting code between formats.
+
+        Parameters
+        ----------
+        input_folder : str
+            The folder from which files are loaded.
+        output_folder : str
+            The folder where converted files will be saved.
+        strategy_type : str, optional
+            The type of loader to use. Default is 'ipynb'.
+        file_types : List[str], optional
+            The file types to be processed. Default is ['py', 'ipynb', 'html'].
+        """
         self.input_folder = input_folder
         self.output_folder = output_folder
         self.loader = self.get_loader(strategy_type)
@@ -243,7 +343,10 @@ class CodeLoaderContext:
                 if 'code' in item:
                     f.write('\n'.join(item['code']) + '\n')
 
-    def load_and_save(self):
+    def load_and_save(self) -> None:
+        """
+        Load files from the input folder, convert them, and save them in the output folder.
+        """
         self.code_json = {}
         count=0
         for root, dirs, files in os.walk(self.input_folder):
@@ -251,18 +354,38 @@ class CodeLoaderContext:
                 if file.split('.')[-1] in self.file_types: # ,'rst'
                     count+=1
                     filepath = os.path.join(root, file)
-                    code = self.loader.load_json(filepath)
-                    self.code_json[file.split('.')[0]]=code
+                    file_key_base = os.path.splitext(file)[0]
+                    file_path_key = os.path.relpath(filepath, start=self.input_folder).replace(os.path.sep, "_dot_")
                     if file.split('.')[-1]=='ipynb':
+                        code = self.loader.load_json(filepath)
+                        self.code_json[file.split('.')[0]]=code
                         self.save_json_to_code(code,os.path.join(self.output_folder, file.replace('.ipynb', '.py')))
                     elif file.split('.')[-1]=='html':
-                        self.loader.save_as_code(code, self.output_folder)
+                        code = self.loader.load_json(filepath)
+                        for k, v in code.items():
+                            for item in v:
+                                if 'code' not in item:
+                                    item['code'] = ""
+                                #else:
+                                #    item['code'] = item['code'].split('\n')
+                        updated_code = {f"{file_path_key}_dot_{k}": v for k, v in code.items()}
+                        self.loader.save_as_code(updated_code, self.output_folder)
+                        for k, v in updated_code.items():
+                            for item in v:
+                                if not item['code']:
+                                    item['code'] = []
+                                else:
+                                    item['code'] = item['code'].split('\n')
+                        self.code_json.update(updated_code)
         if count==0:
             print(f'Empty input folder, no files found in type {self.file_types}')
         else:
             print(f'Have successfully turned files in type {self.file_types} to python code to path {self.output_folder}!')
     
-    def execute(self):
+    def execute(self) -> None:
+        """
+        Execute the saved Python files in the output folder and report the results.
+        """
         import os
         os.environ['MPLBACKEND'] = 'Agg'
         success_files = []
@@ -287,7 +410,28 @@ class CodeLoaderContext:
         print(f"Successful files: {success_files}")
         print(f"Files with errors: {error_files}")
 
-def main_convert_tutorial_to_py(LIB_ANALYSIS_PATH, subpath='Git_Tut', strategy_type='ipynb', file_types=['ipynb'], execute = False):
+def main_convert_tutorial_to_py(LIB_ANALYSIS_PATH: str, subpath: str = 'Git_Tut', strategy_type: str = 'ipynb', file_types: List[str] = ['ipynb'], execute: bool = False) -> CodeLoaderContext:
+    """
+    Main function to convert tutorial files to Python script and optionally execute them.
+
+    Parameters
+    ----------
+    LIB_ANALYSIS_PATH : str
+        The path to the library analysis directory.
+    subpath : str, optional
+        The subpath within the library analysis directory. Default is 'Git_Tut'.
+    strategy_type : str, optional
+        The type of files to convert. Default is 'ipynb'.
+    file_types : List[str], optional
+        The types of files to convert. Default is ['ipynb'].
+    execute : bool, optional
+        Whether to execute the converted Python scripts. Default is False.
+
+    Returns
+    -------
+    CodeLoaderContext
+        An instance of CodeLoaderContext configured with the specified parameters.
+    """
     input_folder = os.path.join(LIB_ANALYSIS_PATH, subpath)
     output_folder = os.path.join(LIB_ANALYSIS_PATH, subpath+'_py')
     context = CodeLoaderContext(input_folder, output_folder, strategy_type,file_types)

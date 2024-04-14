@@ -3,8 +3,24 @@ from rank_bm25 import BM25Okapi
 from retrievers import *
 from models.model import *
 from inference.utils import find_similar_two_pairs
+from typing import Tuple, List, Dict, Any, Set
 # prepare corpus
-def prepare_corpus(ori_data):
+def prepare_corpus(ori_data: dict) -> Tuple[List[Dict[str, Any]], List[List[str]]]:
+    """
+    Prepares a corpus from the original data.
+
+    Parameters
+    ----------
+    ori_data : dict
+        Original data mapping API names to their information.
+
+    Returns
+    -------
+    Tuple[List[Dict[str, Any]], List[List[str]]]
+        A tuple containing:
+        - A list of dictionaries, each representing an API with its description and parameters.
+        - A list of tokenized representations of each API for BM25 processing.
+    """
     corpus = [
         {
             'api_name': api_name,
@@ -16,10 +32,39 @@ def prepare_corpus(ori_data):
     ]
     return corpus,[str(doc).split(" ") for doc in corpus]
 
-def get_query_pairs(results):
+def get_query_pairs(results: List[Dict[str, Any]]) -> List[Tuple[str, str]]:
+    """
+    Extracts query pairs from the result data.
+
+    Parameters
+    ----------
+    results : List[Dict[str, Any]]
+        The list of result entries containing query and API name.
+
+    Returns
+    -------
+    List[Tuple[str, str]]
+        A list of tuples where each tuple contains a query and the corresponding API name.
+    """
     return [(entry['query'], entry['api_name']) for entry in results]
 
-def evaluate_query_pairs(retriever, query_pairs_set, name, top_k, merged_pairs):
+def evaluate_query_pairs(retriever: BM25Retriever, query_pairs_set: List[Tuple[str, str]], name: str, top_k: int, merged_pairs: Set[Tuple[str, str]]) -> None:
+    """
+    Evaluates the accuracy of the retriever on a set of query pairs.
+
+    Parameters
+    ----------
+    retriever : BM25Retriever
+        The retriever to use for getting relevant documents.
+    query_pairs_set : List[Tuple[str, str]]
+        A set of query pairs to evaluate.
+    name : str
+        A name for the dataset being evaluated (e.g., "train", "test").
+    top_k : int
+        The number of top documents to consider for accuracy calculation.
+    merged_pairs : Set[Tuple[str, str]]
+        A set of merged pairs for checking ambiguous correctness.
+    """
     retriever_correct_list = []
     ambiguous_correct_list = []
     retrieved_docs_list = []
@@ -40,7 +85,17 @@ def evaluate_query_pairs(retriever, query_pairs_set, name, top_k, merged_pairs):
     print(f"{name} retriever top-{top_k} accuracy rate: {retrieve_rate * 100:.2f}%")
     print(f"{name} retriever top-{top_k} ambiguous accuracy rate: {ambiguous_retrieve_rate * 100:.2f}%")
 
-def main(top_k, LIB):
+def main(top_k: int, LIB: str) -> None:
+    """
+    Main function to prepare data, create a retriever, and evaluate its performance.
+
+    Parameters
+    ----------
+    top_k : int
+        The number of top documents to retrieve.
+    LIB : str
+        Library identifier used to specify paths and filenames.
+    """
     with open(f'./data/standard_process/{LIB}/API_composite.json', 'r') as f:
         ori_data = json.load(f)
     with open(f'./data/standard_process/{LIB}/API_inquiry_annotate.json', 'r') as f:

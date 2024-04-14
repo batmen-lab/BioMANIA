@@ -1,15 +1,20 @@
 import subprocess, argparse, os
 from configs.model_config import READTHEDOC_PATH, ANALYSIS_PATH, get_all_variable_from_cheatsheet
 from urllib.parse import urlparse, unquote
+from typing import Union, List, Optional
 
-def download_readthedoc(readthedoc_path, api_html, source_type='single'):
+def download_readthedoc(readthedoc_path: str, api_html: Union[str, List[str]], source_type: str = 'single') -> None:
     """
     Download ReadTheDocs HTML pages for API documentation and tutorials.
-    
-    Parameters:
-    - readthedoc_path: str. The directory path where to save downloaded files.
-    - api_html: str | list. The URL(s) of the HTML page(s) to download.
-    - source_type: str. 'single' for a single HTML file, 'full' for a full website.
+
+    Parameters
+    ----------
+    readthedoc_path : str
+        The directory path where to save downloaded files.
+    api_html : str | list
+        The URL(s) of the HTML page(s) to download.
+    source_type : str, optional
+        'single' for a single HTML file, 'full' for a full website. Default is 'single'.
     """
     def download_single_html(api_html_url):
         # Construct wget command based on the source_type
@@ -32,9 +37,19 @@ def download_readthedoc(readthedoc_path, api_html, source_type='single'):
     else:
         print('==>Did not provide readthedoc_path or api_html url, skip downloading readthedoc!')
 
-def extract_repo_details(github_url):
+def extract_repo_details(github_url: str) -> Optional[str]:
     """
-    Extract user_name and user_repo from github repo url
+    Extract user_name and user_repo from a GitHub repository URL.
+
+    Parameters
+    ----------
+    github_url : str
+        The URL of the GitHub repository to analyze.
+
+    Returns
+    -------
+    str | None
+        Returns the formatted string of user_name and user_repo if available, otherwise None.
     """
     if not github_url.startswith("http"):
         github_url = "https://" + github_url
@@ -48,13 +63,18 @@ def extract_repo_details(github_url):
     else:
         return None
 
-def download_tutorial(tutorial_github, analysis_path, lib_name):
+def download_tutorial(tutorial_github: Union[str, List[str]], analysis_path: str, lib_name: str) -> None:
     """
     Clone a GitHub repository to a local directory.
 
-    Parameters:
-    - github_url: str | list. (A List of) The URL of the GitHub repository.
-    - local_dir: str. The local directory where to clone the repository. 
+    Parameters
+    ----------
+    tutorial_github : str | list
+        The URL(s) of the GitHub repository or repositories.
+    analysis_path : str
+        The local directory where to clone the repository.
+    lib_name : str
+        The library name associated with the repository.
     """
     if not tutorial_github:
         print('==>Did not provide tutorial url, skip downloading tutorial!')

@@ -8,7 +8,10 @@ from inference.utils import sentence_transformer_embed, bert_embed, predict_by_s
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
-def process_topicalchat():
+def process_topicalchat() -> None:
+    """
+    Processes the TopicalChat dataset, extracting questions and saving them to a CSV file.
+    """
     with open('./data/conversations/train.json', 'r') as file:
         data = json.load(file)
     questions = []
@@ -20,7 +23,10 @@ def process_topicalchat():
     df = pd.DataFrame({"Question": questions, "Source": "topical-chat"})
     df.to_csv("./data/others-data/dialogue_questions.csv", index=False)
 
-def process_chitchat():
+def process_chitchat() -> None:
+    """
+    Processes chitchat data from various TSV files, combines them into a single DataFrame, and saves to a CSV file.
+    """
     file_paths = glob.glob("./data/others-data/*.tsv")
     combined_data = pd.DataFrame(columns=["Question", "Source"])
     for file_path in file_paths:
@@ -32,7 +38,26 @@ def process_chitchat():
     combined_data.to_csv("./data/others-data/combined_data.csv", sep=',', index=False)
     print("Data has been combined and saved as combined_data.csv")
 
-def process_apiquery(lib_name, filename="API_inquiry.json", start_id=0, index_save=True):
+def process_apiquery(lib_name: str, filename: str = "API_inquiry.json", start_id: int = 0, index_save: bool = True) -> pd.DataFrame:
+    """
+    Processes API queries from a JSON file and optionally saves them to a CSV file.
+
+    Parameters
+    ----------
+    lib_name : str
+        The name of the library to process.
+    filename : str, optional
+        The name of the JSON file containing API queries.
+    start_id : int, optional
+        The starting ID to filter queries.
+    index_save : bool, optional
+        Whether to save the DataFrame to a CSV file.
+
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the filtered API queries.
+    """
     with open(f'./data/standard_process/{lib_name}/{filename}', 'r') as file:
         json_data = json.load(file)
     filtered_data = [entry for entry in json_data if entry['query_id'] >= start_id]
@@ -42,7 +67,35 @@ def process_apiquery(lib_name, filename="API_inquiry.json", start_id=0, index_sa
         df.to_csv(f'./data/standard_process/{lib_name}/api_data.csv', index=False)
     return df
 
-def sampledata_combine(data1, data2, data3, test_data3, train_count_data1=1000, train_count_data2=1000, train_count_data3=1000, test_count_data1=500, test_count_data2=500, test_count_data3=500):
+def sampledata_combine(data1: pd.DataFrame, data2: pd.DataFrame, data3: pd.DataFrame, test_data3: pd.DataFrame, 
+                       train_count_data1: int = 1000, train_count_data2: int = 1000, train_count_data3: int = 1000, 
+                       test_count_data1: int = 500, test_count_data2: int = 500, test_count_data3: int = 500) -> None:
+    """
+    Combines sampled data into train and test datasets and saves them as CSV files.
+
+    Parameters
+    ----------
+    data1 : pd.DataFrame
+        First dataset to sample for training.
+    data2 : pd.DataFrame
+        Second dataset to sample for training.
+    data3 : pd.DataFrame
+        Third dataset used entirely for training.
+    test_data3 : pd.DataFrame
+        Dataset used entirely for testing.
+    train_count_data1 : int, optional
+        Number of samples to take from data1 for training.
+    train_count_data2 : int, optional
+        Number of samples to take from data2 for training.
+    train_count_data3 : int, optional
+        Number of samples to take from data3 for training.
+    test_count_data1 : int, optional
+        Number of samples to take from remaining data1 for testing.
+    test_count_data2 : int, optional
+        Number of samples to take from remaining data2 for testing.
+    test_count_data3 : int, optional
+        Number of samples to take from test_data3 for testing.
+    """
     train_data1 = data1.sample(n=min(train_count_data1, len(data1)), random_state=42)
     train_data2 = data2.sample(n=min(train_count_data2, len(data2)), random_state=42)
     train_data3 = data3
@@ -57,13 +110,49 @@ def sampledata_combine(data1, data2, data3, test_data3, train_count_data1=1000, 
     test_data.to_csv('./data/others-data/test_data.csv', index=False)
     print("Train data and test data have been saved.")
 
-def calculate_centroid(data, model_chosen):
+def calculate_centroid(data: pd.DataFrame, model_chosen: SentenceTransformer) -> np.ndarray:
+    """
+    Calculates the centroid of embeddings for given data using a specified model.
+
+    Parameters
+    ----------
+    data : pd.DataFrame
+        The data for which to calculate embeddings.
+    model_chosen : SentenceTransformer
+        The model to use for embedding the data.
+
+    Returns
+    -------
+    np.ndarray
+        The calculated centroid of the embeddings.
+    """
     embeddings = np.array([sentence_transformer_embed(model_chosen, text) for text in tqdm(data, desc="Processing with unpretrained sentencetransformer BERT")])
     ans = np.mean(embeddings, axis=0)
     #print('ans', ans.shape)
     return ans
 
-def plot_tsne_distribution_modified(lib_name, train_data, test_data, model, labels, c2_accuracy,embed_method):
+def plot_tsne_distribution_modified(lib_name: str, train_data: pd.DataFrame, test_data: pd.DataFrame, model: SentenceTransformer, 
+                                    labels: list, c2_accuracy: float, embed_method: str) -> None:
+    """
+    Plots a t-SNE distribution of the combined train and test datasets using embeddings from a specified model.
+
+    Parameters
+    ----------
+    lib_name : str
+        The library name associated with the data.
+    train_data : pd.DataFrame
+        The training data containing questions.
+    test_data : pd.DataFrame
+        The testing data containing questions.
+    model : SentenceTransformer
+        The model used to generate embeddings.
+    labels : list
+        The labels for different sources in the dataset.
+    c2_accuracy : float
+        The classification accuracy for 2 clusters.
+    embed_method : str
+        The embedding method used, either 'st_untrained' or 'st_trained'.
+    """
     # Combine train and test data for t-SNE
     combined_data = pd.concat([train_data['Question'], test_data['Question']], ignore_index=True)
     tfidf_matrix_combined = sentence_transformer_embed(model, combined_data)
@@ -101,11 +190,23 @@ def plot_tsne_distribution_modified(lib_name, train_data, test_data, model, labe
     plt.legend()
     plt.savefig(f'./plot/{lib_name}/chitchat_test_tsne_modified_{embed_method}.pdf')
 
-def main(LIB, ratio_1_to_3, ratio_2_to_3, embed_method, device):
-    # load model
-    print('loading models')
-    unpretrained_model = SentenceTransformer("all-MiniLM-L6-v2", device=device)
-    pretrained_model = SentenceTransformer(f"./hugging_models/retriever_model_finetuned/{LIB}/assigned", device=device)
+def main(LIB: str, ratio_1_to_3: float, ratio_2_to_3: float, embed_method: str, device: torch.device) -> None:
+    """
+    Main processing function that orchestrates data loading, processing, embedding, and plotting.
+
+    Parameters
+    ----------
+    LIB : str
+        The library name to process.
+    ratio_1_to_3 : float
+        The ratio of the first dataset to the third dataset in training.
+    ratio_2_to_3 : float
+        The ratio of the second dataset to the third dataset in training.
+    embed_method : str
+        Specifies the embedding method to use.
+    device : torch.device
+        The device configuration for PyTorch operations.
+    """
     process_topicalchat()
     process_chitchat()
     tmp_data = process_apiquery(LIB)
@@ -138,10 +239,13 @@ def main(LIB, ratio_1_to_3, ratio_2_to_3, embed_method, device):
     print('length of train_data1, train_data2, train_data3: ', len(train_data1), len(train_data2), len(train_data3))
     print('The real ratio for data1, data2 based on API data is: ', len(train_data1)/len(train_data3), len(train_data2)/len(train_data3))
     all_data = pd.concat([train_data1, train_data2, train_data3], ignore_index=True)
+    print('loading models')
     if embed_method == "st_untrained":
-        model_chosen=unpretrained_model
+        model_chosen=SentenceTransformer("all-MiniLM-L6-v2", device=device)
     elif embed_method == "st_trained":
-        model_chosen=pretrained_model
+        model_chosen=SentenceTransformer(f"./hugging_models/retriever_model_finetuned/{LIB}/assigned", device=device)
+    else:
+        raise ValueError
     centroid1 = calculate_centroid(train_data1['Question'],model_chosen)
     centroid2 = calculate_centroid(train_data2['Question'],model_chosen)
     centroid3 = calculate_centroid(train_data3['Question'],model_chosen)

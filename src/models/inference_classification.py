@@ -19,6 +19,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
 from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version, is_pair_in_merged_pairs, find_similar_two_pairs
+from typing import List, Tuple
 
 # support running without installing as a package
 wd = Path(__file__).parent.parent.resolve()
@@ -35,7 +36,19 @@ from inference.retriever_finetune_inference import ToolRetriever
 learning_rate = 1e-4
 
 class SiameseNetwork(nn.Module):
-    def __init__(self, embedding_dim):
+    def __init__(self, embedding_dim: int) -> None:
+        """
+        Initialize the Siamese Network with sequential layers to transform embeddings.
+
+        Parameters
+        ----------
+        embedding_dim : int
+            Dimension of the input and output embeddings.
+
+        Returns
+        -------
+        None
+        """
         super(SiameseNetwork, self).__init__()
         self.embedding_network = nn.Sequential(
             nn.Linear(embedding_dim, 512),
@@ -45,19 +58,73 @@ class SiameseNetwork(nn.Module):
             nn.Linear(256, embedding_dim)
         )
         self.embedding_network.apply(self.init_weights)
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass for the Siamese Network.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input tensor to be transformed.
+
+        Returns
+        -------
+        torch.Tensor
+            Transformed tensor after passing through the network.
+        """
         return self.embedding_network(x)
-    def init_weights(self, m):
+    def init_weights(self, m: nn.Module) -> None:
+        """
+        Initialize weights for the Linear layers using Xavier uniform distribution.
+
+        Parameters
+        ----------
+        m : nn.Module
+            Module to initialize.
+
+        Returns
+        -------
+        None
+        """
         if type(m) == nn.Linear:
             torch.nn.init.xavier_uniform_(m.weight)
             m.bias.data.fill_(0.01)
 
 class CombinedModel(nn.Module):
-    def __init__(self, embedding_dim=4096, device='cuda'):
+    def __init__(self, embedding_dim: int = 4096, device: str = 'cuda') -> None:
+        """
+        Initialize the Combined Model containing the Siamese Network.
+
+        Parameters
+        ----------
+        embedding_dim : int, optional
+            Dimension of embeddings processed by the network, by default 4096.
+        device : str, optional
+            Device to deploy the model, by default 'cuda'.
+
+        Returns
+        -------
+        None
+        """
         super(CombinedModel, self).__init__()
         self.device=device
         self.siamese_network = SiameseNetwork(embedding_dim)
-    def forward(self, query_embedding, retrieved_embeddings):
+    def forward(self, query_embedding: torch.Tensor, retrieved_embeddings: List[torch.Tensor]) -> torch.Tensor:
+        """
+        Compute the softmax scores for query embeddings against a set of retrieved embeddings.
+
+        Parameters
+        ----------
+        query_embedding : torch.Tensor
+            The embedding of the query.
+        retrieved_embeddings : List[torch.Tensor]
+            List of embeddings for the retrieved documents or tools.
+
+        Returns
+        -------
+        torch.Tensor
+            Softmax scores comparing the query embedding with each retrieved embedding.
+        """
         query_embedding_transformed = self.siamese_network(query_embedding)
         scores = []
         for tool_embedding in retrieved_embeddings:
@@ -68,12 +135,46 @@ class CombinedModel(nn.Module):
         softmax_scores = F.softmax(scores, dim=1)
         return softmax_scores
 
-def print_parameters(model):
+def print_parameters(model: nn.Module) -> None:
+    """
+    Prints the names and shapes of the trainable parameters in a PyTorch model.
+
+    Parameters
+    ----------
+    model : nn.Module
+        The model from which to print parameters.
+
+    Returns
+    -------
+    None
+    """
     for name, param in model.named_parameters():
         if param.requires_grad:
             print(name, param.shape)
 
-def evaluate_model(model, loader, criterion, mode='Validation', LIB=''):
+def evaluate_model(model: nn.Module, loader: DataLoader, criterion: nn.Module, mode: str = 'Validation', LIB: str = '') -> Tuple[float, int, int, List[float], List[float]]:
+    """
+    Evaluate a model using a given data loader and criterion.
+
+    Parameters
+    ----------
+    model : nn.Module
+        The model to evaluate.
+    loader : DataLoader
+        The DataLoader providing the dataset.
+    criterion : nn.Module
+        The loss criterion used for evaluation.
+    mode : str, optional
+        Mode of evaluation (e.g., 'Validation', 'Test'), by default 'Validation'.
+    LIB : str, optional
+        Library identifier used in model evaluation to handle specific cases or custom functionality, by default ''.
+
+    Returns
+    -------
+    Tuple[float, int, int, List[float], List[float]]
+        Returns the total loss, number of correct predictions, total number of predictions,
+        list of logits for correct predictions, and list of logits for incorrect predictions.
+    """
     merged_pairs = find_similar_two_pairs(f"./data/standard_process/{LIB}/API_init.json")
     model.eval()
     total_loss = 0
@@ -115,7 +216,23 @@ def evaluate_model(model, loader, criterion, mode='Validation', LIB=''):
     print(f'{mode} ambiguous Accuracy: {100 * correct / non_ambiguous_total:.2f}%')
     return total_loss, correct, total, correct_logits, wrong_logits
 
-def plot_boxplot(correct_logits, wrong_logits, mode):
+def plot_boxplot(correct_logits: List[float], wrong_logits: List[float], mode: str) -> None:
+    """
+    Plot a boxplot comparing logits distributions for correct and incorrect model predictions.
+
+    Parameters
+    ----------
+    correct_logits : List[float]
+        Logits for correct predictions.
+    wrong_logits : List[float]
+        Logits for incorrect predictions.
+    mode : str
+        Describes the dataset context (e.g., 'Train', 'Validation', 'Test') for the plot title.
+
+    Returns
+    -------
+    None
+    """
     data = [correct_logits, wrong_logits]
     plt.figure(figsize=(10, 6))
     plt.boxplot(data)
@@ -129,7 +246,25 @@ def main(
     batch_size: int=4,
     checkpoint_dir: str = "out/lora/alpaca",
     LIB: str = "",
-):
+) -> None:
+    """
+    Main execution function to load a trained model, evaluate it, and plot logits distributions for correct and incorrect predictions.
+
+    Parameters
+    ----------
+    data_dir : str
+        The directory where the dataset is stored.
+    batch_size : int
+        The number of samples per batch.
+    checkpoint_dir : str
+        The directory where the trained model checkpoint is stored.
+    LIB : str
+        Library identifier used in model evaluation to handle specific cases or custom functionality.
+
+    Returns
+    -------
+    None
+    """
     # model
     model = CombinedModel().to('cuda')
     print_parameters(model)

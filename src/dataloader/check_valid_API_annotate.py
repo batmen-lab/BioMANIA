@@ -8,14 +8,41 @@ Description:
 """
 import json
 import argparse
+from typing import Tuple
 
-def load_data(file_path):
-    """Load data from a JSON file."""
+def load_data(file_path: str) -> list:
+    """
+    Load data from a JSON file.
+
+    Parameters
+    ----------
+    file_path : str
+        The file path of the JSON file to load.
+
+    Returns
+    -------
+    list
+        A list containing the data loaded from the JSON file.
+    """
     with open(file_path, 'r') as file:
         return json.load(file)
 
-def get_training_and_test_sets(inquiry_data, annotated_data):
-    """Separate the data into training and test sets based on query IDs."""
+def get_training_and_test_sets(inquiry_data: list, annotated_data: list) -> Tuple[list, list]:
+    """
+    Separates the annotated data into training and test sets based on the presence of their query IDs in the inquiry data.
+
+    Parameters
+    ----------
+    inquiry_data : list
+        The list of inquiry data dictionaries, each containing a query_id.
+    annotated_data : list
+        The list of annotated data dictionaries, each containing a query_id.
+
+    Returns
+    -------
+    Tuple[list, list]
+        A tuple containing two lists: the training data and the test data.
+    """
     inquiry_query_ids = set(item["query_id"] for item in inquiry_data)
 
     train_data = [item for item in annotated_data if item["query_id"] in inquiry_query_ids]
@@ -23,10 +50,19 @@ def get_training_and_test_sets(inquiry_data, annotated_data):
 
     return train_data, test_data
 
-def check_api_coverage_and_uniqueness(train_data, test_data, LIB):
+def check_api_coverage_and_uniqueness(train_data: list, test_data: list, LIB: str) -> None:
     """
-    Check if each API in the training dataset appears only once in the test dataset
-    and if test dataset contains any API not present in training dataset.
+    Ensures that each API from the training data appears only once in the test data and that all APIs in the test data
+    are present in the training data. It also filters APIs by a given library prefix.
+
+    Parameters
+    ----------
+    train_data : list
+        List of dictionaries representing the training data, each containing an "api_name".
+    test_data : list
+        List of dictionaries representing the test data, each containing an "api_name".
+    LIB : str
+        The library prefix to filter API names by.
     """
     train_apis = set(item["api_name"] for item in train_data)
     # filter class and composite API
@@ -43,9 +79,16 @@ def check_api_coverage_and_uniqueness(train_data, test_data, LIB):
     #    if count != 1:
     #        print(f"API {api} appears {count} times in the test dataset, not just once.")
 
-def check_for_query_text_overlap(train_data, test_data):
+def check_for_query_text_overlap(train_data: list, test_data: list) -> None:
     """
-    Check for overlap in query texts between training and test datasets.
+    Checks for any overlap in query texts between the training and test datasets to ensure no data leakage.
+
+    Parameters
+    ----------
+    train_data : list
+        List of dictionaries representing the training data, each containing a "query".
+    test_data : list
+        List of dictionaries representing the test data, each containing a "query".
     """
     train_queries = set(item["query"] for item in train_data)
     test_queries = set(item["query"] for item in test_data)
@@ -54,8 +97,15 @@ def check_for_query_text_overlap(train_data, test_data):
     if overlapping_queries:
         print(f"Data leakage detected: Overlapping query texts in training and test datasets: {overlapping_queries}")
 
-def check_all_queries_unique(annotated_data):
-    """Check that all queries in the annotated data are unique."""
+def check_all_queries_unique(annotated_data: list) -> None:
+    """
+    Ensures that all query texts in the annotated data are unique.
+
+    Parameters
+    ----------
+    annotated_data : list
+        A list of annotated data dictionaries, each containing a "query".
+    """
     queries = [item["query"] for item in annotated_data]
     unique_queries = set(queries)
     if len(queries) != len(unique_queries):
@@ -64,9 +114,16 @@ def check_all_queries_unique(annotated_data):
     else:
         print("All queries are unique.")
 
-def check_api_presence_in_inquiry(composite_data, inquiry_data):
+def check_api_presence_in_inquiry(composite_data: dict, inquiry_data: list) -> None:
     """
-    Check if all APIs in the composite dataset are present in the inquiry dataset.
+    Checks if all APIs listed in the composite dataset are present in the inquiry dataset.
+
+    Parameters
+    ----------
+    composite_data : dict
+        A dictionary representing composite data where keys are API names.
+    inquiry_data : list
+        A list of inquiry data dictionaries, each containing an "api_calling" entry with API names.
     """
     composite_apis = set(item for item in composite_data)
     inquiry_apis = set(item['api_calling'][0].split('(')[0] for item in inquiry_data)
@@ -77,9 +134,16 @@ def check_api_presence_in_inquiry(composite_data, inquiry_data):
     else:
         print("All APIs in composite dataset are present in inquiry dataset.")
 
-def compare_inquiries_in_datasets(inquiry_data, annotated_data):
+def compare_inquiries_in_datasets(inquiry_data: list, annotated_data: list) -> None:
     """
-    Compare the inquiries for matching query_id in inquiry_data and annotated_data.
+    Compares the inquiries between the inquiry data and annotated data based on their query IDs to ensure consistency.
+
+    Parameters
+    ----------
+    inquiry_data : list
+        A list of inquiry data dictionaries, each containing a "query_id" and "query".
+    annotated_data : list
+        A list of annotated data dictionaries, each containing a "query_id" and "query".
     """
     inquiry_dict = {item["query_id"]: item["query"] for item in inquiry_data}
     annotated_dict = {item["query_id"]: item["query"] for item in annotated_data}
@@ -94,8 +158,15 @@ def compare_inquiries_in_datasets(inquiry_data, annotated_data):
     else:
         print("All matching query_ids have consistent inquiries between inquiry_data and annotated_data.")
 
-def main(LIB):
-    
+def main(LIB: str) -> None:
+    """
+    Main function that loads data and performs checks to ensure data integrity for training and testing datasets.
+
+    Parameters
+    ----------
+    LIB : str
+        The library name for the JSON data to be processed.
+    """
     inquiry_data = load_data(f'./data/standard_process/{LIB}/API_inquiry.json')
     annotated_data = load_data(f'./data/standard_process/{LIB}/API_inquiry_annotate.json')
     composite_data = load_data(f'./data/standard_process/{LIB}/API_composite.json')

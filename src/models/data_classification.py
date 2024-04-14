@@ -199,6 +199,44 @@ def main(
     retrieved_path:str="./tmp",
     LIB:str="scanpy",
 ):
+    """
+    Main function to preprocess data using the specified settings and models.
+
+    Parameters
+    ----------
+    data_dir : str
+        Directory containing the data to process.
+    pretrained_path : str
+        Path to the pretrained model file.
+    tokenizer_path : str
+        Path to the tokenizer model file.
+    out_dir : str
+        Output directory for storing results.
+    plot_dir : str
+        Directory for saving plots.
+    device_count : int
+        Number of devices to use.
+    corpus_tsv_path : str
+        Path to the corpus TSV file used by the retriever.
+    retriever_path : str
+        Path to the trained retriever model.
+    top_k : int
+        Number of top-k retrievals to consider for each query.
+    debug_mode : str
+        Specifies the debug mode (default is "1").
+    save_path : str
+        Path to save the processed dataset.
+    idx_file : str
+        Path to the index file containing test/validation indices.
+    API_composite_dir : str
+        Directory containing API composite data in JSON format.
+    batch_size : int
+        Batch size for processing data.
+    retrieved_path : str
+        Path where retrieved results are temporarily stored.
+    LIB : str
+        Library identifier used in retriever initialization.
+    """
     os.makedirs(plot_dir, exist_ok=True)
     with open(API_composite_dir, 'r') as json_file:
         data = json.load(json_file)

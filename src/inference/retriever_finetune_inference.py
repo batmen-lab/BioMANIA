@@ -9,6 +9,7 @@ import torch
 # Print average scores for each rank
 import matplotlib.pyplot as plt
 import seaborn as sns
+from typing import List, Dict, Any, Tuple
 
 class ToolRetriever:
     def __init__(self, LIB, corpus_tsv_path = "", model_path="", base_corpus_tsv_path="./data/standard_process/base/retriever_train_data/corpus.tsv",add_base=False, shuffle_data=True, process_func=process_retrieval_document_query_version,max_seq_length=256):
@@ -81,7 +82,32 @@ class ToolRetriever:
         similar_queries = ["\nInstruction: " + self.shuffled_data[hit['corpus_id']]['query'] + "\nFunction: " + self.shuffled_data[hit['corpus_id']]['gold'] for hit in hits[0]]
         return ''.join(similar_queries)
 
-def compute_accuracy(retriever, data, args,name='train', LIB_ALIAS='scanpy'):
+def compute_accuracy(retriever: ToolRetriever, data: List[Dict[str, Any]], args: argparse.Namespace, name: str = 'train', LIB_ALIAS: str = 'scanpy') -> Tuple[float, Dict[str, List[float]], float, int]:
+    """
+    Computes the accuracy of the retrieval based on the given data and the retriever's responses.
+
+    Parameters
+    ----------
+    retriever : ToolRetriever
+        The retrieval tool to use for finding similar APIs.
+    data : List[Dict[str, Any]]
+        The dataset containing queries and their corresponding true APIs.
+    args : argparse.Namespace
+        The command line arguments passed to the script.
+    name : str, optional
+        The name of the dataset (e.g., 'train', 'test', or 'val'). Default is 'train'.
+    LIB_ALIAS : str, optional
+        The library alias to filter APIs by, default is 'scanpy'.
+
+    Returns
+    -------
+    Tuple[float, Dict[str, List[float]], float, int]
+        A tuple containing:
+        - Accuracy as a percentage of correct predictions.
+        - Dictionary with lists of scores for ranks 1 through 5.
+        - Ambiguous accuracy as a percentage of correct predictions considering ambiguous matches.
+        - The count of total non-ambiguous API matches.
+    """
     merged_pairs = find_similar_two_pairs(f"./data/standard_process/{args.LIB}/API_init.json")
     correct_predictions = 0
     ambiguous_correct_predictions = 0  # Additional metric for ambiguous matches

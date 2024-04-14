@@ -13,8 +13,23 @@ from inference.utils import process_retrieval_document, compress_api_str_from_li
 from dataloader.get_API_init_from_sourcecode import parse_content_list
 from inference.retriever_finetune_inference import ToolRetriever
 from inference.utils import is_pair_in_merged_pairs, get_all_api_json, find_similar_api_pairs, find_similar_two_pairs, get_ambiguous_pairs
+from typing import Any, Tuple, Optional
 
-def unify_response_format(response):
+def unify_response_format(response: str) -> list:
+    """
+    Converts a JSON-like response string into a unified list of dictionaries.
+    Handles cases where the response may not be properly formatted as valid JSON.
+
+    Parameters
+    ----------
+    response : str
+        The JSON-like response string to process.
+
+    Returns
+    -------
+    list
+        A list of dictionaries representing the parsed JSON objects.
+    """
     try:
         return json.loads(response)
     except json.JSONDecodeError:
@@ -29,7 +44,21 @@ def unify_response_format(response):
                 pass
         return unified_response
 
-def preprocess_json_string(response):
+def preprocess_json_string(response: str) -> str:
+    """
+    Preprocesses a JSON string, replacing single quotes with double quotes for JSON keys
+    and ensuring internal single quotes within strings are preserved.
+
+    Parameters
+    ----------
+    response : str
+        The JSON string to preprocess.
+
+    Returns
+    -------
+    str
+        The preprocessed JSON string suitable for JSON parsing.
+    """
     # Replace single quotes with double quotes while preserving internal single quotes in strings
     in_string = False
     processed_response = ""
@@ -48,7 +77,20 @@ def preprocess_json_string(response):
             processed_response += char
     return processed_response
 
-def parse_unformatted_jsons(response):
+def parse_unformatted_jsons(response: str) -> list:
+    """
+    Attempts to parse a string containing multiple JSON objects even if not properly formatted.
+
+    Parameters
+    ----------
+    response : str
+        The string containing potentially multiple unformatted JSON objects.
+
+    Returns
+    -------
+    list
+        A list of dictionaries, each representing a parsed JSON object.
+    """
     response = preprocess_json_string(response)  # Preprocess to handle single quotes
     jsons = []
     current_json = ''
@@ -74,20 +116,89 @@ def parse_unformatted_jsons(response):
             pass
     return parsed_jsons
 
-def parse_json_response(response):
+def parse_json_response(response: str) -> list:
+    """
+    Parses a string response into JSON format and filters out valid JSON objects.
+
+    Parameters
+    ----------
+    response : str
+        The response string containing JSON objects.
+
+    Returns
+    -------
+    list
+        A list of valid JSON objects.
+    """
     parsed_response = parse_unformatted_jsons(response)
     valid_responses = []
     for d in parsed_response:
         valid_responses.append(d)
     return valid_responses
 
-async def async_LLM_response(llm, tokenizer, prompt, GPT_model, history=[], kwargs={}):
+async def async_LLM_response(llm: Any, tokenizer: Any, prompt: str, GPT_model: str, history: list = [], kwargs: dict = {}) -> Tuple[str, list]:
+    """
+    Asynchronously sends a prompt to a language model and awaits the response.
+
+    Parameters
+    ----------
+    llm : Any
+        The language learning model.
+    tokenizer : Any
+        The tokenizer for processing text.
+    prompt : str
+        The prompt to send to the language model.
+    GPT_model : str
+        The specific GPT model version to use.
+    history : list, optional
+        Previous interactions with the language model, if applicable.
+    kwargs : dict, optional
+        Additional keyword arguments for the language model interaction.
+
+    Returns
+    -------
+    Tuple[str, list]
+        A tuple containing the model's response and the interaction history.
+    """
     model_version = "gpt-4-0125-preview" if args.GPT_model == 'gpt4' else "gpt-3.5-turbo-0125"
     loop = asyncio.get_event_loop()
     response, history = await loop.run_in_executor(None, LLM_response, llm, tokenizer, prompt, model_version, history, kwargs)
     return response, history
 
-async def process_prompt_async(desc_retriever,API_init, api_name, api, llm, tokenizer, tmp_docstring, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model):
+async def process_prompt_async(desc_retriever: Any, API_init: dict, api_name: str, api: dict, llm: Any, tokenizer: Any, tmp_docstring: str, progress: tqdm_normal, similar_api_same_desc: dict, similar_api_same_funcname: dict, GPT_model: str) -> list:
+    """
+    Processes a prompt asynchronously by preparing the prompt, sending it to a language model, and processing the response.
+
+    Parameters
+    ----------
+    desc_retriever : Any
+        The descriptor retriever for pulling similar API descriptions.
+    API_init : dict
+        Initial API data loaded as a dictionary.
+    api_name : str
+        The name of the API being processed.
+    api : dict
+        The API data dictionary.
+    llm : Any
+        The language learning model.
+    tokenizer : Any
+        The tokenizer for processing text.
+    tmp_docstring : str
+        The temporary docstring prepared for the prompt.
+    progress : tqdm_normal
+        The progress bar instance for tracking progress.
+    similar_api_same_desc : dict
+        A dictionary of similar API descriptions.
+    similar_api_same_funcname : dict
+        A dictionary of similar API function names.
+    GPT_model : str
+        The specific GPT model version to use.
+
+    Returns
+    -------
+    list
+        A list of dictionaries containing the processed results from the language model.
+    """
     prompt1, prompt2 = make_instruction_generation_prompt(api_name, tmp_docstring)
     retrieved_apis = desc_retriever.retrieving(query=API_init[api_name]['description'].split('\n')[0],top_k=20)
     assert len(retrieved_apis) == len(set(retrieved_apis)), 'repeated apis in retrieved_apis'+retrieved_apis
@@ -146,7 +257,22 @@ async def process_prompt_async(desc_retriever,API_init, api_name, api, llm, toke
     progress.update(1)
     return results
 
-def process_parameters(parameters, max_parameters=6):
+def process_parameters(parameters: dict, max_parameters: int = 6) -> dict:
+    """
+    Processes and sorts parameters based on their optionality and limits the number of parameters returned.
+
+    Parameters
+    ----------
+    parameters : dict
+        The dictionary of parameters to process.
+    max_parameters : int, optional
+        The maximum number of parameters to return, default is 6.
+
+    Returns
+    -------
+    dict
+        The processed and sorted dictionary of parameters.
+    """
     for param_data in parameters.values():
         param_data.pop('optional_value', None)
     sorted_parameters = sorted(parameters.items(), key=lambda x: (x[1]['optional'], x[0]))
@@ -164,7 +290,22 @@ def process_parameters(parameters, max_parameters=6):
                 optional_count += 1
     return processed_parameters
 
-def preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE):
+def preprocess_retriever_data(OUTPUT_DIR: str, QUERY_FILE: str, QUERY_ANNOTATE_FILE: str, INDEX_FILE: str) -> None:
+    """
+    Preprocesses the data for a retriever by splitting into training, validation, and testing sets.
+
+    Parameters
+    ----------
+    OUTPUT_DIR : str
+        The directory where processed files will be saved.
+    QUERY_FILE : str
+        The file path to the original query data.
+    QUERY_ANNOTATE_FILE : str
+        The file path to the annotated query data.
+    INDEX_FILE : str
+        The file path to save indices of test and validation sets.
+
+    """
     with open(QUERY_FILE, 'r') as f:
         query_data_ori = json.load(f)
     start_idx_for_test = max([i['query_id'] for i in query_data_ori])
@@ -267,7 +408,22 @@ def preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX
     val_labels_df.to_csv(OUTPUT_DIR + '/qrels.val.tsv', sep='\t', index=False, header=False)
     documents_df.to_csv(OUTPUT_DIR + '/corpus.tsv', sep='\t', index=False)
 
-def filter_and_update_query_id(query_data, api_list=[]):
+def filter_and_update_query_id(query_data: list, api_list: list = []) -> list:
+    """
+    Filters and updates the query IDs based on a list of API names.
+
+    Parameters
+    ----------
+    query_data : list
+        A list of query data dictionaries.
+    api_list : list, optional
+        A list of API names to filter by.
+
+    Returns
+    -------
+    list
+        The filtered and updated list of query data.
+    """
     filtered_queries = []
     for query in query_data:
         api_name = query['api_calling'][0].split('(')[0]
@@ -280,7 +436,23 @@ def filter_and_update_query_id(query_data, api_list=[]):
         query['query_id'] = i
     return filtered_queries
 
-def preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE, api_txt_path=None):
+def preprocess_retriever_data_shuffle(OUTPUT_DIR: str, QUERY_FILE: str, QUERY_ANNOTATE_FILE: str, INDEX_FILE: str, api_txt_path: Optional[str] = None) -> None:
+    """
+    Preprocesses retriever data with shuffling to ensure diverse training and testing sets.
+
+    Parameters
+    ----------
+    OUTPUT_DIR : str
+        The directory where processed files will be saved.
+    QUERY_FILE : str
+        The file path to the original query data.
+    QUERY_ANNOTATE_FILE : str
+        The file path to the annotated query data.
+    INDEX_FILE : str
+        The file path to save indices of test and validation sets.
+    api_txt_path : Optional[str]
+        The path to a text file containing API names, optional.
+    """
     with open(QUERY_FILE, 'r') as f:
         query_data_ori = json.load(f)
     if api_txt_path:
@@ -427,7 +599,20 @@ def preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FIL
     val_labels_df.to_csv(OUTPUT_DIR + '/qrels.val.tsv', sep='\t', index=False, header=False)
     documents_df.to_csv(OUTPUT_DIR + '/corpus.tsv', sep='\t', index=False)
 
-def get_all_path(lib_name):
+def get_all_path(lib_name: str) -> Tuple[str, str, str, str, str, str]:
+    """
+    Retrieves all necessary file paths based on the library name.
+
+    Parameters
+    ----------
+    lib_name : str
+        The name of the library for which paths are required.
+
+    Returns
+    -------
+    Tuple[str, str, str, str, str, str]
+        A tuple containing paths to API initialization, API composite, output directory, query file, annotated query file, and index file.
+    """
     os.makedirs(f"data/standard_process/{lib_name}/retriever_train_data", exist_ok=True)
     API_composite = f'./data/standard_process/{lib_name}/API_composite.json'
     API_init = f'./data/standard_process/{lib_name}/API_init.json'
@@ -437,7 +622,17 @@ def get_all_path(lib_name):
     INDEX_FILE = f"data/standard_process/{lib_name}/API_instruction_testval_query_ids.json"
     return API_init, API_composite, OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE
 
-def preprocess_fake_test_data(QUERY_FILE, QUERY_ANNOTATE_FILE):
+def preprocess_fake_test_data(QUERY_FILE: str, QUERY_ANNOTATE_FILE: str) -> None:
+    """
+    Prepares fake test data by processing existing query files and ensuring a certain level of diversity.
+
+    Parameters
+    ----------
+    QUERY_FILE : str
+        The file path to the original query data.
+    QUERY_ANNOTATE_FILE : str
+        The file path where the annotated query data will be stored.
+    """
     with open(QUERY_FILE, 'r') as f:
         query_data = json.load(f)
     seen_apis = set()
@@ -457,7 +652,17 @@ def preprocess_fake_test_data(QUERY_FILE, QUERY_ANNOTATE_FILE):
     with open(QUERY_ANNOTATE_FILE, "w") as file:
         json.dump(datadata, file, ensure_ascii=False, indent=4)
 
-def create_corpus_from_json(API_init_json, corpus_tsv_path):
+def create_corpus_from_json(API_init_json: dict, corpus_tsv_path: str) -> None:
+    """
+    Creates a corpus file from a JSON file detailing API information, saving it as a TSV.
+
+    Parameters
+    ----------
+    API_init_json : dict
+        The JSON containing API information.
+    corpus_tsv_path : str
+        The file path where the corpus will be saved as a TSV.
+    """
     documents = []
     doc_id_map = {}
     #pairs = []
@@ -477,7 +682,23 @@ def create_corpus_from_json(API_init_json, corpus_tsv_path):
     documents_df = pd.DataFrame(documents, columns=["docid", "document_content"])
     documents_df.to_csv(corpus_tsv_path, sep='\t', index=False)
 
-async def preprocess_instruction_d(desc_retriever, API_init, QUERY_FILE, LIB, GPT_model):
+async def preprocess_instruction_d(desc_retriever: Any, API_init: dict, QUERY_FILE: str, LIB: str, GPT_model: str) -> None:
+    """
+    Asynchronously processes instruction data using a descriptor retriever and a language model.
+
+    Parameters
+    ----------
+    desc_retriever : Any
+        The descriptor retriever for pulling similar API descriptions.
+    API_init : dict
+        Initial API data loaded as a dictionary.
+    QUERY_FILE : str
+        The file path where the query data will be stored.
+    LIB : str
+        The library name being processed.
+    GPT_model : str
+        The specific GPT model version to use.
+    """
     print('The length of api_data is: ',len(API_init))
     # filter and remove class API
     ori_data = {api: details for api, details in API_init.items() if details['api_type'] != 'class' and details['api_type']!='unknown'}

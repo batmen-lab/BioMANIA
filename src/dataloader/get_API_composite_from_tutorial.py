@@ -13,13 +13,42 @@ from dataloader.utils.tutorial_loader_strategy import main_convert_tutorial_to_p
 from dataloader.utils.code_analyzer import extract_io_variables
 from models.model import LLM_model, LLM_response
 from prompt.composite import build_prompt_for_composite_docstring, build_prompt_for_composite_name
+from typing import Optional, Any, Tuple
 
-def load_json(filename):
+def load_json(filename: str) -> dict:
+    """
+    Load JSON data from a specified file.
+
+    Parameters
+    ----------
+    filename : str
+        The path to the JSON file to be loaded.
+
+    Returns
+    -------
+    dict
+        The data loaded from the JSON file.
+    """
     with open(filename, 'r') as file:
         data = json.load(file)
     return data
 
-def classify_code_blocks(code_blocks,pre_code_list):
+def classify_code_blocks(code_blocks: list, pre_code_list: list) -> list:
+    """
+    Classifies code blocks into different types such as import, unknown, or definition based on their content.
+
+    Parameters
+    ----------
+    code_blocks : list
+        A list of code blocks (strings) to be classified.
+    pre_code_list : list
+        A list of pre-existing code elements to consider during classification.
+
+    Returns
+    -------
+    list
+        A list of dictionaries, each containing the classified code block and its type.
+    """
     classified_blocks = []
     for block in code_blocks:
         lines = block.split('\n')
@@ -48,14 +77,40 @@ def classify_code_blocks(code_blocks,pre_code_list):
         classified_blocks.append(classified_block)
     return classified_blocks
 
-def extract_function_name(code):
+def extract_function_name(code: str) -> Optional[str]:
+    """
+    Extract the function name from a block of code.
+
+    Parameters
+    ----------
+    code : str
+        The block of code from which to extract the function name.
+
+    Returns
+    -------
+    Optional[str]
+        The name of the function if found; otherwise, None.
+    """
     tree = ast.parse(code)
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
             return node.name
     return None
 
-def apply_unknown_code_blocks(classified_blocks):
+def apply_unknown_code_blocks(classified_blocks: list) -> list:
+    """
+    Process blocks of code that are classified as 'unknown' to determine if they can be applied to known function definitions.
+
+    Parameters
+    ----------
+    classified_blocks : list
+        A list of dictionaries containing classified code blocks.
+
+    Returns
+    -------
+    list
+        The list of code blocks after processing unknown types.
+    """
     def_blocks = []
     # Find all function names and def code blocks
     for block in classified_blocks:
@@ -75,7 +130,20 @@ def apply_unknown_code_blocks(classified_blocks):
                     break
     return classified_blocks
 
-def collect_imports(code):
+def collect_imports(code: str) -> Tuple[str, str]:
+    """
+    Separates import statements from other statements in a block of code.
+
+    Parameters
+    ----------
+    code : str
+        The block of code to analyze.
+
+    Returns
+    -------
+    Tuple[str, str]
+        A tuple containing the import part and the non-import part of the code.
+    """
     import_statements = []
     non_import_statements = []
     tree = ast.parse(code)
@@ -90,13 +158,39 @@ def collect_imports(code):
     non_import_part = '\n'.join(non_import_statements)
     return import_part, non_import_part
 
-def merge_jsons(list_of_dicts):
+def merge_jsons(list_of_dicts: list) -> dict:
+    """
+    Merges multiple dictionaries into a single dictionary.
+
+    Parameters
+    ----------
+    list_of_dicts : list
+        A list of dictionaries to be merged.
+
+    Returns
+    -------
+    dict
+        The resulting dictionary after merging.
+    """
     merged_json = {}
     merged_dict = dict(chain.from_iterable(d.items() for d in list_of_dicts))
     merged_json.update(merged_dict)
     return merged_json
 
-def rearrange_code_blocks(code_blocks):
+def rearrange_code_blocks(code_blocks: list) -> list:
+    """
+    Rearranges code blocks by separating import statements from other code.
+
+    Parameters
+    ----------
+    code_blocks : list
+        A list of code blocks to rearrange.
+
+    Returns
+    -------
+    list
+        A new list of code blocks, starting with all imports followed by other statements.
+    """
     import_block = []
     other_blocks = []
     for block in code_blocks:
@@ -109,7 +203,20 @@ def rearrange_code_blocks(code_blocks):
     new_code_blocks = import_block + other_blocks
     return new_code_blocks
 
-def separate_nodes(nodes):
+def separate_nodes(nodes: list) -> list:
+    """
+    Separates nodes into distinct code blocks based on control structures.
+
+    Parameters
+    ----------
+    nodes : list
+        A list of AST nodes.
+
+    Returns
+    -------
+    list
+        A list of separated code blocks.
+    """
     code_blocks = []
     current_block = []
     for node in nodes:
@@ -124,7 +231,20 @@ def separate_nodes(nodes):
         code_blocks.append(current_block)
     return ["\n".join([ast.unparse(block) for block in code_block]) for code_block in code_blocks]
 
-def separate_code_blocks(code_blocks):
+def separate_code_blocks(code_blocks: list) -> list:
+    """
+    Separates complex code blocks into simpler, independent blocks using AST parsing.
+
+    Parameters
+    ----------
+    code_blocks : list
+        A list of complex code blocks to separate.
+
+    Returns
+    -------
+    list
+        A list of simpler, independent code blocks.
+    """
     separated_blocks = []
     for code in code_blocks:
         try:
@@ -134,18 +254,57 @@ def separate_code_blocks(code_blocks):
             pass
     return separated_blocks
 
-def save_list_code(json_list,filename):
+def save_list_code(json_list: list, filename: str) -> None:
+    """
+    Saves a list of strings to a file, each string on a new line.
+
+    Parameters
+    ----------
+    json_list : list
+        A list of strings to be saved.
+    filename : str
+        The path to the file where the list will be saved.
+    """
     with open(filename, 'w') as f:
         f.writelines([i+'\n' for i in json_list])
 
-def get_html_description(combined_blocks, input_code):
+def get_html_description(combined_blocks: list, input_code: str) -> str:
+    """
+    Retrieves a description from HTML blocks that match the given input code.
+
+    Parameters
+    ----------
+    combined_blocks : list
+        A list of combined code and text blocks from HTML.
+    input_code : str
+        The input code to match against the combined blocks.
+
+    Returns
+    -------
+    str
+        The description associated with the input code, if found; otherwise, an empty string.
+    """
     input_code_lines = input_code.split('\n')
     for block in combined_blocks:
         if 'code' in block and 'text' in block:
             if all(line.strip() in block['code'] for line in input_code_lines):
                 return block['text']
     return ''
-def get_final_API_from_docstring(modified_docstring):
+
+def get_final_API_from_docstring(modified_docstring: str) -> dict:
+    """
+    Extracts API information from a modified docstring.
+
+    Parameters
+    ----------
+    modified_docstring : str
+        The docstring from which to extract API information.
+
+    Returns
+    -------
+    dict
+        A dictionary containing extracted API information such as parameters and return values.
+    """
     docs = parser.parse(modified_docstring)
     parameters = {}
     for param in docs.params:
@@ -164,7 +323,26 @@ def get_final_API_from_docstring(modified_docstring):
     }
     return need_saved_API
 
-def wrap_function(code: str, input_nodes: list, output_nodes: list, wrapper_name: str) -> str:
+def wrap_function(code: str, input_nodes: list, output_nodes: list, wrapper_name: str) -> Tuple[str, str]:
+    """
+    Wraps a given code block into a function with specified inputs and outputs.
+
+    Parameters
+    ----------
+    code : str
+        The code block to wrap.
+    input_nodes : list
+        A list of input variable names.
+    output_nodes : list
+        A list of output variable names.
+    wrapper_name : str
+        The name of the function wrapper.
+
+    Returns
+    -------
+    Tuple[str, str]
+        A tuple containing the wrapped function code and the function call string.
+    """
     function_signature = f"def {wrapper_name}({', '.join(input_nodes)}):\n"
     indented_code = '\n'.join(['    ' + line for line in code.split('\n') if line])
     return_statement = f"    return {', '.join(output_nodes)}\n" if output_nodes else ""
@@ -174,7 +352,22 @@ def wrap_function(code: str, input_nodes: list, output_nodes: list, wrapper_name
         function_call = ', '.join(output_nodes) + ' = ' + function_call
     return wrapped_code, function_call.lstrip()
 
-def insert_docstring(source_code, docstring):
+def insert_docstring(source_code: str, docstring: str) -> str:
+    """
+    Inserts a docstring into the source code just below the function or class definition.
+
+    Parameters
+    ----------
+    source_code : str
+        The source code into which the docstring will be inserted.
+    docstring : str
+        The docstring to insert.
+
+    Returns
+    -------
+    str
+        The source code with the docstring inserted.
+    """
     lines = source_code.split("\n")
     new_lines = []
     for line in lines:
@@ -184,6 +377,23 @@ def insert_docstring(source_code, docstring):
     return "\n".join(new_lines)
 
 def put_docstring_into_code(code: str, modified_docstring: str, new_function_name: str) -> str:
+    """
+    Inserts a modified docstring into a piece of code and optionally renames the function.
+
+    Parameters
+    ----------
+    code : str
+        The original code block.
+    modified_docstring : str
+        The modified docstring to insert.
+    new_function_name : str
+        The new name for the function, if renaming is desired.
+
+    Returns
+    -------
+    str
+        The code with the modified docstring inserted and function renamed.
+    """
     # Parse the code to an AST
     module = ast.parse(code)
     first_stmt = module.body[0]
@@ -195,7 +405,20 @@ def put_docstring_into_code(code: str, modified_docstring: str, new_function_nam
     return modified_code
 
 def filter_line(code_block: str) -> str:
-    # remove all print( lines
+    """
+    Filters out unwanted lines from a code block, such as print statements.
+
+    Parameters
+    ----------
+    code_block : str
+        The code block to filter.
+
+    Returns
+    -------
+    str
+        The filtered code block.
+    """
+    # remove all print lines
     # remove last line
     lines = code_block.split("\n")
     lines = [i for i in lines if 'print(' not in i]
@@ -226,7 +449,28 @@ def filter_line(code_block: str) -> str:
         lines+=[f'plt.savefig({filepath})']
     return "\n".join(lines)
 
-def individual_tut(tut, html_dict, output_folder_pyjson, pre_code_list, lib_alias):
+def individual_tut(tut: str, html_dict: dict, output_folder_pyjson: str, pre_code_list: list, lib_alias: str) -> list:
+    """
+    Processes individual tutorial files to extract and classify code blocks.
+
+    Parameters
+    ----------
+    tut : str
+        The tutorial identifier.
+    html_dict : dict
+        A dictionary containing HTML content.
+    output_folder_pyjson : str
+        The output folder path for storing processed JSON data.
+    pre_code_list : list
+        A list of pre-existing code to consider during processing.
+    lib_alias : str
+        The library alias used to identify relevant code blocks.
+
+    Returns
+    -------
+    list
+        A list of processed and classified code blocks.
+    """
     local_namespace = {}
     api_new_tmp = []
     print('-'*10)
@@ -290,9 +534,19 @@ def individual_tut(tut, html_dict, output_folder_pyjson, pre_code_list, lib_alia
         #input_nodes, output_nodes = extract_io_variables(block['code'], local_namespace) # extract io parameters
         #wrapped_func, function_call = wrap_function(block['code'],input_nodes, output_nodes,wrapper_name)"""
     return code_blocks_filtered
-def extract_imports(code_block):
+def extract_imports(code_block: str) -> dict:
     """
-    extract all imports
+    Extracts import statements from a block of code.
+
+    Parameters
+    ----------
+    code_block : str
+        The block of code from which to extract imports.
+
+    Returns
+    -------
+    dict
+        A dictionary of imports with aliases as keys and full paths as values.
     """
     imports = {}
     try:
@@ -308,7 +562,24 @@ def extract_imports(code_block):
         pass
     return imports
 
-def find_api_calls(node, imports, lib_alias):
+def find_api_calls(node: Any, imports: dict, lib_alias: str) -> list:
+    """
+    Recursively finds API calls in the AST node that correspond to the specified library alias.
+
+    Parameters
+    ----------
+    node : Any
+        The AST node to search for API calls.
+    imports : dict
+        A dictionary of imports used to resolve API call paths.
+    lib_alias : str
+        The library alias used to identify relevant API calls.
+
+    Returns
+    -------
+    list
+        A list of fully qualified API call paths.
+    """
     api_calls = []
     def get_full_path(node):
         if isinstance(node, ast.Attribute):
@@ -327,9 +598,23 @@ def find_api_calls(node, imports, lib_alias):
         api_calls.extend(find_api_calls(child, imports, lib_alias))
     return api_calls
 
-def extract_api_calls(code_block, imports, lib_alias):
+def extract_api_calls(code_block: str, imports: dict, lib_alias: str) -> list:
     """
-    extract all lib_alias API
+    Extracts API calls from a block of code based on the specified library alias.
+
+    Parameters
+    ----------
+    code_block : str
+        The block of code from which to extract API calls.
+    imports : dict
+        A dictionary of imports used to resolve API call paths.
+    lib_alias : str
+        The library alias used to identify relevant API calls.
+
+    Returns
+    -------
+    list
+        A list of fully qualified API call paths.
     """
     try:
         root = ast.parse(code_block)
@@ -337,7 +622,30 @@ def extract_api_calls(code_block, imports, lib_alias):
     except SyntaxError:
         return []
 
-def process_docstring_with_LLM(llm, tokenizer, API_description, func_inputs,func_outputs, description_text=""):
+def process_docstring_with_LLM(llm: Any, tokenizer: Any, API_description: str, func_inputs: list, func_outputs: list, description_text: str = "") -> str:
+    """
+    Processes a docstring using a language model to modify or enhance it based on the provided API description and inputs/outputs.
+
+    Parameters
+    ----------
+    llm : Any
+        The language model to use.
+    tokenizer : Any
+        The tokenizer for the language model.
+    API_description : str
+        The description of the API to include in the prompt.
+    func_inputs : list
+        A list of function input descriptions.
+    func_outputs : list
+        A list of function output descriptions.
+    description_text : str, optional
+        Additional description text to include in the prompt. Default is empty.
+
+    Returns
+    -------
+    str
+        The modified or generated docstring.
+    """
     # LLM for modifying docstring
     prompt = build_prompt_for_composite_docstring(API_description, func_inputs, func_outputs, description_text)
     response, history = LLM_response(llm,tokenizer,prompt,history=[],kwargs={})
@@ -347,7 +655,26 @@ def process_docstring_with_LLM(llm, tokenizer, API_description, func_inputs,func
     else:
         return response
 
-def process_name_with_LLM(llm,tokenizer,sub_API_names,llm_docstring):
+def process_name_with_LLM(llm: Any, tokenizer: Any, sub_API_names: str, llm_docstring: str) -> str:
+    """
+    Processes API names using a language model to generate a function name based on the docstring and API details.
+
+    Parameters
+    ----------
+    llm : Any
+        The language model to use.
+    tokenizer : Any
+        The tokenizer for the language model.
+    sub_API_names : str
+        A comma-separated string of sub-API names to include in the prompt.
+    llm_docstring : str
+        The docstring to use as context in the prompt.
+
+    Returns
+    -------
+    str
+        The generated function name.
+    """
     prompt = build_prompt_for_composite_name(sub_API_names, llm_docstring)
     response, history = LLM_response(llm,tokenizer,prompt,history=[],kwargs={})
     print(f'==>GPT name response: {response}')
@@ -367,7 +694,24 @@ def process_name_with_LLM(llm,tokenizer,sub_API_names,llm_docstring):
         count+=1
     return "function"
 
-def main_get_API_composite(lib_analysis_path, output_folder_json, lib_alias):
+def main_get_API_composite(lib_analysis_path: str, output_folder_json: str, lib_alias: str) -> list:
+    """
+    Main function to process tutorial files and extract unique code blocks for API composition.
+
+    Parameters
+    ----------
+    lib_analysis_path : str
+        The path to the library analysis directory.
+    output_folder_json : str
+        The output folder for storing JSON data.
+    lib_alias : str
+        The library alias used during processing.
+
+    Returns
+    -------
+    list
+        A list of unique code blocks extracted from the tutorials.
+    """
     # get text&code from tutorials
     context = main_convert_tutorial_to_py(lib_analysis_path, strategy_type=args.file_type, file_types=[args.file_type])
     html_dict = context.code_json
@@ -392,7 +736,18 @@ def main_get_API_composite(lib_analysis_path, output_folder_json, lib_alias):
     print('get unique_code_blocks from tutorials:', unique_code_blocks)
     return unique_code_blocks
     
-def main_get_LLM_docstring(unique_code_blocks, LIB):
+def main_get_LLM_docstring(unique_code_blocks: list, LIB: str) -> None:
+    """
+    Processes unique code blocks to generate enhanced docstrings using a language model.
+
+    Parameters
+    ----------
+    unique_code_blocks : list
+        A list of unique code blocks to process.
+    LIB : str
+        The library for which the docstrings are being generated.
+
+    """
     # LLM model
     llm, tokenizer = LLM_model()
     # load API_init.json
@@ -449,7 +804,22 @@ def main_get_LLM_docstring(unique_code_blocks, LIB):
     with open(os.path.join("data","standard_process",LIB, 'API_composite.json'), 'w') as f: # correct path
         json.dump(API_composite, f, indent=4)
 
-def generate_api_callings(results, basic_types=['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict']):
+def generate_api_callings(results: dict, basic_types: list = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict']) -> dict:
+    """
+    Generates API calling strings for each API in the results based on the parameters.
+
+    Parameters
+    ----------
+    results : dict
+        The API results to process.
+    basic_types : list, optional
+        A list of basic type strings used for filtering. Default includes common data types.
+
+    Returns
+    -------
+    dict
+        The results with updated API calling strings.
+    """
     updated_results = {}
     for api_name, api_info in results.items():
         if api_info["api_type"]: # in ['function', 'method', 'class', 'functools.partial']
@@ -467,7 +837,22 @@ def generate_api_callings(results, basic_types=['str', 'int', 'float', 'bool', '
         updated_results[api_name] = api_info
     return updated_results
 
-def generate_api_calling_simple(api_name, parameters):
+def generate_api_calling_simple(api_name: str, parameters: dict) -> list:
+    """
+    Generates a simple API calling structure based on the API name and its parameters.
+
+    Parameters
+    ----------
+    api_name : str
+        The name of the API to generate calling for.
+    parameters : dict
+        The parameters of the API.
+
+    Returns
+    -------
+    list
+        A list of strings representing simple API callings.
+    """
     api_calling = []
     if parameters:
         param_strs = []
