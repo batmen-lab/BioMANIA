@@ -9,15 +9,15 @@ import numpy as np
 
 def get_generate_prompt():
     # added 240415
-    prompt = """Task: Select the candidate function from lib: {lib_name} library that conveys the most information from the given instruction, and return it as a list in the format [function1]. Learn from the examples provided on how to choose candidate with maximum informative content.""" + "\n"
-    prompt += """Incontext example: {similar_queries}"""
+    prompt = """Task: choose only one most appropriate function from the PyPI {lib_name} library for the instruction and return the function name as a list in the format ["function1"] without any arguments."""
+    prompt += """\n---\nHere are some answer examples you can refer."""
+    prompt += """\nIncontext examples: {similar_queries}"""
     prompt += """\n---\n"""
-    prompt += """Now select the candidate function from lib: {lib_name} library for the below instruction. Never mess up with the examples above.\n"""
-    prompt += """Instruction: {query}
+    prompt += """Now answer the below Instruction with one most appropriate function from the lib {lib_name}. Never answer API from above examples. Use real function whose names start with the {lib_name}, and which is truly in this lib"""
+    prompt += """\nInstruction: {query}
     Function: 
     """
     return prompt
-
 
 def get_retrieved_prompt():
     prompt = """Task: Select the candidate that conveys the most information from the given instruction, and return it as a list in the format [function1]. """
@@ -371,6 +371,38 @@ def extract_and_print_adjusted(df):
         new_row = [0] + [round(val * 100, 2) if isinstance(val, float) else val for val in transposed_results[i]]
         cluster_data.append(new_row)
     return np.array(cluster_data)
+
+def extract_random_inquiries(data, desired_num=2):
+    # extract 4th, 7th from 10 inquiries to obtain subset
+    # usage: train_sub2 = extract_random_inquiries(train_remain, desired_num=2)
+    subset = []
+    api_inquiries = {}
+    for item in data:
+        api_name = item['gold']
+        if api_name not in api_inquiries:
+            api_inquiries[api_name] = []
+        api_inquiries[api_name].append(item)
+    for inquiries in api_inquiries.values():
+        if len(inquiries) >= 8:
+            random_indices = random.sample(range(0, len(inquiries)), desired_num)
+            for index in random_indices:
+                subset.append(inquiries[index])
+    return subset
+
+def extract_specific_inquiries(data, desired_indices):
+    # deprecated
+    subset = []
+    api_inquiries = {}
+    for item in data:
+        api_name = item['gold']
+        if api_name not in api_inquiries:
+            api_inquiries[api_name] = []
+        api_inquiries[api_name].append(item)
+    for inquiries in api_inquiries.values():
+        if len(inquiries) >= 8:
+            subset.append(inquiries[desired_indices[0]])
+            subset.append(inquiries[desired_indices[1]])
+    return subset
 
 if __name__ == '__main__':
     #merged_pairs = find_similar_two_pairs()
