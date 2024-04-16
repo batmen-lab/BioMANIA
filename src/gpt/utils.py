@@ -4,6 +4,20 @@ from sklearn.metrics.pairwise import linear_kernel
 from string import punctuation
 from collections import defaultdict
 from string import punctuation
+import matplotlib.pyplot as plt
+import numpy as np
+
+def get_generate_prompt():
+    # added 240415
+    prompt = """Task: Select the candidate function from lib: {lib_name} library that conveys the most information from the given instruction, and return it as a list in the format [function1]. Learn from the examples provided on how to choose candidate with maximum informative content.""" + "\n"
+    prompt += """Incontext example: {similar_queries}"""
+    prompt += """\n---\n"""
+    prompt += """Now select the candidate function from lib: {lib_name} library for the below instruction. Never mess up with the examples above.\n"""
+    prompt += """Instruction: {query}
+    Function: 
+    """
+    return prompt
+
 
 def get_retrieved_prompt():
     prompt = """Task: Select the candidate that conveys the most information from the given instruction, and return it as a list in the format [function1]. """
@@ -278,6 +292,85 @@ def find_matching_api_pairs(api_data, threshold=5):
                 if standardized_apis[api_names[i]] == standardized_apis[api_names[j]]:
                     matching_pairs.append((api_names[i], api_names[j]))
     return matching_pairs
+
+def plot_figure(cluster_data, LIB):
+    categories = [
+        "Multi-label\nclassification\nw/\nretriever",
+        "GPT-3.5-turbo\ngeneration",
+        "GPT-3.5-turbo\nclassification\nw/o\nretriever",
+        "GPT-3.5-turbo\nclassification\nw/\nretriever",
+        "GPT-4-turbo\nclassification\nretriever"
+    ]
+    legend_labels = [
+        "Synthetic instruction",
+        "Annotated instruction",
+        "Synthetic instruction w/ ambiguity removal",
+        "Annotated instruction w/ ambiguity removal"
+    ]
+    # Set up the bar chart
+    num_categories = len(categories)
+    num_conditions = len(legend_labels)
+    bar_width = 0.15  # Reduce bar width to fit all bars
+    index = np.arange(num_categories)
+    fig, ax = plt.subplots(figsize=(14, 10))
+    for i in range(num_conditions):
+        bars = ax.bar(index + i * bar_width, cluster_data[i], bar_width, label=legend_labels[i])
+        # Annotate the bars with the data values
+        for rect in bars:
+            height = rect.get_height()
+            ax.annotate(f'{height}',
+                        xy=(rect.get_x() + rect.get_width() / 2, height),
+                        xytext=(0, 3),  # 3 points vertical offset
+                        textcoords="offset points",
+                        ha='center', va='bottom', fontsize=8)
+    # Set the labels and titles
+    ax.set_title(f'Prediction Accuracy for {LIB}', fontsize=14)
+    ax.set_xticks(index + bar_width * num_conditions / 2 - bar_width / 2)
+    ax.set_xticklabels(categories, fontsize=10)
+    # Place the legend outside of the plot
+    ax.legend(bbox_to_anchor=(1, 1), loc='upper left', fontsize=10)
+    # Display the plot
+    plt.xticks()  # Rotate the x-axis labels to show them more clearly
+    plt.tight_layout(rect=[0, 0, 0.85, 1])  # Adjust the layout to fit everything except the legend
+    plt.show()
+
+def extract_and_print_adjusted(df):
+    results = []
+    # GPT-3.5 with top_k '-' (this corresponds to the first row requested)
+    filtered_df_1 = df[(df['model_name'] == 'gpt-3.5') & (df['top_k'] == '-')]
+    synthetic_val_acc_1 = filtered_df_1[filtered_df_1['test_val'] == 'synthetic_val']['accuracy'].iloc[0]
+    synthetic_val_fil_acc_1 = filtered_df_1[filtered_df_1['test_val'] == 'synthetic_val']['filtered_accuracy'].iloc[0]
+    human_annotate_acc_1 = filtered_df_1[filtered_df_1['test_val'] == 'human annotate']['accuracy'].iloc[0]
+    human_annotate_fil_acc_1 = filtered_df_1[filtered_df_1['test_val'] == 'human annotate']['filtered_accuracy'].iloc[0]
+    results.append([0, synthetic_val_acc_1, human_annotate_acc_1, synthetic_val_fil_acc_1, human_annotate_fil_acc_1])
+    # GPT-3.5 with nonretrieved (this corresponds to the second row requested)
+    filtered_df_2 = df[(df['model_name'] == 'gpt-3.5') & (df['retrieval_status'] == 'nonretrieved')]
+    synthetic_val_acc_2 = filtered_df_2[filtered_df_2['test_val'] == 'synthetic_val']['accuracy'].iloc[0]
+    synthetic_val_fil_acc_2 = filtered_df_2[filtered_df_2['test_val'] == 'synthetic_val']['filtered_accuracy'].iloc[0]
+    human_annotate_acc_2 = filtered_df_2[filtered_df_2['test_val'] == 'human annotate']['accuracy'].iloc[0]
+    human_annotate_fil_acc_2 = filtered_df_2[filtered_df_2['test_val'] == 'human annotate']['filtered_accuracy'].iloc[0]
+    results.append([0, synthetic_val_acc_2, human_annotate_acc_2, synthetic_val_fil_acc_2, human_annotate_fil_acc_2])
+    # GPT-3.5 with retrieved (this corresponds to the third row requested)
+    filtered_df_3 = df[(df['model_name'] == 'gpt-3.5') & (df['retrieval_status'] == 'retrieved') & (df['top_k'] != '-')]
+    synthetic_val_acc_3 = filtered_df_3[filtered_df_3['test_val'] == 'synthetic_val']['accuracy'].iloc[0]
+    synthetic_val_fil_acc_3 = filtered_df_3[filtered_df_3['test_val'] == 'synthetic_val']['filtered_accuracy'].iloc[0]
+    human_annotate_acc_3 = filtered_df_3[filtered_df_3['test_val'] == 'human annotate']['accuracy'].iloc[0]
+    human_annotate_fil_acc_3 = filtered_df_3[filtered_df_3['test_val'] == 'human annotate']['filtered_accuracy'].iloc[0]
+    results.append([0, synthetic_val_acc_3, human_annotate_acc_3, synthetic_val_fil_acc_3, human_annotate_fil_acc_3])
+    # GPT-4 with retrieved (this corresponds to the fourth row requested)
+    filtered_df_4 = df[(df['model_name'] == 'gpt-4') & (df['retrieval_status'] == 'retrieved')]
+    synthetic_val_acc_4 = filtered_df_4[filtered_df_4['test_val'] == 'synthetic_val']['accuracy'].iloc[0]
+    synthetic_val_fil_acc_4 = filtered_df_4[filtered_df_4['test_val'] == 'synthetic_val']['filtered_accuracy'].iloc[0]
+    human_annotate_acc_4 = filtered_df_4[filtered_df_4['test_val'] == 'human annotate']['accuracy'].iloc[0]
+    human_annotate_fil_acc_4 = filtered_df_4[filtered_df_4['test_val'] == 'human annotate']['filtered_accuracy'].iloc[0]
+    results.append([0, synthetic_val_acc_4, human_annotate_acc_4, synthetic_val_fil_acc_4, human_annotate_fil_acc_4])
+    # Print the results and convert the accuracy values to percentages rounded to two decimals
+    transposed_results = list(zip(*results))  # Transpose the list of lists
+    cluster_data = []
+    for i in range(1, len(transposed_results)):
+        new_row = [0] + [round(val * 100, 2) if isinstance(val, float) else val for val in transposed_results[i]]
+        cluster_data.append(new_row)
+    return np.array(cluster_data)
 
 if __name__ == '__main__':
     #merged_pairs = find_similar_two_pairs()

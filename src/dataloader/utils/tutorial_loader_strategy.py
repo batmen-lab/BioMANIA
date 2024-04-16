@@ -354,8 +354,8 @@ class CodeLoaderContext:
                 if file.split('.')[-1] in self.file_types: # ,'rst'
                     count+=1
                     filepath = os.path.join(root, file)
-                    file_key_base = os.path.splitext(file)[0]
-                    file_path_key = os.path.relpath(filepath, start=self.input_folder).replace(os.path.sep, "_dot_")
+                    #file_key_base = os.path.splitext(file)[0]
+                    #file_path_key = os.path.relpath(filepath, start=self.input_folder).replace(os.path.sep, "_dot_")
                     if file.split('.')[-1]=='ipynb':
                         code = self.loader.load_json(filepath)
                         self.code_json[file.split('.')[0]]=code
@@ -368,7 +368,7 @@ class CodeLoaderContext:
                                     item['code'] = ""
                                 #else:
                                 #    item['code'] = item['code'].split('\n')
-                        updated_code = {f"{file_path_key}_dot_{k}": v for k, v in code.items()}
+                        updated_code = {k: v for k, v in code.items()} # f"{file_path_key}_dot_{k}"
                         self.loader.save_as_code(updated_code, self.output_folder)
                         for k, v in updated_code.items():
                             for item in v:
