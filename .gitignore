@@ -18,6 +18,7 @@ __pycache__/
 **/node_modules/*
 
 # Specialized
+src/tmp/*
 src/data/*
 chatbot_ui_biomania/.next/*
 chatbot_ui_biomania/node_modules/*
