@@ -15,7 +15,7 @@ def get_generate_prompt():
     prompt += """\n---\n"""
     prompt += """Now answer the below Instruction with one most appropriate function from the lib {lib_name}. Never answer API from above examples. Use real function whose names start with the {lib_name}, and which is truly in this lib"""
     prompt += """\nInstruction: {query}
-    Function: 
+Function: 
     """
     return prompt
 
@@ -152,6 +152,7 @@ def correct_pred(pred, lib_name):
     return ans
 
 def correct_entries(res, lib_name):
+    # no worry for multiple answer as we only treat the first candidate as true answer!
     for entry in res:
         # Directly obtaining the substring starting from "scanpy"
         if 'pred' in entry and entry['pred'] is not None:
