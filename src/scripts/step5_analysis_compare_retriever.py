@@ -71,5 +71,5 @@ handles = [plt.Rectangle((0,0),1,1, color=color) for color in color_b[:len(legen
 fig.legend(handles, legend_labels, loc='upper center', bbox_to_anchor=(0.5, 0.1), ncol=4)
 plt.tight_layout(rect=[0, 0.1, 1, 1])
 plt.subplots_adjust(hspace=0.4)  # Adjust this value to make space for the legend
-plt.savefig('output/step5_analysis_compare_retriever.jpg')
+plt.savefig('output/step5_analysis_compare_retriever.pdf')
 plt.show()

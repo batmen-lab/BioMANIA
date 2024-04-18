@@ -151,31 +151,31 @@ def correct_pred(pred, lib_name):
         ans = ans.replace(']','')
     return ans
 
-def correct_entries(res, lib_name):
+def correct_entries(res, lib_name, pred_key='pred'):
     # no worry for multiple answer as we only treat the first candidate as true answer!
     for entry in res:
         # Directly obtaining the substring starting from "scanpy"
-        if 'pred' in entry and entry['pred'] is not None:
-            if '(' in entry['pred'][0] and lib_name in entry['pred'][0]:
-                entry['pred'] = [i.split('(')[0] for i in entry['pred']]
-            if (entry['pred'][0].startswith('candidate') or entry['pred'][0].startswith('Candidate') or entry['pred'][0].startswith('Function')) and (lib_name in entry['pred'][0]):
-                pred_substrings = [pred[pred.find(lib_name):] for pred in entry['pred'] if lib_name in pred]
+        if pred_key in entry and entry[pred_key] is not None:
+            if '(' in entry[pred_key][0] and lib_name in entry[pred_key][0]:
+                entry[pred_key] = [i.split('(')[0] for i in entry[pred_key]]
+            if (entry[pred_key][0].startswith('candidate') or entry[pred_key][0].startswith('Candidate') or entry[pred_key][0].startswith('Function')) and (lib_name in entry[pred_key][0]):
+                pred_substrings = [pred[pred.find(lib_name):] for pred in entry[pred_key] if lib_name in pred]
                 # Updating 'correct' based on whether modified 'gold' substring is in modified 'pred' substrings
                 if len(pred_substrings)>0:
                     # we only consider the first candidate
                     entry['correct'] = entry['gold'] == pred_substrings[0]
                 else:
                     entry['correct'] = False
-                entry['pred'] = pred_substrings
+                entry[pred_key] = pred_substrings
             else:
-                pred_substrings = [pred[pred.find(lib_name):] for pred in entry['pred'] if lib_name in pred]
+                pred_substrings = [pred[pred.find(lib_name):] for pred in entry[pred_key] if lib_name in pred]
                 #if (entry['gold'] in pred_substrings)!=entry['correct']:
-                #    print(entry['correct'], entry['gold'], pred_substrings, entry['pred'])
+                #    print(entry['correct'], entry['gold'], pred_substrings, entry[pred_key])
                 if len(pred_substrings)>0:
                     entry['correct'] = entry['gold'] == pred_substrings[0]
                 else:
                     entry['correct'] = False
-                #entry['pred'] = pred_substrings
+                #entry[pred_key] = pred_substrings
     return res
 
 def extract_specific_inquiries(data, desired_indices):

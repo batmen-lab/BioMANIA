@@ -43,7 +43,7 @@ handles, labels = axs.flatten()[0].get_legend_handles_labels()
 fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 0.1), ncol=4)
 plt.tight_layout(rect=[0, 0.1, 1, 1])
 plt.subplots_adjust(hspace=0.4)
-plt_path = "./output/step4_analysis_retriever_acc_lib.jpg"
+plt_path = "./output/step4_analysis_retriever_acc_lib.pdf"
 plt.savefig(plt_path)
 plt.show()
 plt_path
