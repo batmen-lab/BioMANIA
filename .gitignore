@@ -28,7 +28,7 @@ src/plot_tmp/*
 src/plot_server/*
 src/bak/*
 src/ambiguous_results/*
-src/analysis/*
+#src/analysis/*
 src/filtered_errors/*
 test_env/*
 src/output/*
