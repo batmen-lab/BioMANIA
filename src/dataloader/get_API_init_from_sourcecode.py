@@ -973,6 +973,9 @@ def main_get_API_basic(cheatsheet: Dict[str, List[str]]) -> None:
     with open(output_file, 'w') as file:
         file.write(json.dumps(outputs, indent=4))
 
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--LIB', type=str, help='PyPI tool')

@@ -76,6 +76,9 @@ def create_notebook(extracted_elements):
 
     return nb
 
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__ == "__main__":
     import json
     import argparse

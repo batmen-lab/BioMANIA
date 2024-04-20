@@ -501,8 +501,10 @@ class CodeExecutor:
                 exec(code)
             except Exception as e:
                 print(f"An error occurred while executing '{code}': {e}")
-        
-    
+
+import sys, inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__=='__main__':
     # Step 1: Provide the complete test_apis list
     test_apis = [

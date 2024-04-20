@@ -63,6 +63,9 @@ def download_lib(strategy_type, lib_name, lib_link, lib_alias, github_path):
     lib_path = get_lib_localpath(lib_name,lib_alias)
     return lib_path
 
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__=='__main__':
     lib_path = download_lib('git', LIB, GITHUB_LINK, LIB_ALIAS, GITHUB_PATH)
     print('downloaded in path: ', lib_path)

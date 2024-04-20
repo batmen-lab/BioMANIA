@@ -54,6 +54,8 @@ def retrieve_inference(model, dataset_path, dataset_type, top_k, device):
     with open(os.path.join(args.dataset_path,f"retrieved_{dataset_type}.json"), 'w') as f:
         json.dump(top_results, f, indent=4)
 
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser()

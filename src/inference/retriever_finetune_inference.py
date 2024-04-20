@@ -267,6 +267,9 @@ def plot_boxplot(data, title):
     plt.ylabel('Score')
     plt.savefig(f'./plot/{args.LIB}/avg_retriever_{title}.pdf')
 
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--corpus_tsv_path', type=str, required=True, help='')

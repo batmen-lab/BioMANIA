@@ -200,6 +200,9 @@ def bert_embed(model,tokenizer,text, device='cpu'):
     outputs = model(**inputs)
     return outputs.last_hidden_state.mean(1).squeeze().detach().cpu().numpy()
 
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__=='__main__':
     a, b = get_all_api_json(f"./data/standard_process/scanpy/API_init.json")
     '''pre_code = """

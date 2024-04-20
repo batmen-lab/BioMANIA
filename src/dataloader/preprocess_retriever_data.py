@@ -778,6 +778,9 @@ async def preprocess_instruction_d(desc_retriever: Any, API_init: dict, QUERY_FI
     print(f'the retained proportion num of apis is {len(retained_apis_from_results)}')
     #print(results, 'results==>')
 
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__=='__main__':
     
     parser = argparse.ArgumentParser()

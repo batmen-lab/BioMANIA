@@ -125,6 +125,9 @@ def main(top_k: int, LIB: str) -> None:
     evaluate_query_pairs(retriever, val_query_pairs, "val", top_k, merged_pairs)
     evaluate_query_pairs(retriever, test_query_pairs, "test", top_k, merged_pairs)
 
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--top_k', type=int, default=3, help='')

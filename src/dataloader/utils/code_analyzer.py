@@ -78,8 +78,11 @@ def extract_io_variables(code: str, namespace: dict) -> Tuple[Set[str], Set[str]
     # Filter out module types and built-in functions
     output_vars = {var for var in output_vars if not isinstance(namespace.get(var, None), (types.ModuleType, types.BuiltinFunctionType))}
     output_vars = {var for var in output_vars if not var.startswith('_')}
-    
     return (input_vars, output_vars)
+
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__=='__main__':
     # Testing the refined execution-based method on the modified extended attack test cases
     refined_execution_extended_attack_results = []

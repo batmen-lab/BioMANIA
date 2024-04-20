@@ -212,6 +212,9 @@ def merge_unittest_examples_into_API_init(lib_name: str, analysis_path: str, git
     with open(os.path.join(analysis_path,lib_name, 'API_init.json'), 'w') as f:
         json.dump(API_with_test, f, indent=4)
 
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__=='__main__':
     merge_unittest_examples_into_API_init(LIB, ANALYSIS_PATH, GITHUB_PATH)
 

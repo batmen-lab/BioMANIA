@@ -299,6 +299,9 @@ def main(LIB: str, ratio_1_to_3: float, ratio_2_to_3: float, embed_method: str, 
     plot_tsne_distribution_modified(LIB, train_data, test_data, model_chosen, labels, accuracy_c2,embed_method)
     print(f"Plot. Time taken: {time.time() - start_time:.2f} seconds")
 
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__=='__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f'using device: {device}')

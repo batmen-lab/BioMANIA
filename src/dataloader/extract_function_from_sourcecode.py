@@ -496,5 +496,9 @@ def main():
     with open(output_path, 'w') as file:
         json.dump(all_functions, file, indent=4)
 
+
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__=='__main__':
     main()

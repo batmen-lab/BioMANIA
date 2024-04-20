@@ -96,7 +96,10 @@ def download_tutorial(tutorial_github: Union[str, List[str]], analysis_path: str
                 print(f"Successfully cloned {github_url} into {local_dir}")
         else:
             print(f"Unable to extract repository details from URL: {github_url}")
-    
+
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')

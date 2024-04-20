@@ -261,6 +261,9 @@ def main(
     os.makedirs(save_path, exist_ok=True)
     model.update_and_save_dataset(data_dir, save_path,idx_file,API_composite,retrieved_path,batch_size=batch_size)
 
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
+
 if __name__ == "__main__":
     # Uncomment this line if you see an error: "Expected is_sm80 to be true, but got false"
     # torch.backends.cuda.enable_flash_sdp(False)
