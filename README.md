@@ -53,22 +53,22 @@ For ease of use, we provide Docker images for several tools. You can refer the d
 
 ```bash
 # Pull back-end service and front-end UI service with:
-docker pull chatbotuibiomania/biomania-together:v1.1.8-${LIB}-cuda12.1-ubuntu22.04
+docker pull chatbotuibiomania/biomania-together:v1.1.9-${LIB}-cuda12.1-ubuntu22.04
 ```
 
 Start service with
 ```bash
 # run on gpu
-docker run -e LIB=${LIB} -e OPENAI_API_KEY=[your_openai_api_key] --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.8-${LIB}-cuda12.1-ubuntu22.04
+docker run -e LIB=${LIB} -e OPENAI_API_KEY=[your_openai_api_key] --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.9-${LIB}-cuda12.1-ubuntu22.04
 # or on cpu
-docker run -e LIB=${LIB} -e OPENAI_API_KEY=[your_openai_api_key] -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.8-${LIB}-cuda12.1-ubuntu22.04
+docker run -e LIB=${LIB} -e OPENAI_API_KEY=[your_openai_api_key] -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.9-${LIB}-cuda12.1-ubuntu22.04
 ```
 
 Then check UI service with `http://localhost:3000/en`.
 
 Important Tips for Running Docker Without Bugs:
 - To run docker on GPU, you need to install `nvidia-docker` and [`nvidia container toolkit`](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html). Run `docker info | grep "Default Runtime"` to check if your device can run docker with gpu.
-- Feel free to adjust the [cuda image version](https://hub.docker.com/r/nvidia/cuda/tags?page=1) inside the `src/Dockerfile` to configure it for different CUDA settings which is compatible for your device.
+- Feel free to adjust the [cuda image version](https://hub.docker.com/r/nvidia/cuda/tags?page=1) inside the `Dockerfile` to configure it for different CUDA settings which is compatible for your device.
 
 We understand the desire to run the service on a server and visualize locally. You can initiate the [ngrok service](https://ngrok.com/docs/getting-started/) by running this script on your server:
 ```bash
@@ -93,32 +93,31 @@ To prepare your environment for the BioMANIA project, follow these steps:
 1. Clone the repository and install dependencies:
 ```bash
 git clone https://github.com/batmen-lab/BioMANIA.git
-cd BioMANIA/src
+cd BioMANIA
 conda create -n biomania python=3.10
 conda activate biomania
 pip install -r requirements.txt --index-url https://pypi.org/simple
 export PYTHONPATH=$PYTHONPATH:$(pwd)
 ```
 
-2. Set up your OpenAI API key in the `src/.env` file.
+2. Set up your OpenAI API key in the `BioMANIA/.env` file.
 ```bash
 "OPENAI_API_KEY"="your-openai-api-key-here"
 ```
 
 - For inference purposes, a standard OpenAI API key is sufficient.
 - If you intend to use functionalities such as instruction generation or GPT API predictions, a paid OpenAI account is required as it may reach rate limit. 
-- **Feel free to switch to `model_name='gpt-3.5-turbo-16k'` or `gpt-4` in `src/models/model.py` if you want.**
+- **Feel free to switch to `model_name='gpt-3.5-turbo-0125'` or `gpt-4-0125-preview` in `src/models/model.py` if you want.**
 
 ### Prepare for Data and Model
 Download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link) or [Baidu Drive link](https://pan.baidu.com/s/1AZgKRfptrUTI3L2YbZwHww?pwd=36fi). For those library data, you can download only the one you need.
 
 We provide a script for downloading models and datas from Google Drive for scanpy as an example. This works if you are accessible to google. And don't forget to rename the retriever model `multicorpus` as your lib name for usage.
 ```bash
-# under src
-sh download_data_model.sh
+sh src/download_data_model.sh
 ```
 
-Organize the downloaded files at `src/data` or `src/hugging_models` as follows (`base` are necessary):
+Organize the downloaded files at `BioMANIA/data` or `BioMANIA/hugging_models` as follows (`base` are necessary):
 ```
 data
 ├── conversations

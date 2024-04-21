@@ -10,8 +10,8 @@ import sys
 import importlib
 import inspect
 import astunparse
-from configs.model_config import *
-from gpt.utils import save_json
+from ..configs.model_config import *
+from ..gpt.utils import save_json
 
 def process_function(node,tree,filename,pair_decorator={}):
     """

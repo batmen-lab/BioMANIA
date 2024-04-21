@@ -1,7 +1,7 @@
-import os
-from configs.model_config import READTHEDOC_PATH, ANALYSIS_PATH, get_all_variable_from_cheatsheet
+import os, subprocess
 from urllib.parse import urlparse
 from typing import Union, List, Optional
+from ...configs.model_config import READTHEDOC_PATH, ANALYSIS_PATH, get_all_variable_from_cheatsheet
 
 def download_readthedoc(readthedoc_path: str, api_html: Union[str, List[str]], source_type: str = 'single') -> None:
     """
@@ -76,7 +76,6 @@ def download_tutorial(tutorial_github: Union[str, List[str]], analysis_path: str
     lib_name : str
         The library name associated with the repository.
     """
-    import subprocess
     if not tutorial_github:
         print('==>Did not provide tutorial url, skip downloading tutorial!')
         return

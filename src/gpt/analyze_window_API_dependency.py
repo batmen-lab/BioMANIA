@@ -6,9 +6,8 @@ Description:
     Check the API dependency between different sections in the tutorial.
 """
 
-import json
 import matplotlib.pyplot as plt
-from gpt.utils import save_json, load_json
+from ..gpt.utils import save_json, load_json
 
 def filter_apis(summarized_data, api_init):
     tut_apis = {}

@@ -1,6 +1,6 @@
 import pickle, importlib, json, inspect, os, io, sys, re
 from anndata import AnnData
-from gpt.utils import save_json, load_json
+from ..gpt.utils import save_json, load_json
 
 class CodeExecutor:
     def __init__(self):

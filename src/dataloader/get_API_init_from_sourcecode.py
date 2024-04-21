@@ -1,9 +1,10 @@
 import pydoc, json, re, os, collections, inspect, importlib, typing, functools
 from docstring_parser import parse
-from configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet, get_all_basic_func_from_cheatsheet
-from dataloader.extract_function_from_sourcecode import get_returnparam_docstring
+from ..configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet, get_all_basic_func_from_cheatsheet
+from ..dataloader.extract_function_from_sourcecode import get_returnparam_docstring
 from typing import Dict, List, Optional, Tuple, Union, Any
-from gpt.utils import save_json
+from ..gpt.utils import save_json
+from langchain.document_loaders import BSHTMLLoader
 
 # STEP1: get API from web
 # STEP2: get docstring/parameters from source code, based on API
@@ -23,7 +24,6 @@ def process_html(html_path: str) -> str:
     str
         Processed HTML content as a single string with spaces normalized.
     """
-    from langchain.document_loaders import BSHTMLLoader
     loader = BSHTMLLoader(html_path)
     webcontent = loader.load()
     content = ' '.join([i.page_content for i in webcontent])

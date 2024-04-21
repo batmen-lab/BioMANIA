@@ -1,7 +1,7 @@
 import os, ast, json, fnmatch
 from typing import Dict, Any, List, Tuple, Union
-from configs.model_config import LIB, ANALYSIS_PATH, GITHUB_PATH
-from gpt.utils import load_json, save_json
+from ..configs.model_config import LIB, ANALYSIS_PATH, GITHUB_PATH
+from ..gpt.utils import load_json, save_json
 
 def find_test_files(directory: str):
     for root, dirnames, filenames in os.walk(directory):

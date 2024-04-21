@@ -1,5 +1,6 @@
 import nbformat
 from nbformat.v4 import new_notebook, new_markdown_cell, new_code_cell
+from ..gpt.utils import load_json
 
 # Define a function to extract the relevant elements from the JSON content
 def extract_elements(json_content):
@@ -80,7 +81,6 @@ __all__ = list(set([name for name, obj in locals().items() if not name.startswit
 
 if __name__ == "__main__":
     import argparse
-    from gpt.utils import load_json
     # Parsing arguments for the JSON file path
     parser = argparse.ArgumentParser(description="Extract tasks from JSON file")
     parser.add_argument("file_path", help="Path to the JSON file")

@@ -1,13 +1,12 @@
 from flask import Flask, request, jsonify
-import torch
-from models.lit_llama.lora import mark_only_lora_as_trainable, lora, lora_state_dict
+from ..models.lit_llama.lora import mark_only_lora_as_trainable, lora, lora_state_dict
 
 app = Flask(__name__)
 #from models.model import LLM_model
-from models.data_classification import DataPreprocess
+from ..models.data_classification import DataPreprocess
 #from inference.retriever_finetune_inference import ToolRetriever
-from models.lit_llama.model import LLaMA, LLaMAConfig
-from models.lit_llama.tokenizer import Tokenizer
+from ..models.lit_llama.model import LLaMA, LLaMAConfig
+from ..models.lit_llama.tokenizer import Tokenizer
 import torch
 import lightning as L
 import argparse

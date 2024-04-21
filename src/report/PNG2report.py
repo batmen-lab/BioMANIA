@@ -4,7 +4,7 @@ import subprocess
 import argparse
 import matplotlib.pyplot as plt
 import pandas as pd
-from gpt.utils import load_json
+from ..gpt.utils import load_json
 
 # Parsing arguments for the JSON file path
 parser = argparse.ArgumentParser(description="")
@@ -25,7 +25,6 @@ section_texts = [
 ############
 # run inference scripts and extract performance
 ############
-import re
 os.environ['HUGGINGPATH'] = './hugging_models'
 command = [
     'python', 'inference/retriever_finetune_inference.py',
@@ -183,15 +182,12 @@ for i, (title, body) in enumerate(zip(section_titles, filled_section_texts), sta
 ############
 # run scripts for getting gpt api prediction performance
 ############
-import json
-from tqdm import auto as tqdm
 import logging
 logging.basicConfig(level=logging.CRITICAL)  # turn off logging
 # load data
-from inference.utils import load_json
+from ..inference.utils import load_json
 data = load_json(f'./data/standard_process/{LIB}/API_inquiry_annotate.json')
 # all-apis
-import re, os
 from string import punctuation
 end_of_docstring_summary = re.compile(r'[{}\n]+'.format(re.escape(punctuation)))
 all_apis = {x['api_name']: end_of_docstring_summary.split(x['Docstring'])[0].strip() for x in data}

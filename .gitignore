@@ -18,6 +18,8 @@ __pycache__/
 **/node_modules/*
 
 # Specialized
+data/*
+Src/gpt_bak_240416/*
 src/tmp/*
 src/data/*
 chatbot_ui_biomania/.next/*

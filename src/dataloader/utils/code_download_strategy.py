@@ -1,6 +1,5 @@
-import os
-import subprocess
-from configs.model_config import LIB, LIB_ALIAS, GITHUB_LINK, GITHUB_PATH
+import os, subprocess, importlib
+from ...configs.model_config import LIB, LIB_ALIAS, GITHUB_LINK, GITHUB_PATH
 
 # Download Strategy
 class DownloadStrategy:
@@ -40,7 +39,6 @@ def get_lib_localpath(lib_name, lib_alias):
     return lib_path
 
 def download_lib(strategy_type, lib_name, lib_link, lib_alias, github_path):
-    import importlib
     lib_github_path = os.path.join(github_path,lib_name)
     strategies = {
         "pip": PipInstall(),

@@ -3,7 +3,7 @@ import logging
 import tenacity as T
 import os
 from dotenv import load_dotenv
-from gpt.utils import load_json
+from ..gpt.utils import load_json
 
 def setup_openai(fname, mode='azure'):
     assert mode in {'openai', 'azure'}

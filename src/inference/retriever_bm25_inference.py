@@ -1,10 +1,10 @@
-import json, ast
+import ast
 from rank_bm25 import BM25Okapi
-from retrievers import *
-from models.model import *
-from inference.utils import find_similar_two_pairs
+from ..retrievers import *
+from ..models.model import *
+from ..inference.utils import find_similar_two_pairs
 from typing import Tuple, List, Dict, Any, Set
-from gpt.utils import load_json
+from ..gpt.utils import load_json
 # prepare corpus
 def prepare_corpus(ori_data: dict) -> Tuple[List[Dict[str, Any]], List[List[str]]]:
     """

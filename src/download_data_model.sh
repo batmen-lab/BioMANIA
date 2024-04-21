@@ -25,4 +25,3 @@ cd ..
 cd hugging_models/retriever_model_finetuned
 unzip your_lib
 rm -rf your_lib
-cd ../..

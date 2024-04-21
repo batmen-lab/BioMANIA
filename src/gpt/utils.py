@@ -1,11 +1,48 @@
-import random, json, re, os, hashlib
+import random, re, hashlib, json
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import linear_kernel
-from string import punctuation
-from collections import defaultdict
 from string import punctuation
 import matplotlib.pyplot as plt
 import numpy as np
+
+def save_json(output_path: str, results: dict) -> None:
+    """
+    Save results to a JSON file with indentation of 4 spaces.
+
+    Parameters
+    ----------
+    output_path : str
+        Path to the output file.
+    results : dict
+        Dictionary containing the results to be saved.
+
+    Returns
+    -------
+    None
+
+    Examples
+    --------
+    >>> save_json('output.json', {'key': 'value'})
+    """
+    with open(output_path, 'w') as file:
+        json.dump(results, file, indent=4)
+
+def load_json(filename: str) -> dict:
+    """
+    Load JSON data from a specified file.
+
+    Parameters
+    ----------
+    filename : str
+        The path to the JSON file to be loaded.
+
+    Returns
+    -------
+    dict
+        The data loaded from the JSON file.
+    """
+    with open(filename, 'r') as file:
+        data = json.load(file)
+    return data
 
 def get_generate_prompt():
     # added 240415
@@ -43,8 +80,7 @@ def get_first_sentence(text):
     return sentences[0] if sentences else ''
 
 def get_all_api_json(API_init_path, mode='full'):
-    with open(API_init_path, 'r') as file:
-        API_init = json.load(file)
+    API_init = load_json(API_init_path)
     end_of_docstring_summary = re.compile(r'[{}\n]+'.format(re.escape(punctuation)))
     all_apis = {}
     for api_name in API_init:
@@ -71,6 +107,7 @@ def get_all_api_json(API_init_path, mode='full'):
     return all_apis, all_apis_json
 
 def find_similar_api_pairs(api_descriptions):
+    from sklearn.metrics.pairwise import linear_kernel
     # filter out apis with empty descriptions and not meaningful descriptions
     filtered_api_descriptions = {api: desc for api, desc in api_descriptions.items() if desc.strip() and desc.strip()!='Parameters'}
     print(len(api_descriptions), len(filtered_api_descriptions))
@@ -92,8 +129,7 @@ def find_similar_api_pairs(api_descriptions):
 def get_ambiguous_pairs(API_init_path=f"./data/standard_process/scanpy/API_init.json"):
     # For accuracy without ambiguous pair
     from collections import defaultdict
-    with open(API_init_path, "r") as file:
-        api_data = json.load(file)
+    api_data = load_json(API_init_path)
     api_data = {key:api_data[key] for key in api_data if api_data[key]['api_type']!='class' and api_data[key]['api_type']!='unknown'}
     all_apis, all_apis_json = get_all_api_json(API_init_path, mode='full') # single
     similar_api_pairs = find_similar_api_pairs(all_apis_json)
@@ -124,8 +160,7 @@ def is_pair_in_merged_pairs(gold, pred, merged_pairs):
     return (gold, pred) in merged_pairs or (pred, gold) in merged_pairs
 
 def load_errors(fname):
-    with open(fname, 'rt') as f:
-        data = json.load(f)
+    data = load_json(fname)
     wrong = [ex for ex in data if not ex['correct']]
     random.Random(0).shuffle(wrong)
     return wrong
@@ -313,7 +348,7 @@ def plot_figure(cluster_data, LIB):
     num_conditions = len(legend_labels)
     bar_width = 0.15  # Reduce bar width to fit all bars
     index = np.arange(num_categories)
-    fig, ax = plt.subplots(figsize=(14, 10))
+    fig, ax = plt.subplots(figsize=(14, 9))
     for i in range(num_conditions):
         bars = ax.bar(index + i * bar_width, cluster_data[i], bar_width, label=legend_labels[i])
         # Annotate the bars with the data values
@@ -333,6 +368,7 @@ def plot_figure(cluster_data, LIB):
     # Display the plot
     plt.xticks()  # Rotate the x-axis labels to show them more clearly
     plt.tight_layout(rect=[0, 0, 0.85, 1])  # Adjust the layout to fit everything except the legend
+    plt.savefig(f'./gpt_{LIB}.pdf')
     plt.show()
 
 def extract_and_print_adjusted(df):
@@ -404,6 +440,9 @@ def extract_specific_inquiries(data, desired_indices):
             subset.append(inquiries[desired_indices[0]])
             subset.append(inquiries[desired_indices[1]])
     return subset
+
+import inspect
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__ == '__main__':
     #merged_pairs = find_similar_two_pairs()

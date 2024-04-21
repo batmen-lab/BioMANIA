@@ -1,7 +1,7 @@
 import json, os, datetime
 import matplotlib.pyplot as plt
 from collections import defaultdict
-from gpt.utils import get_all_api_json, find_similar_api_pairs, is_pair_in_merged_pairs, find_similar_two_pairs, get_ambiguous_pairs, save_json, load_json
+from ..gpt.utils import get_all_api_json, find_similar_api_pairs, is_pair_in_merged_pairs, find_similar_two_pairs, get_ambiguous_pairs, save_json, load_json
 import numpy as np
 from PIL import Image
 

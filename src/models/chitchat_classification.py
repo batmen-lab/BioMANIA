@@ -1,10 +1,10 @@
-import argparse, os, json, torch, glob, time, pickle
+import argparse, os, torch, glob, time, pickle
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
-from inference.utils import sentence_transformer_embed, predict_by_similarity
-from gpt.utils import load_json
+from ..inference.utils import sentence_transformer_embed, predict_by_similarity
+from ..gpt.utils import load_json
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
@@ -126,7 +126,6 @@ def calculate_centroid(data: pd.DataFrame, model_chosen: SentenceTransformer) ->
     """
     embeddings = np.array([sentence_transformer_embed(model_chosen, text) for text in tqdm(data, desc="Processing with unpretrained sentencetransformer BERT")])
     ans = np.mean(embeddings, axis=0)
-    #print('ans', ans.shape)
     return ans
 
 def plot_tsne_distribution_modified(lib_name: str, train_data: pd.DataFrame, test_data: pd.DataFrame, model: SentenceTransformer, 

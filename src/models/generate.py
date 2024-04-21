@@ -1,9 +1,6 @@
-import sys
-import time
-import warnings
+import sys, time, warnings
 from pathlib import Path
 from typing import Optional
-
 import lightning as L
 import torch
 
@@ -158,7 +155,6 @@ __all__ = list(set([name for name, obj in locals().items() if not name.startswit
 
 if __name__ == "__main__":
     from jsonargparse import CLI
-
     torch.set_float32_matmul_precision("high")
     warnings.filterwarnings(
         # Triggered internally at ../aten/src/ATen/EmptyTensor.cpp:31

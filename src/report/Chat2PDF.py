@@ -5,6 +5,7 @@ from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import simpleSplit
+from ..gpt.utils import load_json
 
 # draw text with markdown style
 def draw_markdown_text(c, text, line_num, font_name="Helvetica", font_size=10, leading=15, max_width=440):
@@ -108,7 +109,6 @@ __all__ = list(set([name for name, obj in locals().items() if not name.startswit
 
 if __name__ == "__main__":
     import argparse
-    from gpt.utils import load_json
     # Parsing arguments for the JSON file path
     parser = argparse.ArgumentParser(description="Extract tasks from JSON file")
     parser.add_argument("file_path", help="Path to the JSON file")

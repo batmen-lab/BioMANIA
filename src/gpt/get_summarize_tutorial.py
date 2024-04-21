@@ -4,13 +4,13 @@ Date Created: December 10, 2023
 Last Modified: December 10, 2023
 Description: prepare training data for tutorials text API prediction
 """
-from configs.model_config import get_all_variable_from_cheatsheet, READTHEDOC_PATH, get_all_variable_from_cheatsheet #tut, html_dict, code
-from dataloader.utils.tutorial_loader_strategy import main_convert_tutorial_to_py
-import os, json, ast, io, tokenize
+from ..configs.model_config import get_all_variable_from_cheatsheet, READTHEDOC_PATH, get_all_variable_from_cheatsheet #tut, html_dict, code
+from ..dataloader.utils.tutorial_loader_strategy import main_convert_tutorial_to_py
+import os, ast, io, tokenize
 from collections import OrderedDict
-from models.model import LLM_model, LLM_response
+from ..models.model import LLM_model, LLM_response
 from tqdm import tqdm
-from gpt.utils import save_json
+from ..gpt.utils import save_json
 #from dataloader.preprocess_retriever_data import preprocess_fake_test_data
 
 # Step1: get tutorial pieces

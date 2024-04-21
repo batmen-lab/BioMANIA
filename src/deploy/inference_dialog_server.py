@@ -1,9 +1,11 @@
+# Note that we directly run this script
+
 # Flask
 from flask import Flask, Response, stream_with_context, request
 from flask_socketio import SocketIO
 from flask_cors import CORS, cross_origin
-from deploy.ServerEventCallback import ServerEventCallback
 from queue import Queue
+from ..deploy.ServerEventCallback import ServerEventCallback
 app = Flask(__name__)
 cors = CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -17,10 +19,9 @@ import numpy as np, matplotlib.pyplot as plt
 from typing import Any
 import multiprocessing
 from sentence_transformers import SentenceTransformer
-from inference.utils import predict_by_similarity, json_to_docstring
-from tqdm import tqdm
-from deploy.utils import change_format
-from gpt.utils import get_all_api_json, correct_pred, load_json, save_json
+from ..inference.utils import predict_by_similarity, json_to_docstring
+from ..deploy.utils import change_format
+from ..gpt.utils import get_all_api_json, correct_pred, load_json, save_json
 
 import logging
 from datetime import datetime
@@ -50,14 +51,15 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # inference pipeline
-from models.model import LLM_response, LLM_model
-from configs.model_config import *
-from inference.execution_UI import CodeExecutor
-from inference.utils import find_similar_two_pairs, sentence_transformer_embed
-from inference.retriever_finetune_inference import ToolRetriever
-from deploy.utils import convert_image_to_base64
-from prompt.parameters import prepare_parameters_prompt
-from prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
+from ..models.model import LLM_response, LLM_model
+from ..configs.model_config import *
+from ..inference.execution_UI import CodeExecutor
+from ..inference.utils import find_similar_two_pairs, sentence_transformer_embed
+from ..inference.retriever_finetune_inference import ToolRetriever
+from ..deploy.utils import convert_image_to_base64
+from ..prompt.parameters import prepare_parameters_prompt
+from ..prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
+from ..configs.Lib_cheatsheet import CHEATSHEET as LIB_CHEATSHEET
 
 basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'List', 'Dict', 'Any', 'any', 'Path', 'path', 'Pathlike']
 basic_types.extend(['_AvailShapes']) # extend for squidpy `shape` type
@@ -338,12 +340,12 @@ class Model:
         #API_HTML, TUTORIAL_GITHUB = [info_json[key] for key in ['API_HTML', 'TUTORIAL_GITHUB']]
         self.LIB = lib_name
         self.args_retrieval_model_path = f'./hugging_models/retriever_model_finetuned/{lib_name}/assigned'
-        from configs.model_config import GITHUB_PATH, ANALYSIS_PATH, READTHEDOC_PATH
+        from ..configs.model_config import GITHUB_PATH, ANALYSIS_PATH, READTHEDOC_PATH
         #from configs.model_config import LIB, LIB_ALIAS, GITHUB_LINK, API_HTML
-        from dataloader.utils.code_download_strategy import download_lib
-        from dataloader.utils.other_download import download_readthedoc
-        from dataloader.get_API_init_from_sourcecode import main_get_API_init
-        from dataloader.get_API_full_from_unittest import merge_unittest_examples_into_API_init
+        from ..dataloader.utils.code_download_strategy import download_lib
+        from ..dataloader.utils.other_download import download_readthedoc
+        from ..dataloader.get_API_init_from_sourcecode import main_get_API_init
+        from ..dataloader.get_API_full_from_unittest import merge_unittest_examples_into_API_init
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Downloading lib...",task_title="0") for callback in self.callbacks]
         os.makedirs(f"./data/standard_process/{self.LIB}/", exist_ok=True)
         #[callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="downloading materials...",task_title="13") for callback in self.callbacks]
@@ -390,9 +392,8 @@ class Model:
         shutil.copytree(f'./hugging_models/retriever_model_finetuned/multicorpus/assigned', f'./hugging_models/retriever_model_finetuned/{self.LIB}/assigned')
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Process done! Please restart the program for usage",task_title="100") for callback in self.callbacks]
         self.indexxxx+=1
-        # TODO: need to add tutorial_github and tutorial_html_path
-        from configs.Lib_cheatsheet import CHEATSHEET
-        cheatsheet_data = CHEATSHEET
+        # TODO: need to add tutorial_github and tutorial_html_path        
+        cheatsheet_data = LIB_CHEATSHEET
         new_lib_details = {self.LIB: 
             {
                 "LIB": self.LIB, 
@@ -414,12 +415,12 @@ class Model:
         #API_HTML, TUTORIAL_GITHUB = [info_json[key] for key in ['API_HTML', 'TUTORIAL_GITHUB']]
         self.LIB = lib_name
         self.args_retrieval_model_path = f'./hugging_models/retriever_model_finetuned/{lib_name}/assigned'
-        from configs.model_config import GITHUB_PATH, ANALYSIS_PATH, READTHEDOC_PATH
+        from ..configs.model_config import GITHUB_PATH, ANALYSIS_PATH, READTHEDOC_PATH
         #from configs.model_config import LIB, LIB_ALIAS, GITHUB_LINK, API_HTML
-        from dataloader.utils.code_download_strategy import download_lib
-        from dataloader.utils.other_download import download_readthedoc
-        from dataloader.get_API_init_from_sourcecode import main_get_API_init
-        from dataloader.get_API_full_from_unittest import merge_unittest_examples_into_API_init
+        from ..dataloader.utils.code_download_strategy import download_lib
+        from ..dataloader.utils.other_download import download_readthedoc
+        from ..dataloader.get_API_init_from_sourcecode import main_get_API_init
+        from ..dataloader.get_API_full_from_unittest import merge_unittest_examples_into_API_init
         
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Downloading lib...",task_title="0") for callback in self.callbacks]
         os.makedirs(f"./data/standard_process/{self.LIB}/", exist_ok=True)
@@ -498,7 +499,7 @@ class Model:
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Process done! Please restart the program for usage",task_title="100") for callback in self.callbacks]
         self.indexxxx+=1
         # TODO: need to add tutorial_github and tutorial_html_path
-        from configs.Lib_cheatsheet import CHEATSHEET
+        from ..configs.Lib_cheatsheet import CHEATSHEET
         cheatsheet_data = CHEATSHEET
         new_lib_details = {self.LIB: 
             {
@@ -677,7 +678,7 @@ class Model:
                             similar_queries += "function candidates:\n" + "\n".join(new_function_candidates) + '\n' + tmp_str + "\n---\n"
                 instruction_shot_example = similar_queries
             # 240315: substitute prompt
-            from gpt.utils import get_retrieved_prompt, get_nonretrieved_prompt
+            from ..gpt.utils import get_retrieved_prompt, get_nonretrieved_prompt
             api_predict_init_prompt = get_retrieved_prompt()
             retrieved_apis_prepare = ""
             for idx, api in enumerate(retrieved_names):

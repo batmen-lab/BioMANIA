@@ -44,11 +44,11 @@ export LIB=scanpy
 
 (Optional) Feel free to skip these two scripts if you don't need `composite_API`. They aim to download the necessary readthedoc materials to folder `../../resources/readthedoc_files` with:
 ```bash
-# Under folder `BioMANIA/src`
+# Under root `BioMANIA` folder
 # download materials according to your provided url links
-python dataloader/utils/other_download.py --LIB ${LIB}
+python -m src.dataloader.utils.other_download --LIB ${LIB}
 # generate codes for your downloaded tutorial files, support for either html, ipynb.
-python dataloader/utils/tutorial_loader_strategy.py --LIB ${LIB} --file_type 'html'
+python -m src.dataloader.utils.tutorial_loader_strategy --LIB ${LIB} --file_type 'html'
 ```
 
 NOTE it requires API_HTML_PATH, READTHEDOC_PATH and TUTORIAL_GITHUB to run the above script!
@@ -62,7 +62,7 @@ To use web UI smoothly, don't forget to add the new lib information to `BioMANIA
 
 2. Generate API_init.json using the provided script.
 ```bash
-python dataloader/get_API_init_from_sourcecode.py --LIB ${LIB}
+python -m src.dataloader.get_API_init_from_sourcecode --LIB ${LIB}
 ```
 
 Note: If you have prepared an API list txt file, you can add `--api_txt_path your_file_path` to extract the API information. The sequence is firstly to recognize the API txt file, if not given then recognize the API html page, finally we start from Lib_ALIAS and check all its submodules.
@@ -71,7 +71,7 @@ Note: If you have prepared an API list txt file, you can add `--api_txt_path you
 ```bash
 # get composite API if you have already provided tutorial
 # REQUEST 
-python dataloader/get_API_composite_from_tutorial.py --LIB ${LIB}
+python -m src.dataloader.get_API_composite_from_tutorial --LIB ${LIB}
 # or skip it by running
 cp -r ./data/standard_process/${LIB}/API_init.json ./data/standard_process/${LIB}/API_composite.json
 ```
@@ -84,12 +84,12 @@ If you skip this step, ensure that you contain a file of `./data/standard_proces
 
 4. Following this, create instructions, and split the data for retriever training preparation.
 ```bash
-python dataloader/preprocess_retriever_data.py --LIB ${LIB} --GPT_model gpt3.5/gpt4
+python -m src.dataloader.preprocess_retriever_data --LIB ${LIB} --GPT_model gpt3.5/gpt4
 ```
 
 (Optional) You can validate of your annotated API_inquiry_annotate.json with 
 ```bash
-python dataloader/check_valid_API_annotate.py --LIB ${LIB}
+python -m src.dataloader.check_valid_API_annotate --LIB ${LIB}
 ```
 
 Tips:
@@ -99,7 +99,7 @@ Tips:
 
 5. Train the api/non-api classification model.
 ```bash
-python models/chitchat_classification.py --LIB ${LIB} --ratio_1_to_3 1.0 --ratio_2_to_3 1.0 --embed_method st_untrained
+python -m src.models.chitchat_classification --LIB ${LIB} --ratio_1_to_3 1.0 --ratio_2_to_3 1.0 --embed_method st_untrained
 # or train a classification model on multicorpus of 12 bio-tools.
 # python models/chitchat_classification_multicorpus.py
 ```
@@ -108,14 +108,14 @@ If you train a multicorpus one, please remember to copy the saved `.csv` and `.p
 
 6. (Optional) Try the unpretrained bm25 retriever for a quick inference on your generated instructions.
 ```bash
-python inference/retriever_bm25_inference.py --LIB ${LIB} --top_k 3
+python -m src.inference.retriever_bm25_inference --LIB ${LIB} --top_k 3
 ```
 
 7. Fine-tune the retriever.
 You can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
 ```bash
 mkdir ./hugging_models/retriever_model_finetuned/${LIB}
-python models/train_retriever.py \
+python -m src.models.train_retriever \
     --data_path ./data/standard_process/${LIB}/retriever_train_data/ \
     --model_name all-MiniLM-L6-v2 \
     --output_path ./hugging_models/retriever_model_finetuned/${LIB} \
@@ -131,12 +131,12 @@ python models/train_retriever.py \
 
 # bert-base-uncased
 
-You can check the training performance curve under `./src/plot/${LIB}/` to determine whether you need more number of epochs.
+You can check the training performance curve under `./plot/${LIB}/` to determine whether you need more number of epochs.
 
 8. Test the inference performance using:
 ```bash 
 export HUGGINGPATH=./hugging_models
-python inference/retriever_finetune_inference.py  \
+python -m src.inference.retriever_finetune_inference \
     --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
     --max_seq_length 256 \
     --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
@@ -147,7 +147,7 @@ python inference/retriever_finetune_inference.py  \
     --filter_composite 
 ``` 
 
-You can refer to `src/plot/${LIB}/error_train.json` for detailed error case.
+You can refer to `plot/${LIB}/error_train.json` for detailed error case.
 
 9. (Optional) Test api name prediction using gpt baseline.
 
@@ -164,7 +164,7 @@ Please refer to [lit-llama](https://github.com/Lightning-AI/lit-llama) for getti
 process data:
 ```bash
 export TOKENIZERS_PARALLELISM=true
-python models/data_classification.py \
+python -m src.models.data_classification \
     --pretrained_path ./hugging_models/llama-2-finetuned/checkpoints/lite-llama2/lit-llama.pth \
     --tokenizer_path ./hugging_models/llama-2-finetuned/checkpoints/tokenizer.model \
     --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
@@ -185,7 +185,7 @@ python models/data_classification.py \
 
 Then, finetune model:
 ```bash
-python models/train_classification.py \
+python -m models.train_classification \
     --data_dir ./data/standard_process/${LIB}/classification_train/ \
     --out_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
     --plot_dir ./plot/${LIB}/classification \
@@ -195,7 +195,7 @@ python models/train_classification.py \
 
 Finally, check the performance:
 ```bash
-python models/inference_classification.py \
+python -m models.inference_classification \
     --data_dir ./data/standard_process/${LIB}/classification_train/ \
     --checkpoint_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/combined_model_checkpoint.pth \
     --batch_size 1 \

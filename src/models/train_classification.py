@@ -19,12 +19,12 @@ import torch.nn.functional as F
 wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 
-from models.generate import generate
-from models.lit_llama.lora import mark_only_lora_as_trainable, lora, lora_state_dict
-from models.lit_llama.model import LLaMA, LLaMAConfig
-from models.lit_llama.tokenizer import Tokenizer
-from dataloader.utils.generate_prompt import generate_prompt
-from inference.retriever_finetune_inference import ToolRetriever
+from ..models.generate import generate
+from ..models.lit_llama.lora import mark_only_lora_as_trainable, lora, lora_state_dict
+from ..models.lit_llama.model import LLaMA, LLaMAConfig
+from ..models.lit_llama.tokenizer import Tokenizer
+from ..dataloader.utils.generate_prompt import generate_prompt
+from ..inference.retriever_finetune_inference import ToolRetriever
 
 instruction_tuning = True
 eval_interval = 1

@@ -1,29 +1,28 @@
-# main_multi_libraries.py
+# 240421 TODO: need to be updated according to new pipeline in models/chitchat_classification.py, also split for train and test data
 
-import argparse
-from models.chitchat_classification import sampledata_combine, calculate_centroid, predict_by_similarity, plot_tsne_distribution_modified, process_topicalchat, process_chitchat
 import os
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-from gpt.utils import load_json
+from ..gpt.utils import load_json
+from ..inference.utils import predict_by_similarity
+from ..models.chitchat_classification import sampledata_combine, calculate_centroid, plot_tsne_distribution_modified, process_topicalchat, process_chitchat#, process_apiquery
 
 def process_multi_libraries(libraries):
     global combined_api_data
     combined_api_data = pd.DataFrame(columns=['Question', 'Source'])
-    
     def process_apiquery(lib_name):
         global combined_api_data
         json_data = load_json(f'./data/standard_process/{lib_name}/API_inquiry_annotate.json')
         questions = [entry['query'] for entry in json_data]
         df = pd.DataFrame({'Question': questions, 'Source': 'api-query'})
         combined_api_data = pd.concat([combined_api_data, df], ignore_index=True)
-    
     for lib_name in libraries:
         process_apiquery(lib_name)
     os.makedirs('./data/standard_process/multicorpus', exist_ok=True)
     combined_api_data.to_csv('./data/standard_process/multicorpus/api_data.csv', index=False)
 
 def main():
+    import argparse
     parser = argparse.ArgumentParser(description="Process data with multiple libraries.")
     parser.add_argument("--libraries", type=str, nargs='+', default=['scanpy', 'squidpy', 'pyopenms', 'qiime2', 'pyteomics', 'biopython', 'biotite', 'deap', 'eletoolkit', 'scenicplus', 'scikit-bio', 'scvi-tools'], help="List of libraries to process.")
     args = parser.parse_args()

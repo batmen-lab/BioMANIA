@@ -7,7 +7,7 @@ Description:
     Check whether there exist data leakage, duplicate queries, missing API for annotated data.
 """
 from typing import Tuple
-from gpt.utils import load_json
+from ..gpt.utils import load_json
 
 
 def get_training_and_test_sets(inquiry_data: list, annotated_data: list) -> Tuple[list, list]:

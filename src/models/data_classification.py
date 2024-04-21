@@ -1,26 +1,20 @@
 
-import sys
+import sys, os, random, torch, json
 from pathlib import Path
-import os
-import random
-
 import lightning as L
-import torch
-
 import torch.nn as nn
 from torch.utils.data import Dataset
 from tqdm import tqdm
-import json
 
 # support running without installing as a package
 wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 
-from models.lit_llama.lora import mark_only_lora_as_trainable, lora, lora_state_dict
-from models.lit_llama.model import LLaMA, LLaMAConfig
-from models.lit_llama.tokenizer import Tokenizer
-from inference.retriever_finetune_inference import ToolRetriever
-from gpt.utils import load_json
+from ..models.lit_llama.lora import mark_only_lora_as_trainable, lora, lora_state_dict
+from ..models.lit_llama.model import LLaMA, LLaMAConfig
+from ..models.lit_llama.tokenizer import Tokenizer
+from ..inference.retriever_finetune_inference import ToolRetriever
+from ..gpt.utils import load_json
 
 def compress_api_str_from_list(api):
     api_name = api['api_calling'][0].split('(')[0]

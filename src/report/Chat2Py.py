@@ -1,4 +1,4 @@
-from gpt.utils import load_json
+from ..gpt.utils import load_json
 
 def extract_tasks(file_path):
     data = load_json(file_path)

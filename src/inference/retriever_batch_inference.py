@@ -2,8 +2,8 @@ from sentence_transformers import SentenceTransformer, util
 import pandas as pd
 import torch
 import os
-from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version
-from gpt.utils import save_json
+from ..inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version
+from ..gpt.utils import save_json
 
 def load_query(dataset_type, data_path):
     queries_df = pd.read_csv(os.path.join(data_path, f'{dataset_type}.query.txt'), sep='\t', names=['qid', 'query'])

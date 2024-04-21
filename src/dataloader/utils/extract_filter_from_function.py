@@ -1,10 +1,12 @@
-import json, os, re
+import os, re
 from base_graph_ast import *
-
-from configs.model_config import *
-from model.model import *
-from prompt.prompt import *
-from gpt.utils import load_json, save_json
+from ...configs.model_config import *
+from ...models.model import *
+from ...prompt.parameters import *
+from ...prompt.composite import *
+from ...prompt.summary import *
+from ...prompt.instruction import *
+from ...gpt.utils import load_json, save_json
 
 
 class JSONFilter:

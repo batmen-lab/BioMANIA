@@ -6,13 +6,13 @@ import warnings
 warnings.filterwarnings("ignore")
 from docstring_parser import parser
 
-from configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet #tut, html_dict, code
-from dataloader.utils.tutorial_loader_strategy import main_convert_tutorial_to_py
+from ..configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet #tut, html_dict, code
+from ..dataloader.utils.tutorial_loader_strategy import main_convert_tutorial_to_py
 #from dataloader.utils.code_analyzer import extract_io_variables
-from models.model import LLM_model, LLM_response
-from prompt.composite import build_prompt_for_composite_docstring, build_prompt_for_composite_name
+from ..models.model import LLM_model, LLM_response
+from ..prompt.composite import build_prompt_for_composite_docstring, build_prompt_for_composite_name
 from typing import Optional, Any, Tuple
-from gpt.utils import load_json, save_json
+from ..gpt.utils import load_json, save_json
 
 def classify_code_blocks(code_blocks: list, pre_code_list: list) -> list:
     """

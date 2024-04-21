@@ -5,14 +5,14 @@ from tqdm import tqdm as tqdm_normal
 from tqdm.asyncio import tqdm_asyncio
 import pandas as pd
 from sklearn.utils import shuffle
-from models.model import LLM_response, LLM_model
-from prompt.instruction import make_instruction_generation_prompt
-from inference.utils import json_to_docstring, process_retrieval_desc
-from dataloader.get_API_init_from_sourcecode import parse_content_list
-from inference.retriever_finetune_inference import ToolRetriever
-from inference.utils import is_pair_in_merged_pairs, get_ambiguous_pairs
 from typing import Any, Tuple, Optional
-from gpt.utils import load_json, save_json
+from ..models.model import LLM_response, LLM_model
+from ..prompt.instruction import make_instruction_generation_prompt
+from ..inference.utils import json_to_docstring, process_retrieval_desc
+from ..dataloader.get_API_init_from_sourcecode import parse_content_list
+from ..inference.retriever_finetune_inference import ToolRetriever
+from ..inference.utils import is_pair_in_merged_pairs, get_ambiguous_pairs
+from ..gpt.utils import load_json, save_json
 
 def unify_response_format(response: str) -> list:
     """

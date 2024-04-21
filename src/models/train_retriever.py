@@ -1,12 +1,12 @@
 import pandas as pd
 import torch
+import argparse, os
 from torch.utils.data import DataLoader
 #torch.cuda.set_per_process_memory_fraction(0.5)
 from sentence_transformers import SentenceTransformer, InputExample, losses
-from models.api_evaluator import APIEvaluator
-import argparse, os
-from inference.utils import process_retrieval_document_query_version
 from typing import Tuple, Dict, Callable, List, Any, Set
+from ..models.api_evaluator import APIEvaluator
+from ..inference.utils import process_retrieval_document_query_version
 
 def load_query(dataset_type: str, data_path: str) -> Tuple[pd.DataFrame, Dict[int, str]]:
     """

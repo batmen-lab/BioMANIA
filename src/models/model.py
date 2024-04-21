@@ -1,5 +1,7 @@
-from configs.model_config import *
+from ..configs.model_config import *
+from ..gpt import gpt_interface
 import requests, json
+from langchain.embeddings import OpenAIEmbeddings
 
 def generate_completion_stream(model_name, prompt):
     # Requires Ollama downloaded!
@@ -29,7 +31,6 @@ def generate_completion_stream(model_name, prompt):
 
 def LLM_model():
     if LLM_MODEL in llm_model_dict and llm_model_dict[LLM_MODEL]['platform']=='OPENAI':
-        from gpt import gpt_interface
         gpt_interface.setup_openai('', mode='openai')
         llm = None
         tokenizer = None
@@ -47,7 +48,6 @@ def LLM_response(llm,tokenizer,chat_prompt,version="gpt-3.5-turbo-0125",history=
     get response from LLM
     """
     if LLM_MODEL in llm_model_dict and llm_model_dict[LLM_MODEL]['platform'] in ['OPENAI']:
-        from gpt import gpt_interface
         gpt_interface.setup_openai('', mode='openai')
         response = gpt_interface.query_openai(chat_prompt, mode="openai", model=version, max_tokens=MAX_NEW_TOKENS)
         history.append([chat_prompt, response])
@@ -62,7 +62,6 @@ def LLM_response(llm,tokenizer,chat_prompt,version="gpt-3.5-turbo-0125",history=
     return response, history
 
 def embedding_model():
-    from langchain.embeddings import OpenAIEmbeddings
     embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
     return embeddings
 

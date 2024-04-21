@@ -1,10 +1,10 @@
-import argparse, os, json
+import argparse, os, random
 from tqdm import tqdm
 import pandas as pd
-from configs.model_config import get_all_variable_from_cheatsheet
+from ..configs.model_config import get_all_variable_from_cheatsheet
 from sentence_transformers import SentenceTransformer, util
-from inference.utils import process_retrieval_document_query_version, is_pair_in_merged_pairs, find_similar_two_pairs
-from gpt.utils import save_json, load_json
+from ..inference.utils import process_retrieval_document_query_version, is_pair_in_merged_pairs, find_similar_two_pairs
+from ..gpt.utils import save_json, load_json
 import torch
 # Print average scores for each rank
 import matplotlib.pyplot as plt
@@ -28,8 +28,6 @@ class ToolRetriever:
     def build_shuffle_data(self,LIB, add_base=True):
         print('set add_base as :', add_base)
         # add API_base, fix 231227
-        import json
-        import random
         def process_data(path, files_ids):
             data = load_json(f'{path}/API_inquiry_annotate.json')
             return [dict(query=row['query'], gold=row['api_name']) for row in data if row['query_id'] not in files_ids['val'] and row['query_id'] not in files_ids['test']]

@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
-import os, re, ast, json, requests, nbformat, subprocess
+import os, re, ast, requests, nbformat, subprocess
 from bs4 import BeautifulSoup
 from datetime import datetime
-from configs.model_config import READTHEDOC_PATH, get_all_variable_from_cheatsheet
 from typing import Any, Dict, List
-from gpt.utils import save_json
+from ...configs.model_config import READTHEDOC_PATH, get_all_variable_from_cheatsheet
+from ...gpt.utils import save_json
 
 # base
 class CodeLoader(ABC):
@@ -381,7 +381,6 @@ class CodeLoaderContext:
         """
         Execute the saved Python files in the output folder and report the results.
         """
-        import os
         os.environ['MPLBACKEND'] = 'Agg'
         success_files = []
         error_files = []

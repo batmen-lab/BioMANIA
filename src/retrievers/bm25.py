@@ -2,7 +2,7 @@
 Thanks to llama-index for the template of this code.
 """
 from pydantic import BaseModel
-from retrievers.schema import BaseRetriever, Document
+from ..retrievers.schema import BaseRetriever, Document
 from typing import Any, Dict, List
 
 

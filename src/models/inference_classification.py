@@ -15,8 +15,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
-from inference.utils import is_pair_in_merged_pairs, find_similar_two_pairs
-from gpt.utils import save_json
+from ..inference.utils import is_pair_in_merged_pairs, find_similar_two_pairs
+from ..gpt.utils import save_json
 from typing import List, Tuple
 
 # support running without installing as a package
