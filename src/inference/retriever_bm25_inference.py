@@ -4,6 +4,7 @@ from retrievers import *
 from models.model import *
 from inference.utils import find_similar_two_pairs
 from typing import Tuple, List, Dict, Any, Set
+from gpt.utils import load_json
 # prepare corpus
 def prepare_corpus(ori_data: dict) -> Tuple[List[Dict[str, Any]], List[List[str]]]:
     """
@@ -96,14 +97,11 @@ def main(top_k: int, LIB: str) -> None:
     LIB : str
         Library identifier used to specify paths and filenames.
     """
-    with open(f'./data/standard_process/{LIB}/API_composite.json', 'r') as f:
-        ori_data = json.load(f)
-    with open(f'./data/standard_process/{LIB}/API_inquiry_annotate.json', 'r') as f:
-        results = json.load(f)
-    with open(f"./data/standard_process/{LIB}/API_instruction_testval_query_ids.json", "r") as f:
-        index_file = json.load(f)
-        test_ids = index_file['test']
-        val_ids = index_file['val']
+    ori_data = load_json(f"./data/standard_process/{LIB}/API_composite.json")
+    results = load_json(f'./data/standard_process/{LIB}/API_inquiry_annotate.json')
+    index_file = load_json(f"./data/standard_process/{LIB}/API_instruction_testval_query_ids.json")
+    test_ids = index_file['test']
+    val_ids = index_file['val']
     corpus, tokenized_corpus = prepare_corpus(ori_data)
     # Separate query_pairs into train and test based on the test IDs
     train_results = [entry for entry in results if entry['query_id'] not in test_ids and entry['query_id'] not in val_ids]

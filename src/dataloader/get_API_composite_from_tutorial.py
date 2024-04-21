@@ -12,24 +12,7 @@ from dataloader.utils.tutorial_loader_strategy import main_convert_tutorial_to_p
 from models.model import LLM_model, LLM_response
 from prompt.composite import build_prompt_for_composite_docstring, build_prompt_for_composite_name
 from typing import Optional, Any, Tuple
-
-def load_json(filename: str) -> dict:
-    """
-    Load JSON data from a specified file.
-
-    Parameters
-    ----------
-    filename : str
-        The path to the JSON file to be loaded.
-
-    Returns
-    -------
-    dict
-        The data loaded from the JSON file.
-    """
-    with open(filename, 'r') as file:
-        data = json.load(file)
-    return data
+from gpt.utils import load_json, save_json
 
 def classify_code_blocks(code_blocks: list, pre_code_list: list) -> list:
     """
@@ -799,8 +782,7 @@ def main_get_LLM_docstring(unique_code_blocks: list, LIB: str) -> None:
     API_composite = generate_api_callings(API_composite, basic_types=['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict'])
     # save API_composite.json
     #with open(os.path.join(LIB_ANALYSIS_PATH, 'API_composite.json'), 'w') as f: # test path
-    with open(os.path.join("data","standard_process",LIB, 'API_composite.json'), 'w') as f: # correct path
-        json.dump(API_composite, f, indent=4)
+    save_json(os.path.join("data","standard_process",LIB, 'API_composite.json', API_composite))
 
 def generate_api_callings(results: dict, basic_types: list = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict']) -> dict:
     """

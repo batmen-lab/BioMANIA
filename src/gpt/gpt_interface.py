@@ -1,9 +1,9 @@
-import json
 import openai
 import logging
 import tenacity as T
 import os
 from dotenv import load_dotenv
+from gpt.utils import load_json
 
 def setup_openai(fname, mode='azure'):
     assert mode in {'openai', 'azure'}
@@ -16,8 +16,7 @@ def setup_openai(fname, mode='azure'):
         secrets = None
     else:
         #openai.api_version = "2023-03-15-preview"
-        with open(fname) as f:
-            secrets = json.load(f)
+        secrets = load_json(fname)
         openai.api_type = "azure"
         openai.api_base = secrets['MS_ENDPOINT']
         openai.api_key = secrets['MS_KEY']

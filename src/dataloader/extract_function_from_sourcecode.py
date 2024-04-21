@@ -3,7 +3,6 @@ extract info from source code
 """
 import os
 import ast
-import json
 import glob
 from docstring_parser import parse
 import re
@@ -12,6 +11,7 @@ import importlib
 import inspect
 import astunparse
 from configs.model_config import *
+from gpt.utils import save_json
 
 def process_function(node,tree,filename,pair_decorator={}):
     """
@@ -493,8 +493,7 @@ def main():
     #tree_output_path = os.path.join(resource_dir,'demo_analysis',LIB,'tree_API.json')
     all_functions = processdir_to_function(dir_path)
     #tree_functions = to_tree_json(all_functions)
-    with open(output_path, 'w') as file:
-        json.dump(all_functions, file, indent=4)
+    save_json(output_path, all_functions)
 
 
 import inspect

@@ -4,6 +4,7 @@ import pandas as pd
 from configs.model_config import get_all_variable_from_cheatsheet
 from sentence_transformers import SentenceTransformer, util
 from inference.utils import process_retrieval_document_query_version, is_pair_in_merged_pairs, find_similar_two_pairs
+from gpt.utils import save_json, load_json
 import torch
 # Print average scores for each rank
 import matplotlib.pyplot as plt
@@ -30,14 +31,11 @@ class ToolRetriever:
         import json
         import random
         def process_data(path, files_ids):
-            with open(f'{path}/API_inquiry_annotate.json', 'r') as f:
-                data = json.load(f)
+            data = load_json(f'{path}/API_inquiry_annotate.json')
             return [dict(query=row['query'], gold=row['api_name']) for row in data if row['query_id'] not in files_ids['val'] and row['query_id'] not in files_ids['test']]
-        with open(f"./data/standard_process/{LIB}/API_instruction_testval_query_ids.json", 'r') as file:
-            lib_files_ids = json.load(file)
+        lib_files_ids = load_json(f'./data/standard_process/{LIB}/API_instruction_testval_query_ids.json')
         lib_data = process_data(f'./data/standard_process/{LIB}', lib_files_ids)
-        with open(f"./data/standard_process/base/API_instruction_testval_query_ids.json", 'r') as base_file_ids:
-            base_files_ids = json.load(base_file_ids)
+        base_files_ids = load_json(f'./data/standard_process/base/API_instruction_testval_query_ids.json')
         base_data = process_data('./data/standard_process/base', base_files_ids)
         if add_base:
             lib_data = lib_data + base_data
@@ -158,8 +156,7 @@ def compute_accuracy(retriever: ToolRetriever, data: List[Dict[str, Any]], args:
     assert total_api_non_ambiguous<len(data)
     accuracy = correct_predictions / len(data) * 100
     ambiguous_accuracy = (correct_predictions) / total_api_non_ambiguous * 100
-    with open(f'./plot/{args.LIB}/error_{name}_topk_{args.retrieved_api_nums}.json', 'w') as json_file:
-        json.dump(data_to_save, json_file, indent=4)
+    save_json(f'./plot/{args.LIB}/error_{name}_topk_{args.retrieved_api_nums}.json', data_to_save)
     # Compute average scores for each rank
     scores = {
         "rank_1": scores_rank_1,
@@ -172,8 +169,7 @@ def compute_accuracy(retriever: ToolRetriever, data: List[Dict[str, Any]], args:
 
 def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train', LIB_ALIAS='scanpy'):
     # remove class type API, and composite API from the data
-    with open(f"./data/standard_process/{args.LIB}/API_composite.json", 'r') as file:
-        API_composite = json.load(file)
+    API_composite = load_json(f"./data/standard_process/{args.LIB}/API_composite.json")
     merged_pairs = find_similar_two_pairs(f"./data/standard_process/{args.LIB}/API_init.json")
     correct_predictions = 0
     ambiguous_correct_predictions = 0  # Additional metric for ambiguous matches
@@ -238,8 +234,7 @@ def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train', LIB
     assert ambiguous_correct_predictions + total_api_non_ambiguous == total_api_non_composite
     accuracy = correct_predictions / total_api_non_composite * 100
     ambiguous_accuracy = (correct_predictions) / total_api_non_ambiguous * 100
-    with open(f'./plot/{args.LIB}/error_{name}_topk_{args.retrieved_api_nums}.json', 'w') as json_file:
-        json.dump(data_to_save, json_file, indent=4)
+    save_json(f'./plot/{args.LIB}/error_{name}_topk_{args.retrieved_api_nums}.json', data_to_save)
     # Compute average scores for each rank
     scores = {
         "rank_1": scores_rank_1,
@@ -284,10 +279,8 @@ if __name__ == "__main__":
     LIB_ALIAS, API_HTML, TUTORIAL_GITHUB, API_HTML_PATH = [info_json[key] for key in ['LIB_ALIAS', 'API_HTML', 'TUTORIAL_GITHUB','API_HTML_PATH']]
 
     # Step 1: Load API data from the JSON file
-    with open(args.input_query_file, 'r') as file:
-        api_data = json.load(file)
-    with open(args.idx_file, 'r') as f:
-        index_data = json.load(f)
+    api_data = load_json(args.input_query_file)
+    index_data = load_json(args.idx_file)
     test_ids = index_data['test']
     val_ids = index_data['val']
 

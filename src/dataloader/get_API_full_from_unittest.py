@@ -1,11 +1,7 @@
 import os, ast, json, fnmatch
 from typing import Dict, Any, List, Tuple, Union
 from configs.model_config import LIB, ANALYSIS_PATH, GITHUB_PATH
-
-def load_json(filename: str) -> Dict:
-    with open(filename, 'r') as file:
-        data = json.load(file)
-    return data
+from gpt.utils import load_json, save_json
 
 def find_test_files(directory: str):
     for root, dirnames, filenames in os.walk(directory):
@@ -71,8 +67,7 @@ def generate_json_file(directory: str, output_filename: str, lib_name: str) -> N
         output.update(functions)
     output = filter_json(output, lib_name)
     output = deduplicate_json_data(output)
-    with open(output_filename, 'w') as file:
-        json.dump(output, file, indent=4)
+    save_json(output_filename, output)
 
 def filter_json(json_data, lib_name):
     return {k: v for k, v in json_data.items() if k.startswith(lib_name + '.')}
@@ -101,8 +96,7 @@ def append_example_to_json(json_data: Dict[str, Union[Dict[str, List[str]], str]
 
 def test_functions_from_json(json_filename: str):
     # guarantee it is executable
-    with open(json_filename, 'r') as file:
-        functions = json.load(file)
+    functions = load_json(json_filename)
     success_count = 0
     failure_count = 0
     for function_name, function_info_list in functions.items():
@@ -116,8 +110,7 @@ def test_functions_from_json(json_filename: str):
                 failure_count += 1
     print(f"Executed {success_count} functions successfully.")
     print(f"Failed to execute {failure_count} functions.")
-    with open(json_filename, 'w') as file:
-        json.dump(functions, file, indent=4)
+    save_json(json_filename, functions)
 
 def deduplicate_json_data(json_data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, List[Dict[str, Any]]]:
     """
@@ -206,8 +199,7 @@ def merge_unittest_examples_into_API_init(lib_name: str, analysis_path: str, git
     print('Unique in unittest api: ', len(no_unittest_list))
     no_unittest_list = find_no_unittest(API_with_test)
     print('Unique in API_init api: ',len(no_unittest_list))
-    with open(os.path.join(analysis_path,lib_name, 'API_init.json'), 'w') as f:
-        json.dump(API_with_test, f, indent=4)
+    save_json(os.path.join(analysis_path,lib_name, 'API_init.json'), API_with_test)
 
 import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))

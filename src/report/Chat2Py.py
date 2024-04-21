@@ -1,8 +1,7 @@
-import json
+from gpt.utils import load_json
 
 def extract_tasks(file_path):
-    with open(file_path, 'r') as file:
-        data = json.load(file)
+    data = load_json(file_path)
     result_data = []
     for item in data['history']:
         code_status = {}
@@ -54,5 +53,6 @@ if __name__ == "__main__":
     parser.add_argument("file_path", help="Path to the JSON file")
     args = parser.parse_args()
     tasks = extract_tasks(args.file_path)
+    import json
     print(json.dumps(tasks, indent=2))
     python_code = generate_python_code(tasks, args.file_path)

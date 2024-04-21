@@ -10,6 +10,7 @@ import os, json, ast, io, tokenize
 from collections import OrderedDict
 from models.model import LLM_model, LLM_response
 from tqdm import tqdm
+from gpt.utils import save_json
 #from dataloader.preprocess_retriever_data import preprocess_fake_test_data
 
 # Step1: get tutorial pieces
@@ -17,14 +18,12 @@ def get_tutorial_pieces(LIB, TUTORIAL_HTML, LIB_ANALYSIS_PATH, use_source="readt
     if use_source=='github':
         context = main_convert_tutorial_to_py(LIB_ANALYSIS_PATH, subpath='Git_Tut', strategy_type='ipynb', file_types=['ipynb'])
         html_dict = context.code_json
-        with open('context1.json', 'w') as f:
-            json.dump(html_dict, f, indent=4)
+        save_json('context1.json', html_dict)
     elif use_source=='readthedoc':
         readthedoc_realpath = os.path.join(READTHEDOC_PATH, TUTORIAL_HTML)
         context = main_convert_tutorial_to_py(readthedoc_realpath, subpath='', strategy_type='html', file_types=['html'])
         html_dict = context.code_json
-        with open('context2.json', 'w') as f:
-            json.dump(html_dict, f, indent=4)
+        save_json('context2.json', html_dict)
     # Step2: break into pieces
     window_size = 1  # Set your desired sliding window size
     combined_tutorials = {}
@@ -44,8 +43,7 @@ def get_tutorial_pieces(LIB, TUTORIAL_HTML, LIB_ANALYSIS_PATH, use_source="readt
     output_json_path = f'./data/autocoop/{LIB}/combined_tutorials.json'
     output_dir = os.path.dirname(output_json_path)
     os.makedirs(output_dir, exist_ok=True)
-    with open(output_json_path, 'w') as json_file:
-        json.dump(combined_tutorials, json_file, indent=4)
+    save_json(output_json_path, combined_tutorials)
     print(f"Combined tutorials saved to {output_json_path}")
     return combined_tutorials
 
@@ -236,8 +234,7 @@ def get_relevant_API(combined_tutorials, LIB_ALIAS, ask_GPT=False):
     output_json_path = f'./data/autocoop/{args.LIB}/summarized_responses.json'
     output_dir = os.path.dirname(output_json_path)
     os.makedirs(output_dir, exist_ok=True)
-    with open(output_json_path, 'w') as json_file:
-        json.dump(summarized_responses, json_file, indent=4)
+    save_json(output_json_path, summarized_responses)
     print(f"summarized_responses saved to {output_json_path}")
     return summarized_responses
 

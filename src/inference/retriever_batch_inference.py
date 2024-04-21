@@ -1,9 +1,9 @@
 from sentence_transformers import SentenceTransformer, util
-import json
 import pandas as pd
 import torch
 import os
 from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version
+from gpt.utils import save_json
 
 def load_query(dataset_type, data_path):
     queries_df = pd.read_csv(os.path.join(data_path, f'{dataset_type}.query.txt'), sep='\t', names=['qid', 'query'])
@@ -48,8 +48,7 @@ def retrieve_inference(model, dataset_path, dataset_type, top_k, device):
     accuracy = successful_match_count / (query_index+1) * 100
     print(f"Accuracy for {dataset_type}: {accuracy:.2f}, total #{query_index+1}, accurate #{successful_match_count}")
 
-    with open(os.path.join(args.dataset_path,f"retrieved_{dataset_type}.json"), 'w') as f:
-        json.dump(top_results, f, indent=4)
+    save_json(os.path.join(args.dataset_path,f"retrieved_{dataset_type}.json"), top_results)
 
 import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))

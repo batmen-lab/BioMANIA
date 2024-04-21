@@ -16,6 +16,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
 from inference.utils import is_pair_in_merged_pairs, find_similar_two_pairs
+from gpt.utils import save_json
 from typing import List, Tuple
 
 # support running without installing as a package
@@ -199,8 +200,7 @@ def evaluate_model(model: nn.Module, loader: DataLoader, criterion: nn.Module, m
                 error_json.append(error_j)
                 if not is_pair_in_merged_pairs(retrieved_names[i][labels[i].item()], retrieved_names[i][predicted[i].item()], merged_pairs):
                     non_ambiguous_total += 1
-    with open(f'./plot/{LIB}/API_error_{mode}.json', 'w') as f:
-        json.dump(error_json, f, indent=4)
+    save_json(f'./plot/{LIB}/API_error_{mode}.json', error_json)
     print(f'{mode} Loss: {total_loss / len(loader):.4f}')
     print(f'{mode} Accuracy: {100 * correct / total:.2f}%')
     print(f'{mode} ambiguous Accuracy: {100 * correct / non_ambiguous_total:.2f}%')

@@ -1,5 +1,6 @@
 import pickle, importlib, json, inspect, os, io, sys, re
 from anndata import AnnData
+from gpt.utils import save_json, load_json
 
 class CodeExecutor:
     def __init__(self):
@@ -457,11 +458,9 @@ class CodeExecutor:
             return error
     def save_variables_to_json(self, ):
         save_data = {name: details["type"] for name, details in self.variables.items()}
-        with open(os.path.join(self.save_directory,f"{self.session_id}_variables.json"), "w") as file:
-            json.dump(save_data, file)
+        save_json(os.path.join(self.save_directory,f"{self.session_id}_variables.json"), save_data)
     def load_variables_to_json(self):
-        with open(os.path.join(self.save_directory,f"{self.session_id}_variables.json"), "r") as file:
-            saved_vars = json.load(file)
+        saved_vars = load_json(os.path.join(self.save_directory,f"{self.session_id}_variables.json"))
         variables = {}
         for var_name, var_type in saved_vars.items():
             if var_name in globals():

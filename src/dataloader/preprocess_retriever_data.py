@@ -12,6 +12,7 @@ from dataloader.get_API_init_from_sourcecode import parse_content_list
 from inference.retriever_finetune_inference import ToolRetriever
 from inference.utils import is_pair_in_merged_pairs, get_ambiguous_pairs
 from typing import Any, Tuple, Optional
+from gpt.utils import load_json, save_json
 
 def unify_response_format(response: str) -> list:
     """
@@ -304,12 +305,10 @@ def preprocess_retriever_data(OUTPUT_DIR: str, QUERY_FILE: str, QUERY_ANNOTATE_F
         The file path to save indices of test and validation sets.
 
     """
-    with open(QUERY_FILE, 'r') as f:
-        query_data_ori = json.load(f)
+    query_data_ori = load_json(QUERY_FILE)
     start_idx_for_test = max([i['query_id'] for i in query_data_ori])
     # code from toolbench retriever train.py
-    with open(QUERY_ANNOTATE_FILE, 'r') as f:
-        query_data = json.load(f)
+    query_data = load_json(QUERY_ANNOTATE_FILE)
     idx = len(query_data)
     ############# fixed split
     test_indices = [i['query_id'] for i in query_data if i['query_id']>start_idx_for_test]
@@ -347,18 +346,14 @@ def preprocess_retriever_data(OUTPUT_DIR: str, QUERY_FILE: str, QUERY_ANNOTATE_F
     final_index_data = {'test':test_index_set, 'val':val_index_set}
     assert len(set(test_index_set).intersection(set(val_index_set))) == 0, f"Test and Val sets overlap.{set(test_index_set).intersection(set(val_index_set))}"
     #assert len(query_data) not in test_index_set, "Test set is empty or contains the last index."
-    with open(INDEX_FILE, 'w') as f:
-        json.dump(final_index_data, f, indent=4)
+    save_json(f"{OUTPUT_DIR}/index.json", final_index_data)
     query_train = [i for i in query_data if i['query_id'] not in test_index_set and i['query_id'] not in val_index_set]
     query_val = [i for i in query_data if i['query_id'] in val_index_set]
     query_test = [i for i in query_data if i['query_id'] in test_index_set]
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    with open(f"{OUTPUT_DIR}/train.json", 'w') as f:
-        json.dump(query_train, f, indent=4)
-    with open(f"{OUTPUT_DIR}/val.json", 'w') as f:
-        json.dump(query_val, f, indent=4)
-    with open(f"{OUTPUT_DIR}/test.json", 'w') as f:
-        json.dump(query_test, f, indent=4)
+    save_json(f"{OUTPUT_DIR}/train.json", query_train)
+    save_json(f"{OUTPUT_DIR}/val.json", query_val)
+    save_json(f"{OUTPUT_DIR}/test.json", query_test)
     ### For dataset preprocess ###
     documents = []
     doc_id_map = {}  # Create a mapping from doc to doc_id
@@ -451,8 +446,7 @@ def preprocess_retriever_data_shuffle(OUTPUT_DIR: str, QUERY_FILE: str, QUERY_AN
     api_txt_path : Optional[str]
         The path to a text file containing API names, optional.
     """
-    with open(QUERY_FILE, 'r') as f:
-        query_data_ori = json.load(f)
+    query_data_ori = load_json(QUERY_FILE)
     if api_txt_path:
         content_list = []
         try:
@@ -468,18 +462,15 @@ def preprocess_retriever_data_shuffle(OUTPUT_DIR: str, QUERY_FILE: str, QUERY_AN
     print('previous query length:', len(query_data_ori))
     query_data_ori = filter_and_update_query_id(query_data_ori, api_list)
     print('filtered query length:', len(query_data_ori))
-    #with open('data/standard_process/scanpy_subset/API_inquiry.json', 'w') as file:
-    #    json.dump(query_data_ori, file, indent=4)
+    #save_json('data/standard_process/scanpy_subset/API_inquiry_annotate.json', query_data_ori)
     start_idx_for_test = max([i['query_id'] for i in query_data_ori])
     assert start_idx_for_test==len(query_data_ori)-1, 'start_idx_for_test is not the last index of query_data_ori'
     # code from toolbench retriever train.py
-    with open(QUERY_ANNOTATE_FILE, 'r') as f:
-        query_data = json.load(f)
+    query_data = load_json(QUERY_ANNOTATE_FILE)
     print('previous query length:', len(query_data))
     query_data = filter_and_update_query_id(query_data, api_list)
     print('filtered query length:', len(query_data))
-    #with open('data/standard_process/scanpy_subset/API_inquiry_annotate.json', 'w') as file:
-    #    json.dump(query_data, file, indent=4)
+    #save_json('data/standard_process/scanpy_subset/API_inquiry_annotate.json', query_data)
     idx = len(query_data)
     ############# fixed split
     test_indices = [i['query_id'] for i in query_data if i['query_id']>start_idx_for_test]
@@ -536,19 +527,15 @@ def preprocess_retriever_data_shuffle(OUTPUT_DIR: str, QUERY_FILE: str, QUERY_AN
     final_index_data = {'test':test_index_set, 'val':val_index_set}
     assert len(set(test_index_set).intersection(set(val_index_set))) == 0, f"Test and Val sets overlap.{set(test_index_set).intersection(set(val_index_set))}"
     #assert len(query_data) not in test_index_set, "Test set is empty or contains the last index."
-    with open(INDEX_FILE, 'w') as f:
-        json.dump(final_index_data, f, indent=4)
+    save_json(INDEX_FILE, final_index_data)
     query_train = [i for i in query_data if i['query_id'] not in test_index_set and i['query_id'] not in val_index_set]
     query_val = [i for i in query_data if i['query_id'] in val_index_set]
     query_test = [i for i in query_data if i['query_id'] in test_index_set]
     print('length of query: ', len(query_train), len(query_val), len(query_test))
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    with open(f"{OUTPUT_DIR}/train.json", 'w') as f:
-        json.dump(query_train, f, indent=4)
-    with open(f"{OUTPUT_DIR}/val.json", 'w') as f:
-        json.dump(query_val, f, indent=4)
-    with open(f"{OUTPUT_DIR}/test.json", 'w') as f:
-        json.dump(query_test, f, indent=4)
+    save_json(f"{OUTPUT_DIR}/train.json", query_train)
+    save_json(f"{OUTPUT_DIR}/val.json", query_val)
+    save_json(f"{OUTPUT_DIR}/test.json", query_test)
     ### For dataset preprocess ###
     documents = []
     doc_id_map = {}  # Create a mapping from doc to doc_id
@@ -631,8 +618,7 @@ def preprocess_fake_test_data(QUERY_FILE: str, QUERY_ANNOTATE_FILE: str) -> None
     QUERY_ANNOTATE_FILE : str
         The file path where the annotated query data will be stored.
     """
-    with open(QUERY_FILE, 'r') as f:
-        query_data = json.load(f)
+    query_data = load_json(QUERY_FILE)
     seen_apis = set()
     final_data = []
     start_idx = len(query_data)
@@ -647,8 +633,7 @@ def preprocess_fake_test_data(QUERY_FILE: str, QUERY_ANNOTATE_FILE: str) -> None
     datadata = query_data+final_data
     for entry in datadata:
         entry['api_name'] = entry['api_calling'][0].split('(')[0]
-    with open(QUERY_ANNOTATE_FILE, "w") as file:
-        json.dump(datadata, file, ensure_ascii=False, indent=4)
+    save_json(QUERY_ANNOTATE_FILE, datadata) # ensure_ascii=False
 
 def create_corpus_from_json(API_init_json: dict, corpus_tsv_path: str) -> None:
     """
@@ -768,8 +753,7 @@ async def preprocess_instruction_d(desc_retriever: Any, API_init: dict, QUERY_FI
     for i, result in enumerate(results):
         result['query_id'] = i
     # Process the ordered results
-    with open(QUERY_FILE, 'w') as f:
-        json.dump(results, f, indent=4)
+    save_json(QUERY_FILE, results)
     retained_apis_from_results = set([entry['api_calling'][0].split('(')[0] for entry in results])
     retained_proportion = len(retained_apis_from_results) / len(ori_data)
     print(f'the retained proportion is {retained_proportion}')
@@ -793,8 +777,7 @@ if __name__=='__main__':
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
     
     API_init, API_composite, OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE = get_all_path(args.LIB)
-    with open(API_init, 'r') as f:
-        API_init_json = json.load(f)
+    API_init_json = load_json(API_init)
     # prepare desc_prompt corpus
     print('preparing desc_prompt corpus')
     os.makedirs(f"./data/standard_process/{args.LIB}/prompt_desc/", exist_ok=True)

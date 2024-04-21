@@ -1,11 +1,10 @@
 from fpdf import FPDF
-import os
-from PIL import Image
-import numpy as np
+import os, re, glob
 import subprocess
-import json
 import argparse
 import matplotlib.pyplot as plt
+import pandas as pd
+from gpt.utils import load_json
 
 # Parsing arguments for the JSON file path
 parser = argparse.ArgumentParser(description="")
@@ -189,8 +188,8 @@ from tqdm import auto as tqdm
 import logging
 logging.basicConfig(level=logging.CRITICAL)  # turn off logging
 # load data
-with open(f'./data/standard_process/{LIB}/API_inquiry_annotate.json', 'r') as f:
-    data = json.load(f)
+from inference.utils import load_json
+data = load_json(f'./data/standard_process/{LIB}/API_inquiry_annotate.json')
 # all-apis
 import re, os
 from string import punctuation
@@ -200,9 +199,7 @@ all_apis = list(all_apis.items())
 all_apis_json = {i[0]:i[1] for i in all_apis}
 # For accuracy without ambiguous pair
 from collections import defaultdict
-with open(f"./data/standard_process/{LIB}/API_composite.json", "r") as file:
-    api_composite_data = json.load(file)
-    
+api_composite_data = load_json(f"./data/standard_process/{LIB}/API_composite.json")
 api_composite_data = {key:api_composite_data[key] for key in api_composite_data if api_composite_data[key]['api_type']!='class'}
 
 # 1: description
@@ -241,11 +238,6 @@ list_2 = similar_pairs
 pairs_from_list_2 = [(apis[i], apis[j]) for apis in list_2 for i in range(len(apis)) for j in range(i+1, len(apis))]
 merged_pairs = list(set(list_1 + pairs_from_list_2))
 
-import glob
-import pandas as pd
-import os
-import json
-import re
 
 results = []
 def is_pair_in_merged_pairs(gold, pred, merged_pairs):
@@ -253,8 +245,7 @@ def is_pair_in_merged_pairs(gold, pred, merged_pairs):
     return (gold, pred) in merged_pairs or (pred, gold) in merged_pairs
 all_apis_from_pairs = set(api for pair in merged_pairs for api in pair)
 for fname in glob.glob('./gpt/*/*.json'):
-    with open(fname) as f:
-        res = json.load(f)
+    res = load_json(fname)
     original_correct = [ex['correct'] for ex in res]
     original_c = [i for i in original_correct if i]
     original_accuracy = sum(original_correct) / len(original_correct) if res else 0

@@ -4,6 +4,7 @@ import numpy as np
 from tqdm import tqdm
 from sentence_transformers import SentenceTransformer
 from inference.utils import sentence_transformer_embed, predict_by_similarity
+from gpt.utils import load_json
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
@@ -11,8 +12,7 @@ def process_topicalchat() -> None:
     """
     Processes the TopicalChat dataset, extracting questions and saving them to a CSV file.
     """
-    with open('./data/conversations/train.json', 'r') as file:
-        data = json.load(file)
+    data = load_json('./data/conversations/train.json')
     questions = []
     for conversation_id, conversation_data in data.items():
         content = conversation_data["content"]
@@ -57,8 +57,7 @@ def process_apiquery(lib_name: str, filename: str = "API_inquiry.json", start_id
     pd.DataFrame
         A DataFrame containing the filtered API queries.
     """
-    with open(f'./data/standard_process/{lib_name}/{filename}', 'r') as file:
-        json_data = json.load(file)
+    json_data = load_json(f'./data/standard_process/{lib_name}/{filename}')
     filtered_data = [entry for entry in json_data if entry['query_id'] >= start_id]
     questions = [entry['query'] for entry in filtered_data]
     df = pd.DataFrame({'Question': questions, 'Source': 'api-query'})
@@ -209,12 +208,10 @@ def main(LIB: str, ratio_1_to_3: float, ratio_2_to_3: float, embed_method: str, 
     process_topicalchat()
     process_chitchat()
     tmp_data = process_apiquery(LIB)
-    with open(f'./data/standard_process/{LIB}/API_inquiry.json', 'r') as file:
-        json_data = json.load(file)
+    json_data = load_json(f'./data/standard_process/{LIB}/API_inquiry.json')
     max_query_id = max(entry['query_id'] for entry in json_data)
     test_data3 = process_apiquery(LIB, 'API_inquiry_annotate.json', start_id=max_query_id + 1, index_save=False)
-    with open(f'./data/standard_process/{LIB}/API_inquiry_annotate.json', 'r') as file:
-        json_data = json.load(file)
+    json_data = load_json(f'./data/standard_process/{LIB}/API_inquiry_annotate.json')
     assert len(test_data3)+len(tmp_data)==len(json_data)
     data1 = pd.read_csv('./data/others-data/dialogue_questions.csv')
     data2 = pd.read_csv('./data/others-data/combined_data.csv')

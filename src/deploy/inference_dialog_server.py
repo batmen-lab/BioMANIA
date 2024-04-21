@@ -20,7 +20,7 @@ from sentence_transformers import SentenceTransformer
 from inference.utils import predict_by_similarity, json_to_docstring
 from tqdm import tqdm
 from deploy.utils import change_format
-from gpt.utils import get_all_api_json, correct_pred
+from gpt.utils import get_all_api_json, correct_pred, load_json, save_json
 
 import logging
 from datetime import datetime
@@ -405,8 +405,7 @@ class Model:
             }
         }
         #cheatsheet_data.update(new_lib_details)
-        #with open(cheatsheet_path, 'w') as file:
-        #    json.dump(cheatsheet_data, file, indent=4)
+        # save_json(cheatsheet_path, cheatsheet_data)
         # TODO: need to save tutorial_github and tutorial_html_path to cheatsheet
 
     def install_lib_full(self,lib_name, lib_alias, api_html=None, github_url=None, doc_url=None):
@@ -513,8 +512,7 @@ class Model:
             }
         }
         #cheatsheet_data.update(new_lib_details)
-        #with open(cheatsheet_path, 'w') as file:
-        #    json.dump(cheatsheet_data, file, indent=4)
+        # save_json(cheatsheet_path, cheatsheet_data)
         # TODO: need to save tutorial_github and tutorial_html_path to cheatsheet
 
     def update_image_file_list(self):
@@ -550,10 +548,8 @@ class Model:
         self.llm, self.tokenizer = LLM_model()
     def load_data(self, API_file):
         # fix 231227, add API_base.json
-        with open(API_file, 'r') as json_file:
-            data = json.load(json_file)
-        with open("./data/standard_process/base/API_composite.json", 'r') as json_file:
-            base_data = json.load(json_file)
+        data = load_json(API_file)
+        base_data = load_json("./data/standard_process/base/API_composite.json")
         self.API_composite = data
         self.API_composite.update(base_data)
     def generate_file_loading_code(self, file_path, file_type):

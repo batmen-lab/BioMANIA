@@ -8,7 +8,7 @@ import lightning as L
 import torch
 
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from tqdm import tqdm
 import json
 
@@ -20,7 +20,7 @@ from models.lit_llama.lora import mark_only_lora_as_trainable, lora, lora_state_
 from models.lit_llama.model import LLaMA, LLaMAConfig
 from models.lit_llama.tokenizer import Tokenizer
 from inference.retriever_finetune_inference import ToolRetriever
-#from inference.utils import process_retrieval_document, compress_api_str_from_list
+from gpt.utils import load_json
 
 def compress_api_str_from_list(api):
     api_name = api['api_calling'][0].split('(')[0]
@@ -113,10 +113,8 @@ class DataPreprocess():
         return tmp_data
         
     def update_and_save_dataset(self, data_dir, save_path, idx_file, API_composite,retrieved_path,batch_size=64):
-        with open(data_dir, 'r') as f:
-            dataset = json.load(f)
-        with open(idx_file, "r") as f:
-            idx_data = json.load(f)
+        dataset = load_json(data_dir)
+        idx_data = load_json(idx_file)
         
         test_tmp_data = [data for data in dataset if data['query_id'] in idx_data['test']]
         val_tmp_data = [data for data in dataset if data['query_id'] in idx_data['val']]
@@ -232,8 +230,7 @@ def main(
         Library identifier used in retriever initialization.
     """
     os.makedirs(plot_dir, exist_ok=True)
-    with open(API_composite_dir, 'r') as json_file:
-        data = json.load(json_file)
+    data = load_json(API_composite_dir)
     API_composite = data
     fabric = L.Fabric(accelerator="cuda", devices=device_count, precision="bf16") # bf16-true
     fabric.launch()

@@ -6,25 +6,9 @@ Last Edited Date: 2024-01-23
 Description: 
     Check whether there exist data leakage, duplicate queries, missing API for annotated data.
 """
-import json
 from typing import Tuple
+from gpt.utils import load_json
 
-def load_data(file_path: str) -> list:
-    """
-    Load data from a JSON file.
-
-    Parameters
-    ----------
-    file_path : str
-        The file path of the JSON file to load.
-
-    Returns
-    -------
-    list
-        A list containing the data loaded from the JSON file.
-    """
-    with open(file_path, 'r') as file:
-        return json.load(file)
 
 def get_training_and_test_sets(inquiry_data: list, annotated_data: list) -> Tuple[list, list]:
     """
@@ -159,10 +143,10 @@ def main(LIB: str) -> None:
     LIB : str
         The library name for the JSON data to be processed.
     """
-    inquiry_data = load_data(f'./data/standard_process/{LIB}/API_inquiry.json')
-    annotated_data = load_data(f'./data/standard_process/{LIB}/API_inquiry_annotate.json')
-    composite_data = load_data(f'./data/standard_process/{LIB}/API_composite.json')
-    single_data = load_data(f'./data/standard_process/{LIB}/API_init.json')
+    inquiry_data = load_json(f'./data/standard_process/{LIB}/API_inquiry.json')
+    annotated_data = load_json(f'./data/standard_process/{LIB}/API_inquiry_annotate.json')
+    composite_data = load_json(f'./data/standard_process/{LIB}/API_composite.json')
+    single_data = load_json(f'./data/standard_process/{LIB}/API_init.json')
     train_data, test_data = get_training_and_test_sets(inquiry_data, annotated_data)
     inquiry_api_names = set()
     for inquiry in inquiry_data:

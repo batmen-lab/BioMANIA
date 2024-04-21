@@ -1,6 +1,5 @@
 import nbformat
 from nbformat.v4 import new_notebook, new_markdown_cell, new_code_cell
-import json
 
 # Define a function to extract the relevant elements from the JSON content
 def extract_elements(json_content):
@@ -80,14 +79,13 @@ import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__ == "__main__":
-    import json
     import argparse
+    from gpt.utils import load_json
     # Parsing arguments for the JSON file path
     parser = argparse.ArgumentParser(description="Extract tasks from JSON file")
     parser.add_argument("file_path", help="Path to the JSON file")
     args = parser.parse_args()
-    with open(args.file_path, 'r') as file:
-        json_content = json.load(file)
+    json_content = load_json(args.file_path)
     extracted_elements = extract_elements(json_content)
     notebook = create_notebook(extracted_elements)
     notebook_file_path = args.file_path.replace('.json','.ipynb')

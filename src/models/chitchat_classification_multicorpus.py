@@ -5,7 +5,7 @@ from models.chitchat_classification import sampledata_combine, calculate_centroi
 import os
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-import json
+from gpt.utils import load_json
 
 def process_multi_libraries(libraries):
     global combined_api_data
@@ -13,8 +13,7 @@ def process_multi_libraries(libraries):
     
     def process_apiquery(lib_name):
         global combined_api_data
-        with open(f'./data/standard_process/{lib_name}/API_inquiry_annotate.json', 'r') as file:
-            json_data = json.load(file)
+        json_data = load_json(f'./data/standard_process/{lib_name}/API_inquiry_annotate.json')
         questions = [entry['query'] for entry in json_data]
         df = pd.DataFrame({'Question': questions, 'Source': 'api-query'})
         combined_api_data = pd.concat([combined_api_data, df], ignore_index=True)

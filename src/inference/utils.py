@@ -1,10 +1,9 @@
-import json
-import os, datetime
+import json, os, datetime
 import matplotlib.pyplot as plt
-
 from collections import defaultdict
-from gpt.utils import get_all_api_json, find_similar_api_pairs, is_pair_in_merged_pairs, find_similar_two_pairs, get_ambiguous_pairs
+from gpt.utils import get_all_api_json, find_similar_api_pairs, is_pair_in_merged_pairs, find_similar_two_pairs, get_ambiguous_pairs, save_json, load_json
 import numpy as np
+from PIL import Image
 
 def json_to_docstring(api_name, description, parameters):
     params_list = ', '.join([
@@ -30,8 +29,7 @@ def predict_by_similarity(user_query_vector, centroids, labels):
 
 def find_similar_pairs(lib, require_same_depth=False):
     # find similar name pairs
-    with open(f'./data/standard_process/{lib}/API_init.json', 'r') as file:
-        data = json.load(file)
+    data = load_json(f'./data/standard_process/{lib}/API_init.json')
     api_list = list(data.keys())
     groups = defaultdict(list)
     for api in api_list:
@@ -48,7 +46,6 @@ def find_similar_pairs(lib, require_same_depth=False):
 
 if not os.path.exists("./tmp/images"):
     os.makedirs("./tmp/images", exist_ok=True)
-from PIL import Image
 #def compress_and_save_image(image_path, quality=85):
 #    with Image.open(image_path) as img:
 #        img.save(image_path, "PNG", optimize=True, quality=quality)
@@ -166,8 +163,7 @@ def process_retrieval_document(documents_df):
 
 def get_all_types_in_API(LIB):
     filepath=f"./data/standard_process/{LIB}/API_composite.json"
-    with open(filepath, "r") as file:
-        api_data = json.load(file)
+    api_data = load_json(filepath)
     types = set()
     variables_list = []
     for api_name, api_details in api_data.items():
@@ -178,14 +174,14 @@ def get_all_types_in_API(LIB):
         #    types.add(param_details["type"])
     return types
 
-def fast_get_environment(pre_code):
+"""def fast_get_environment(pre_code):
     from inference.execution_UI import CodeExecutor
     executor = CodeExecutor()
     executor.save_directory = './tmp'
     executor.execute_api_call(pre_code)
     executor.save_environment("pre_env.pkl")
     executor.save_variables_to_json()
-    return executor
+    return executor"""
 
 def sentence_transformer_embed(model, texts):
     embeddings = model.encode(texts, convert_to_tensor=True)

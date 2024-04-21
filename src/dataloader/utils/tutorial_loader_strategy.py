@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from configs.model_config import READTHEDOC_PATH, get_all_variable_from_cheatsheet
 from typing import Any, Dict, List
+from gpt.utils import save_json
 
 # base
 class CodeLoader(ABC):
@@ -87,8 +88,7 @@ class HtmlCodeLoader(CodeLoader):
                     html_dict[key] = self._extract_code_and_output_from_html(full_path)
         json_output_path = os.path.join(base_directory, 'html_code_dict.json')
         #print(f'save to {json_output_path}')
-        with open(json_output_path, 'w') as f:
-            json.dump(html_dict, f, indent=4)
+        save_json(json_output_path, html_dict)
         return html_dict
 
     def _extract_code_and_output_from_html(self, filepath: str) -> List[Dict[str, str]]:
@@ -204,8 +204,7 @@ class HtmlCodeLoader(CodeLoader):
         html_dict : Dict[str, Any]
             The dictionary containing the data to be saved.
         """
-        with open(os.path.join(directory, 'html_code_dict.json'), 'w') as f:
-            json.dump(html_dict, f, indent=4)
+        save_json(os.path.join(directory, 'html_code_dict.json'), html_dict)
     def save_as_code(self, json_input: Dict[str, List[Dict[str, str]]], directory: str) -> None:
         """
         Save extracted code blocks from JSON input to .py files.

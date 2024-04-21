@@ -8,6 +8,7 @@ Description:
 
 import json
 import matplotlib.pyplot as plt
+from gpt.utils import save_json, load_json
 
 def filter_apis(summarized_data, api_init):
     tut_apis = {}
@@ -120,10 +121,8 @@ def deduplicate_tutorials(tutorials):
     return tutorials
 
 def main():
-    with open('./data/autocoop/scanpy/summarized_responses.json', 'r') as file:
-        summarized_data = json.load(file)
-    with open('./data/standard_process/scanpy/API_init.json', 'r') as file:
-        API_init = json.load(file)
+    summarized_data = load_json('./data/autocoop/scanpy/summarized_responses.json')
+    API_init = load_json('./data/standard_process/scanpy/API_init.json')
     # Filter the APIs from the summarized data
     tut_apis = filter_apis(summarized_data, API_init)
     print('tut_apis:', len(tut_apis))
@@ -141,12 +140,10 @@ def main():
         # Process the API sequences
         results = process_api_sequences(api_pairs, api_data)
         # Save the results
-        with open(f'api_results_win_{window_size}.json', 'w') as file:
-            json.dump(results, file, indent=4)
+        save_json(f'api_results_win_{window_size}.json', results)
         # Calculate the match rate
         match_stats = calculate_match_rate(results)
-        with open(f'api_match_stats_win_{window_size}.json', 'w') as file:
-            json.dump(match_stats, file, indent=4)
+        save_json(f'api_match_stats_win_{window_size}.json', match_stats)
         match_rates.append(match_stats['match_rate'])
     # Plotting the results
     plt.figure(figsize=(10, 5))

@@ -4,6 +4,8 @@ from base_graph_ast import *
 from configs.model_config import *
 from model.model import *
 from prompt.prompt import *
+from gpt.utils import load_json, save_json
+
 
 class JSONFilter:
     """
@@ -35,8 +37,8 @@ class IndegreeSortFilterStrategy:
     """
     def __init__(self):
         compute_degree_graph()
-        with open(os.path.join(LIB_ANALYSIS_PATH,'sorted_nodes.json'), 'r') as file:
-            self.indegree_json = json.load(file)
+        self.indegree_json = load_json(os.path.join(LIB_ANALYSIS_PATH,'sorted_nodes.json'))
+        
         print('sorted_nodes.json loaded succesfully!')
     
     def filter_keys(self, json_data, indegree_threshold=10):
@@ -86,8 +88,7 @@ class LLMFilterStrategy:
     """
     def __init__(self, ):
         # Read the JSON data
-        with open(os.path.join(LIB_ANALYSIS_PATH,'API_func.json'), 'r') as f:
-            data = json.load(f)
+        data = load_json(os.path.join(LIB_ANALYSIS_PATH,'API_func.json'))
         print(len(data),' func detected!')
 
         strategy = IndegreeSortFilterStrategy() 
@@ -138,8 +139,7 @@ class LLMFilterStrategy:
                 response, history = LLM_response(self.llm,self.tokenizer,self.chat_prompt,history=[],kwargs=kwargs)
                 print('Agent:',response)
                 self.answer_api_available[key].append(response)
-        with open(os.path.join(LIB_ANALYSIS_PATH,'askLLM_API.json'), 'w') as f:
-            json.dump(self.answer_api_available, f, indent=4)
+        save_json(os.path.join(LIB_ANALYSIS_PATH,'askLLM_API.json'), self.answer_api_available)
     
     def clean_from_llmanswer(self,json_data):
         """
@@ -192,11 +192,9 @@ __all__ = list(set([name for name, obj in locals().items() if not name.startswit
 if __name__=='__main__':
     # test
     # load json
-    with open(os.path.join(LIB_ANALYSIS_PATH,'API_func.json'), 'r') as file:
-        data = json.load(file)
+    data = load_json(os.path.join(LIB_ANALYSIS_PATH,'API_func.json'))
     strategy = IndegreeSortFilterStrategy() 
     json_filter = JSONFilter(strategy)
     filtered_data = json_filter.filter_keys(data)
     # save json
-    with open(os.path.join(LIB_ANALYSIS_PATH,'API_func_filtered.json'), 'w') as file:
-        file.write(json.dumps(filtered_data, indent=4))
+    save_json(os.path.join(LIB_ANALYSIS_PATH,'API_func_filtered.json'), filtered_data)

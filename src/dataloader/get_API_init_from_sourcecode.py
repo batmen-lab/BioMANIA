@@ -3,6 +3,7 @@ from docstring_parser import parse
 from configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet, get_all_basic_func_from_cheatsheet
 from dataloader.extract_function_from_sourcecode import get_returnparam_docstring
 from typing import Dict, List, Optional, Tuple, Union, Any
+from gpt.utils import save_json
 
 # STEP1: get API from web
 # STEP2: get docstring/parameters from source code, based on API
@@ -938,8 +939,7 @@ def main_get_API_init(lib_name: str, lib_alias: str, analysis_path: str, api_htm
     for api_name, api_info in tmp_results.items():
         api_info['relevant APIs'] = []
         api_info['type'] = 'singleAPI'
-    with open(output_file, 'w') as file:
-        file.write(json.dumps(tmp_results, indent=4))
+    save_json(output_file, tmp_results)
 
 def main_get_API_basic(cheatsheet: Dict[str, List[str]]) -> None:
     """
