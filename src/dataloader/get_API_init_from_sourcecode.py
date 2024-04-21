@@ -1,6 +1,5 @@
-import pydoc, argparse, json, re, os, collections, inspect, importlib, typing, functools
+import pydoc, json, re, os, collections, inspect, importlib, typing, functools
 from docstring_parser import parse
-from langchain.document_loaders import BSHTMLLoader
 from configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet, get_all_basic_func_from_cheatsheet
 from dataloader.extract_function_from_sourcecode import get_returnparam_docstring
 from typing import Dict, List, Optional, Tuple, Union, Any
@@ -23,6 +22,7 @@ def process_html(html_path: str) -> str:
     str
         Processed HTML content as a single string with spaces normalized.
     """
+    from langchain.document_loaders import BSHTMLLoader
     loader = BSHTMLLoader(html_path)
     webcontent = loader.load()
     content = ' '.join([i.page_content for i in webcontent])
@@ -977,6 +977,7 @@ import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__=='__main__':
+    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--LIB', type=str, help='PyPI tool')
     parser.add_argument('--api_txt_path', type=str, default=None, help='Your self-defined api txt path')

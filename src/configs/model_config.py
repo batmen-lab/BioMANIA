@@ -2,7 +2,6 @@ import os
 import torch.cuda
 import torch.backends
 import platform
-import json
 
 LIB = 'biotite' # eletoolkit scvi-tools qiime2 scikit-bio pyteomics scanpy squidpy scenicplus pyopenms biopython deap biotite
 # emperor gneiss tskit MIOSTONE

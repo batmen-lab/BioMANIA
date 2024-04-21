@@ -10,13 +10,9 @@ Borrow from https://github.com/Lightning-AI/lit-llama.git
 import sys
 from pathlib import Path
 import os
-import time
 
-import lightning as L
-import numpy as np
 import torch
 import matplotlib.pyplot as plt
-
 import torch.nn.functional as F
 
 # support running without installing as a package
@@ -48,10 +44,7 @@ warmup_iters = 100
 
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-
-import json
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 
 class SiameseNetwork(nn.Module):

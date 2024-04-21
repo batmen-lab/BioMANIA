@@ -1,10 +1,9 @@
 import argparse, os, json, torch, glob, time, pickle
 import pandas as pd
-from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
 from tqdm import tqdm
-from sentence_transformers import SentenceTransformer, models
-from inference.utils import sentence_transformer_embed, bert_embed, predict_by_similarity
+from sentence_transformers import SentenceTransformer
+from inference.utils import sentence_transformer_embed, predict_by_similarity
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 

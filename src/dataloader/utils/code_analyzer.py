@@ -1,14 +1,5 @@
 from typing import Tuple, Set
-import ast
 import types
-
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
-import seaborn as sns
-import math
-import sklearn.preprocessing
-import sklearn
 
 def is_variable_in_parentheses(var: str, code: str) -> bool:
     """
@@ -86,6 +77,13 @@ __all__ = list(set([name for name, obj in locals().items() if not name.startswit
 if __name__=='__main__':
     # Testing the refined execution-based method on the modified extended attack test cases
     refined_execution_extended_attack_results = []
+    import sklearn.preprocessing
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    import pandas as pd
+    import math
+    import sklearn
+    import numpy as np
     modified_extended_attack_test_cases = [
         ("df = pd.DataFrame(data)\nresult = df[df['A'] > 5].groupby('B').sum()", {"pd": pd, "data": {"A": [1, 2, 3, 10], "B": [5, 6, 7, 8]}}),
         ("result = df.groupby('A').filter(lambda x: x['B'].mean() > 5).pivot_table(index='C', columns='D', values='E', aggfunc=np.sum)", {"df": pd.DataFrame({"A": [1, 2, 3, 4], "B": [10, 20, 30, 40], "C": [1, 1, 2, 2], "D": ["x", "y", "x", "y"], "E": [1, 2, 3, 4]}), "np": np}),

@@ -1,6 +1,6 @@
-import subprocess, argparse, os
+import os
 from configs.model_config import READTHEDOC_PATH, ANALYSIS_PATH, get_all_variable_from_cheatsheet
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse
 from typing import Union, List, Optional
 
 def download_readthedoc(readthedoc_path: str, api_html: Union[str, List[str]], source_type: str = 'single') -> None:
@@ -76,6 +76,7 @@ def download_tutorial(tutorial_github: Union[str, List[str]], analysis_path: str
     lib_name : str
         The library name associated with the repository.
     """
+    import subprocess
     if not tutorial_github:
         print('==>Did not provide tutorial url, skip downloading tutorial!')
         return
@@ -101,6 +102,7 @@ import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__ == "__main__":
+    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
     args = parser.parse_args()

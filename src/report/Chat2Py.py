@@ -1,5 +1,4 @@
 import json
-import argparse
 
 def extract_tasks(file_path):
     with open(file_path, 'r') as file:
@@ -50,6 +49,7 @@ import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__ == "__main__":
+    import argparse
     parser = argparse.ArgumentParser(description="Extract tasks from JSON file")
     parser.add_argument("file_path", help="Path to the JSON file")
     args = parser.parse_args()

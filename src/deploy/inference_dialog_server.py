@@ -1,6 +1,6 @@
 # Flask
-from flask import Flask, Response, stream_with_context, request, send_file, jsonify
-from flask_socketio import SocketIO, emit
+from flask import Flask, Response, stream_with_context, request
+from flask_socketio import SocketIO
 from flask_cors import CORS, cross_origin
 from deploy.ServerEventCallback import ServerEventCallback
 from queue import Queue
@@ -8,16 +8,15 @@ app = Flask(__name__)
 cors = CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 # standard lib
-import argparse, json, signal, time, copy, base64, requests, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess, re
+import json, signal, time, base64, requests, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 from datetime import datetime
 from urllib.parse import urlparse
 # Computational
 import numpy as np, matplotlib.pyplot as plt
-from sklearn.metrics.pairwise import cosine_similarity
 from typing import Any
 import multiprocessing
-from sentence_transformers import SentenceTransformer, models
+from sentence_transformers import SentenceTransformer
 from inference.utils import predict_by_similarity, json_to_docstring
 from tqdm import tqdm
 from deploy.utils import change_format
@@ -47,7 +46,6 @@ else:
 # 
 import concurrent.futures
 from dotenv import load_dotenv
-from string import punctuation
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -57,7 +55,7 @@ from configs.model_config import *
 from inference.execution_UI import CodeExecutor
 from inference.utils import find_similar_two_pairs, sentence_transformer_embed
 from inference.retriever_finetune_inference import ToolRetriever
-from deploy.utils import dataframe_to_markdown, convert_image_to_base64
+from deploy.utils import convert_image_to_base64
 from prompt.parameters import prepare_parameters_prompt
 from prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
 

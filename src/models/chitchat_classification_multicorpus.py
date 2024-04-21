@@ -5,8 +5,7 @@ from models.chitchat_classification import sampledata_combine, calculate_centroi
 import os
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
-import numpy as np
-import pickle, json
+import json
 
 def process_multi_libraries(libraries):
     global combined_api_data

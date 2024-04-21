@@ -3,11 +3,7 @@ import os, datetime
 import matplotlib.pyplot as plt
 
 from collections import defaultdict
-from configs.model_config import LIB
 from gpt.utils import get_all_api_json, find_similar_api_pairs, is_pair_in_merged_pairs, find_similar_two_pairs, get_ambiguous_pairs
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import linear_kernel
-from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
 def json_to_docstring(api_name, description, parameters):
@@ -28,6 +24,7 @@ def json_to_docstring(api_name, description, parameters):
     return function_signature + "\n" + docstring.strip()
 
 def predict_by_similarity(user_query_vector, centroids, labels):
+    from sklearn.metrics.pairwise import cosine_similarity
     similarities = [cosine_similarity(user_query_vector, centroid.reshape(1, -1)) for centroid in centroids]
     return labels[np.argmax(similarities)]
 

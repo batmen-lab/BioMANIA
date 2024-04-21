@@ -1,5 +1,4 @@
-import pandas as pd
-import pickle, types, importlib, json, inspect, os, io, sys
+import pickle, importlib, json, inspect, os, io, sys, re
 from anndata import AnnData
 
 class CodeExecutor:
@@ -213,7 +212,6 @@ class CodeExecutor:
         return "", ""
     def is_str_at_first_level(self, type_str):
         print('change a stype for ensuring str type')
-        import re
         # remove "Optional[" and "]", to solve the internal type
         def remove_outer_optional(s):
             if s.startswith("Optional[") and s.endswith("]"):
@@ -502,7 +500,7 @@ class CodeExecutor:
             except Exception as e:
                 print(f"An error occurred while executing '{code}': {e}")
 
-import sys, inspect
+import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__=='__main__':

@@ -11,7 +11,6 @@ Description:
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import math
 
 df = pd.read_csv('./output/retriever_topk_results.csv')
 columns_to_keep = ['retrieved_api_nums', 'Validation Accuracy', 'Test Accuracy', 'val ambiguous Accuracy', 'test ambiguous Accuracy']

@@ -1,10 +1,7 @@
 from sentence_transformers import SentenceTransformer, util
 import json
 import pandas as pd
-from collections import defaultdict
 import torch
-from tqdm import tqdm
-import argparse
 import os
 from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version
 
@@ -58,6 +55,7 @@ import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__=='__main__':
+    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', type=str, help='Your trained model path')
     parser.add_argument('--dataset_path', type=str, help='The processed dataset files path')

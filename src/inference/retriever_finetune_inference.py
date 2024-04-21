@@ -1,10 +1,9 @@
-import argparse, os, json, time, re
-from xml.etree.ElementTree import QName
+import argparse, os, json
 from tqdm import tqdm
 import pandas as pd
-from configs.model_config import HUGGINGPATH, ANALYSIS_PATH, get_all_variable_from_cheatsheet, get_all_basic_func_from_cheatsheet
-from sentence_transformers import SentenceTransformer, util, models, InputExample, losses, LoggingHandler
-from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version, is_pair_in_merged_pairs, find_similar_two_pairs
+from configs.model_config import get_all_variable_from_cheatsheet
+from sentence_transformers import SentenceTransformer, util
+from inference.utils import process_retrieval_document_query_version, is_pair_in_merged_pairs, find_similar_two_pairs
 import torch
 # Print average scores for each rank
 import matplotlib.pyplot as plt

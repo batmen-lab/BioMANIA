@@ -1,15 +1,11 @@
-import logging, os, json
 import pandas as pd
-from datetime import datetime
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader
 #torch.cuda.set_per_process_memory_fraction(0.5)
-from sentence_transformers import SentenceTransformer, models, InputExample, losses, LoggingHandler
+from sentence_transformers import SentenceTransformer, InputExample, losses
 from models.api_evaluator import APIEvaluator
-import argparse
-import os
-from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version
+import argparse, os
+from inference.utils import process_retrieval_document_query_version
 from typing import Tuple, Dict, Callable, List, Any, Set
 
 def load_query(dataset_type: str, data_path: str) -> Tuple[pd.DataFrame, Dict[int, str]]:

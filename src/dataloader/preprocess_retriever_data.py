@@ -1,18 +1,16 @@
 # instruction_generation
 # prepare for retriever data
-import json, os, re, copy, ast, random, time, cProfile, pstats, argparse, asyncio
+import json, os, re, copy, ast, random, time, asyncio
 from tqdm import tqdm as tqdm_normal
 from tqdm.asyncio import tqdm_asyncio
 import pandas as pd
 from sklearn.utils import shuffle
-from dotenv import load_dotenv
 from models.model import LLM_response, LLM_model
-#from configs.model_config import LIB
 from prompt.instruction import make_instruction_generation_prompt
-from inference.utils import process_retrieval_document, compress_api_str_from_list, json_to_docstring, process_retrieval_desc
+from inference.utils import json_to_docstring, process_retrieval_desc
 from dataloader.get_API_init_from_sourcecode import parse_content_list
 from inference.retriever_finetune_inference import ToolRetriever
-from inference.utils import is_pair_in_merged_pairs, get_all_api_json, find_similar_api_pairs, find_similar_two_pairs, get_ambiguous_pairs
+from inference.utils import is_pair_in_merged_pairs, get_ambiguous_pairs
 from typing import Any, Tuple, Optional
 
 def unify_response_format(response: str) -> list:
@@ -782,7 +780,7 @@ import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__=='__main__':
-    
+    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--LIB', type=str, help='PyPI tool')
     parser.add_argument('--concurrency', type=int, default=80, help='adjust the maximum concurrency according to the rate limit of OpenAI API account')
@@ -790,6 +788,7 @@ if __name__=='__main__':
     parser.add_argument('--api_txt_path', type=str, default=None, help='Your self-defined api txt path')
     args = parser.parse_args()
     semaphore = asyncio.Semaphore(args.concurrency)
+    from dotenv import load_dotenv
     load_dotenv()
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
     

@@ -1,6 +1,5 @@
 import json
 import openai
-import requests
 import logging
 import tenacity as T
 import os

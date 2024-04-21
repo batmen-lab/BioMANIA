@@ -1,13 +1,9 @@
 from abc import ABC, abstractmethod
-import os, re, ast, json, requests, argparse, nbformat, subprocess
+import os, re, ast, json, requests, nbformat, subprocess
 from bs4 import BeautifulSoup
-from urllib.parse import urlparse
 from datetime import datetime
-
-from configs.model_config import READTHEDOC_PATH, ANALYSIS_PATH, get_all_variable_from_cheatsheet
-
-from typing import Any, Dict, List, Optional, Union
-
+from configs.model_config import READTHEDOC_PATH, get_all_variable_from_cheatsheet
+from typing import Any, Dict, List
 
 # base
 class CodeLoader(ABC):
@@ -444,6 +440,7 @@ import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__=='__main__':
+    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
     parser.add_argument('--file_type', type=str, default='ipynb', help='tutorial files type')

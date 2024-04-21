@@ -1,7 +1,4 @@
-import os
-import fnmatch
-import ast
-import json
+import os, ast, json, fnmatch
 from typing import Dict, Any, List, Tuple, Union
 from configs.model_config import LIB, ANALYSIS_PATH, GITHUB_PATH
 
@@ -217,4 +214,3 @@ __all__ = list(set([name for name, obj in locals().items() if not name.startswit
 
 if __name__=='__main__':
     merge_unittest_examples_into_API_init(LIB, ANALYSIS_PATH, GITHUB_PATH)
-

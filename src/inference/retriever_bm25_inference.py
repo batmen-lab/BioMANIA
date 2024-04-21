@@ -1,4 +1,4 @@
-import json, ast, argparse
+import json, ast
 from rank_bm25 import BM25Okapi
 from retrievers import *
 from models.model import *
@@ -129,6 +129,7 @@ import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__ == "__main__":
+    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--top_k', type=int, default=3, help='')
     parser.add_argument('--LIB', type=str, help='')

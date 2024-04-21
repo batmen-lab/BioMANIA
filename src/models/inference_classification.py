@@ -10,27 +10,17 @@ Borrow from https://github.com/Lightning-AI/lit-llama.git
 import sys
 from pathlib import Path
 import os, json
-import time
-import lightning as L
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
-from inference.utils import process_retrieval_document_query_version, compress_api_str_from_list_query_version, is_pair_in_merged_pairs, find_similar_two_pairs
+from inference.utils import is_pair_in_merged_pairs, find_similar_two_pairs
 from typing import List, Tuple
 
 # support running without installing as a package
 wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
-
-from models.generate import generate
-from models.lit_llama.lora import mark_only_lora_as_trainable, lora, lora_state_dict
-from models.lit_llama.model import LLaMA, LLaMAConfig
-from models.lit_llama.tokenizer import Tokenizer
-from dataloader.utils.generate_prompt import generate_prompt
-from inference.retriever_finetune_inference import ToolRetriever
 
 # Hyperparameters
 learning_rate = 1e-4

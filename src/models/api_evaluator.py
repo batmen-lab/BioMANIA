@@ -5,12 +5,9 @@ import os
 from typing import List, Dict, Set
 from tqdm import trange
 from tqdm import tqdm
-import torch
 from multiprocessing import Pool
-import heapq
 from sentence_transformers.evaluation import SentenceEvaluator
 from sentence_transformers.util import cos_sim
-import os
 import matplotlib.pyplot as plt
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"

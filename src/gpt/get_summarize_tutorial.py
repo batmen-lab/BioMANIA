@@ -4,14 +4,13 @@ Date Created: December 10, 2023
 Last Modified: December 10, 2023
 Description: prepare training data for tutorials text API prediction
 """
-from configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet, READTHEDOC_PATH, ANALYSIS_PATH, get_all_variable_from_cheatsheet #tut, html_dict, code
+from configs.model_config import get_all_variable_from_cheatsheet, READTHEDOC_PATH, get_all_variable_from_cheatsheet #tut, html_dict, code
 from dataloader.utils.tutorial_loader_strategy import main_convert_tutorial_to_py
-import os, json, ast, argparse, io, tokenize
-from sklearn.utils import shuffle
+import os, json, ast, io, tokenize
 from collections import OrderedDict
 from models.model import LLM_model, LLM_response
 from tqdm import tqdm
-from dataloader.preprocess_retriever_data import preprocess_fake_test_data
+#from dataloader.preprocess_retriever_data import preprocess_fake_test_data
 
 # Step1: get tutorial pieces
 def get_tutorial_pieces(LIB, TUTORIAL_HTML, LIB_ANALYSIS_PATH, use_source="readthedoc"):
@@ -246,6 +245,7 @@ import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__=='__main__':
+    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
     args = parser.parse_args()

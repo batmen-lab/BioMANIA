@@ -1,6 +1,5 @@
 import os
 import subprocess
-import importlib
 from configs.model_config import LIB, LIB_ALIAS, GITHUB_LINK, GITHUB_PATH
 
 # Download Strategy
@@ -41,6 +40,7 @@ def get_lib_localpath(lib_name, lib_alias):
     return lib_path
 
 def download_lib(strategy_type, lib_name, lib_link, lib_alias, github_path):
+    import importlib
     lib_github_path = os.path.join(github_path,lib_name)
     strategies = {
         "pip": PipInstall(),
@@ -50,7 +50,6 @@ def download_lib(strategy_type, lib_name, lib_link, lib_alias, github_path):
     strategy = strategies.get(strategy_type)
     if not strategy:
         raise ValueError("Invalid strategy type. Choose from ", list(strategies.keys()))
-
     try:
         importlib.import_module(lib_alias)
         print(f"Library {lib_name} is already installed. Skip downloading again!")

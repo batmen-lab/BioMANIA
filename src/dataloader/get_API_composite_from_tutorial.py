@@ -1,7 +1,5 @@
-import ast, re, os, json, sys, astor, asyncio, ast, argparse
-from types import FunctionType, MethodType
+import ast, re, os, json, astor, ast
 from itertools import chain
-from unittest.mock import patch
 from datetime import datetime
 from multiprocessing import Pool
 import warnings
@@ -10,7 +8,7 @@ from docstring_parser import parser
 
 from configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet #tut, html_dict, code
 from dataloader.utils.tutorial_loader_strategy import main_convert_tutorial_to_py
-from dataloader.utils.code_analyzer import extract_io_variables
+#from dataloader.utils.code_analyzer import extract_io_variables
 from models.model import LLM_model, LLM_response
 from prompt.composite import build_prompt_for_composite_docstring, build_prompt_for_composite_name
 from typing import Optional, Any, Tuple
@@ -873,6 +871,7 @@ import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__=='__main__':
+    import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
     parser.add_argument('--file_type', type=str, default='ipynb', help='tutorial files type')

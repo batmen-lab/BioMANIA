@@ -7,7 +7,6 @@ Description:
     Check whether there exist data leakage, duplicate queries, missing API for annotated data.
 """
 import json
-import argparse
 from typing import Tuple
 
 def load_data(file_path: str) -> list:
@@ -44,10 +43,8 @@ def get_training_and_test_sets(inquiry_data: list, annotated_data: list) -> Tupl
         A tuple containing two lists: the training data and the test data.
     """
     inquiry_query_ids = set(item["query_id"] for item in inquiry_data)
-
     train_data = [item for item in annotated_data if item["query_id"] in inquiry_query_ids]
     test_data = [item for item in annotated_data if item["query_id"] not in inquiry_query_ids]
-
     return train_data, test_data
 
 def check_api_coverage_and_uniqueness(train_data: list, test_data: list, LIB: str) -> None:
@@ -75,10 +72,6 @@ def check_api_coverage_and_uniqueness(train_data: list, test_data: list, LIB: st
         else:
             print(f"API {item['api_name']} in test data is not in training data.")
 
-    #for api, count in test_apis.items():
-    #    if count != 1:
-    #        print(f"API {api} appears {count} times in the test dataset, not just once.")
-
 def check_for_query_text_overlap(train_data: list, test_data: list) -> None:
     """
     Checks for any overlap in query texts between the training and test datasets to ensure no data leakage.
@@ -92,7 +85,6 @@ def check_for_query_text_overlap(train_data: list, test_data: list) -> None:
     """
     train_queries = set(item["query"] for item in train_data)
     test_queries = set(item["query"] for item in test_data)
-
     overlapping_queries = train_queries.intersection(test_queries)
     if overlapping_queries:
         print(f"Data leakage detected: Overlapping query texts in training and test datasets: {overlapping_queries}")
@@ -171,9 +163,7 @@ def main(LIB: str) -> None:
     annotated_data = load_data(f'./data/standard_process/{LIB}/API_inquiry_annotate.json')
     composite_data = load_data(f'./data/standard_process/{LIB}/API_composite.json')
     single_data = load_data(f'./data/standard_process/{LIB}/API_init.json')
-
     train_data, test_data = get_training_and_test_sets(inquiry_data, annotated_data)
-    
     inquiry_api_names = set()
     for inquiry in inquiry_data:
         for api_call in inquiry["api_calling"]:
@@ -185,7 +175,6 @@ def main(LIB: str) -> None:
     # Find the API names that are in inquiry but not in init (the ones missing)
     missing_apis = init_api_names - inquiry_api_names
     print('missing_apis: ', missing_apis)
-
     # Apply the checks
     check_api_coverage_and_uniqueness(train_data, test_data, LIB)
     check_for_query_text_overlap(train_data, test_data)
@@ -198,6 +187,7 @@ import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__ == "__main__":
+    import argparse
     parser = argparse.ArgumentParser(description="Check data integrity for training and testing datasets.")
     parser.add_argument("--LIB", type=str, help="Library name for the JSON data.")
     args = parser.parse_args()
