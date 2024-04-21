@@ -73,7 +73,7 @@ Don't forget to add an OpenAI API key under `BioMANIA/src/.env` path
 
 **Q: To create a tool, what is the minimum material I need to provide?**
 
-A: The `LIB` and `LIB_ALIAS` in configs/Lib_cheatsheet.json is enough for establishing the service. 
+A: The `LIB` and `LIB_ALIAS` in configs/Lib_cheatsheet.py is enough for establishing the service. 
 
 - However, incorporating an `API HTML page` will specifically assist in filtering the targeted API exposed to users. 
 - Including a `tutorial page` will help for producing `composite_API` by combining a set of commonly together used APIs.

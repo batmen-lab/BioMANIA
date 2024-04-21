@@ -1,4 +1,4 @@
-{
+CHEATSHEET = {
     "squidpy":{
         "LIB":"squidpy",
         "LIB_ALIAS":"squidpy",
@@ -96,7 +96,7 @@
         "GITHUB_LINK": "https://github.com/levitsky/pyteomics",
         "READTHEDOC_LINK": "https://pyteomics.readthedocs.io/en/stable/",
         "TUTORIAL_HTML_PATH":"https://pyteomics.readthedocs.io/en/stable/examples/",
-        "TUTORIAL_GITHUB": null
+        "TUTORIAL_GITHUB": None
     },
     "scikit-bio": {
         "LIB": "scikit-bio",
@@ -123,7 +123,7 @@
         "GITHUB_LINK": "https://github.com/biocore/gneiss",
         "READTHEDOC_LINK": "https://biocore.github.io/gneiss/docs/v0.4.0/",
         "TUTORIAL_HTML_PATH": "biocore.github.io/gneiss/docs/v0.4.0/tutorials/python/",
-        "TUTORIAL_GITHUB": null
+        "TUTORIAL_GITHUB": None
     },
     "deap": {
         "LIB": "deap",
@@ -155,38 +155,38 @@
     "sonata":{
         "LIB": "sonata",
         "LIB_ALIAS": "sonata",
-        "API_HTML_PATH": null,
-        "GITHUB_LINK": null,
-        "READTHEDOC_LINK": null,
-        "TUTORIAL_HTML_PATH": null,
-        "TUTORIAL_GITHUB": null
+        "API_HTML_PATH": None,
+        "GITHUB_LINK": None,
+        "READTHEDOC_LINK": None,
+        "TUTORIAL_HTML_PATH": None,
+        "TUTORIAL_GITHUB": None
     },
     "MIOSTONE":{
         "LIB": "MIOSTONE",
         "LIB_ALIAS": "MIOSTONE",
-        "API_HTML_PATH": null,
-        "GITHUB_LINK": null,
-        "READTHEDOC_LINK": null,
-        "TUTORIAL_HTML_PATH": null,
-        "TUTORIAL_GITHUB": null
+        "API_HTML_PATH": None,
+        "GITHUB_LINK": None,
+        "READTHEDOC_LINK": None,
+        "TUTORIAL_HTML_PATH": None,
+        "TUTORIAL_GITHUB": None
     },
     "pandas":{
         "LIB": "pandas",
         "LIB_ALIAS": "pandas",
-        "API_HTML_PATH": null,
-        "GITHUB_LINK": null,
-        "READTHEDOC_LINK": null,
-        "TUTORIAL_HTML_PATH": null,
-        "TUTORIAL_GITHUB": null
+        "API_HTML_PATH": None,
+        "GITHUB_LINK": None,
+        "READTHEDOC_LINK": None,
+        "TUTORIAL_HTML_PATH": None,
+        "TUTORIAL_GITHUB": None
     },
     "scikit-learn":{
         "LIB": "scikit-learn",
         "LIB_ALIAS": "sklearn",
-        "API_HTML_PATH": null,
-        "GITHUB_LINK": null,
-        "READTHEDOC_LINK": null,
-        "TUTORIAL_HTML_PATH": null,
-        "TUTORIAL_GITHUB": null
+        "API_HTML_PATH": None,
+        "GITHUB_LINK": None,
+        "READTHEDOC_LINK": None,
+        "TUTORIAL_HTML_PATH": None,
+        "TUTORIAL_GITHUB": None
     },
     "ehrapy": {
         "LIB": "ehrapy",

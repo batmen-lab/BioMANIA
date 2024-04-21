@@ -1,4 +1,4 @@
-{
+CHEATSHEET = {
     "numpy": [
         "numpy.array"
     ],

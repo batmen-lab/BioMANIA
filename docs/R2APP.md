@@ -78,7 +78,7 @@ Your chatbot server is now operational at `http://localhost:3000/en`, primed to 
 
 #### Key Differences Between R and Python Integration
 
-- **Library Loading**: In R, use `library(LIB)` to load packages directly. There's no need to modify `Lib_cheatsheet.json` as in Python.
+- **Library Loading**: In R, use `library(LIB)` to load packages directly. There's no need to modify `Lib_cheatsheet.py` as in Python.
 - **Documentation Access**: R documentation can be accessed through `help()`, `??`, or the `.__doc__` attribute after converting R functions to Python via `rpy2`.
 - **Arguments Information**: R documentation didn't always provide `type` information for parameters.
 - **Simplified Process**: The process for R integration is more straightforward, focusing primarily on data preparation and model training, without the need to adjust library settings extensively.

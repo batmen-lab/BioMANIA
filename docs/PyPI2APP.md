@@ -5,7 +5,7 @@ We provide a robust training script for additional customization and enhancement
 
 Feel free to skip all optional steps below to have a quick start with minimum effort.
 
-1. Modify the library setting in `Lib_cheatsheet.json`.
+1. Modify the library setting in `Lib_cheatsheet.py`.
 ```bash
 {
     ...
@@ -48,7 +48,7 @@ export LIB=scanpy
 # download materials according to your provided url links
 python dataloader/utils/other_download.py --LIB ${LIB}
 # generate codes for your downloaded tutorial files, support for either html, ipynb.
-python dataloader/utils/tutorial_loader_strategy.py --LIB ${LIB} --file_type 'ipynb'
+python dataloader/utils/tutorial_loader_strategy.py --LIB ${LIB} --file_type 'html'
 ```
 
 NOTE it requires API_HTML_PATH, READTHEDOC_PATH and TUTORIAL_GITHUB to run the above script!

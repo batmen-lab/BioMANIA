@@ -14,8 +14,8 @@ ANALYSIS_PATH = os.path.join(RESOURCES_PATH,'json_analysis')
 GITHUB_PATH = os.path.join(RESOURCES_PATH,'github_code')
 
 def get_all_variable_from_cheatsheet(LIB):
-    with open('./configs/Lib_cheatsheet.json', 'r') as file:
-        USER_INPUT = json.load(file)
+    from configs.Lib_cheatsheet import CHEATSHEET
+    USER_INPUT = CHEATSHEET
     if LIB not in USER_INPUT:
         raise ValueError(f"'{LIB}' is not available in USER_INPUT. Please select a valid library.")
     API_HTML = USER_INPUT[LIB]['API_HTML_PATH']
@@ -56,8 +56,7 @@ API_HTML, API_HTML_PATH, GITHUB_LINK, READTHEDOC_LINK, LIB_ALIAS, TUTORIAL_HTML_
 
 def get_all_basic_func_from_cheatsheet():
     # Base cheatsheet
-    with open('./configs/Base_cheatsheet.json', 'r') as file:
-        CHEATSHEET = json.load(file)
+    from configs.Base_cheatsheet import CHEATSHEET
     return CHEATSHEET
 
 # hugging_models

@@ -393,9 +393,8 @@ class Model:
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Process done! Please restart the program for usage",task_title="100") for callback in self.callbacks]
         self.indexxxx+=1
         # TODO: need to add tutorial_github and tutorial_html_path
-        cheatsheet_path = './configs/Lib_cheatsheet.json'
-        with open(cheatsheet_path, 'r') as file:
-            cheatsheet_data = json.load(file)
+        from configs.Lib_cheatsheet import CHEATSHEET
+        cheatsheet_data = CHEATSHEET
         new_lib_details = {self.LIB: 
             {
                 "LIB": self.LIB, 
@@ -407,9 +406,10 @@ class Model:
                 "TUTORIAL_GITHUB":None
             }
         }
-        cheatsheet_data.update(new_lib_details)
-        with open(cheatsheet_path, 'w') as file:
-            json.dump(cheatsheet_data, file, indent=4)
+        #cheatsheet_data.update(new_lib_details)
+        #with open(cheatsheet_path, 'w') as file:
+        #    json.dump(cheatsheet_data, file, indent=4)
+        # TODO: need to save tutorial_github and tutorial_html_path to cheatsheet
 
     def install_lib_full(self,lib_name, lib_alias, api_html=None, github_url=None, doc_url=None):
         #from configs.model_config import get_all_variable_from_cheatsheet
@@ -501,9 +501,8 @@ class Model:
         [callback.on_agent_action(block_id="installation-" + str(self.indexxxx), task="Process done! Please restart the program for usage",task_title="100") for callback in self.callbacks]
         self.indexxxx+=1
         # TODO: need to add tutorial_github and tutorial_html_path
-        cheatsheet_path = './configs/Lib_cheatsheet.json'
-        with open(cheatsheet_path, 'r') as file:
-            cheatsheet_data = json.load(file)
+        from configs.Lib_cheatsheet import CHEATSHEET
+        cheatsheet_data = CHEATSHEET
         new_lib_details = {self.LIB: 
             {
                 "LIB": self.LIB, 
@@ -515,9 +514,10 @@ class Model:
                 "TUTORIAL_GITHUB":None
             }
         }
-        cheatsheet_data.update(new_lib_details)
-        with open(cheatsheet_path, 'w') as file:
-            json.dump(cheatsheet_data, file, indent=4)
+        #cheatsheet_data.update(new_lib_details)
+        #with open(cheatsheet_path, 'w') as file:
+        #    json.dump(cheatsheet_data, file, indent=4)
+        # TODO: need to save tutorial_github and tutorial_html_path to cheatsheet
 
     def update_image_file_list(self):
         image_file_list = [f for f in os.listdir(self.image_folder) if f.endswith(".webp")]
