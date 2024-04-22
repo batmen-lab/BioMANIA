@@ -10,19 +10,22 @@
     <img src="https://img.shields.io/badge/Paper-burgundy?style=flat&logo=arxiv">
   </a>
   <a target="_blank" href="https://github.com/batmen-lab/BioMANIA">
-    <img src="https://img.shields.io/badge/Code-black?style=flat&logo=github">
+    <img src="https://img.shields.io/github/stars/batmen-lab/BioMANIA?style=social">
   </a>
-  <a target="_blank" href="https://railway.app/template/qaQEvv">
-    <img src="https://img.shields.io/badge/Railway-purple?style=flat&logo=railway">
+  <a href='https://biomania.readthedocs.io/en/latest/?badge=latest'>
+    <img src='https://img.shields.io/readthedocs/biomania/latest?style=flat&logo=readthedocs&label=Doc' alt='Documentation Status' />
+  </a>
+  <a target="_blank" href="https://github.com/batmen-lab/BioMANIA/actions/workflows/python-test.yml">
+    <img src="https://github.com/batmen-lab/BioMANIA/actions/workflows/python-test.yml/badge.svg" alt="pytest">
   </a>
   <a target="_blank" href="https://hub.docker.com/repositories/chatbotuibiomania">
     <img src="https://img.shields.io/badge/Docker-v1.1.9-blue?style=flat&logo=docker">
   </a>
-  <a target="_blank" href="https://github.com/batmen-lab/BioMANIA/tests">
-    <img src="https://img.shields.io/badge/pytest-%E2%9C%94-4B8BBE.svg">
+  <a target="_blank" href="https://railway.app/template/qaQEvv">
+    <img src="https://img.shields.io/badge/Railway-purple?style=flat&logo=railway">
   </a>
-  <a target="_blank" href="https://github.com/batmen-lab/BioMANIA/docs/build/html">
-    <img src="https://img.shields.io/badge/Documentation-%E2%9C%93-blue.svg">
+  <a target="_blank" href="https://github.com/batmen-lab/BioMANIA/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/license-Apache%203.0-blue?style=flat&logo=open-source-initiative">
   </a>
 </p>
 

@@ -43,7 +43,7 @@ exclude_patterns = [
     '.DS_Store', 
     '../../**/**.ipynb_checkpoints', 
     '../../**/__pycache__',
-    '**/autocoop/**',
+    '../src/autocoop/**',
     '**/Git2APP/**',
     '**/analysis/**',
     '**/R2APP/**',
@@ -87,17 +87,44 @@ intersphinx_mapping = {
 
 import subprocess
 def run_apidoc(app):
-    ignore_paths = [
-        "../../src/autocoop",
-        "../../src/Git2APP",
-        # Add other directories to ignore
-    ]
+    output_dir = "source/"
+    module_dir = "../src"
     cmd = [
         "sphinx-apidoc",
-        "-o", "source/",
-        "../src",
-    ] + ["-e"] + ignore_paths
+        "-o", output_dir,
+        module_dir,
+        "-H", "BioMANIA", "[", 
+    ] + ['"'+i+'"' for i in exclude_patterns] + ["]"]
     subprocess.call(cmd)
+    #rename_and_replace_contents(output_dir)
+    #update_toctree()
+
+from pathlib import Path
+import re
+
+def rename_and_replace_contents(output_dir):
+    p = Path(output_dir)
+    for rst_file in p.glob("**/*.rst"):
+        with open(rst_file, "r") as file:
+            content = file.read()
+        content = re.sub(r'\bBioMANIA\b', 'src', content)
+        with open(rst_file, "w") as file:
+            file.write(content)
+        if 'src' in rst_file.stem:
+            new_name = rst_file.name.replace('BioMANIA', 'src', )
+            rst_file.rename(rst_file.parent / new_name)
+
+def update_toctree():
+    main_doc_path = Path("source/index.rst")
+    rst_files = [str(file.relative_to("source")) for file in Path("source").rglob("*.rst")]
+    with open(main_doc_path, "r") as file:
+        content = file.read()
+    toctree_start = content.find(".. toctree::")
+    toctree_end = content.find("\n\n", toctree_start)
+    new_toctree_content = content[:toctree_end] + "\n" + "\n".join([f"   {file}" for file in rst_files]) + "\n" + content[toctree_end:]
+    with open(main_doc_path, "w") as file:
+        file.write(new_toctree_content)
 
 def setup(app):
     app.connect('builder-inited', run_apidoc)
+    #app.connect('source-read', ultimate_replace)
