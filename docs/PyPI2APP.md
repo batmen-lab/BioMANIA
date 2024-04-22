@@ -185,7 +185,7 @@ python -m src.models.data_classification \
 
 Then, finetune model:
 ```bash
-python -m models.train_classification \
+python -m src.models.train_classification \
     --data_dir ./data/standard_process/${LIB}/classification_train/ \
     --out_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
     --plot_dir ./plot/${LIB}/classification \
@@ -195,7 +195,7 @@ python -m models.train_classification \
 
 Finally, check the performance:
 ```bash
-python -m models.inference_classification \
+python -m src.models.inference_classification \
     --data_dir ./data/standard_process/${LIB}/classification_train/ \
     --checkpoint_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/combined_model_checkpoint.pth \
     --batch_size 1 \

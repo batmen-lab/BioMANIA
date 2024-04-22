@@ -7,16 +7,22 @@
 
 <p align="center">
   <a target="_blank" href="https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1">
-    <img src="https://img.shields.io/badge/Paper-v1.0-burgundy?style=flat&logo=arxiv">
+    <img src="https://img.shields.io/badge/Paper-burgundy?style=flat&logo=arxiv">
   </a>
   <a target="_blank" href="https://github.com/batmen-lab/BioMANIA">
-    <img src="https://img.shields.io/badge/Code-v1.0-black?style=flat&logo=github">
+    <img src="https://img.shields.io/badge/Code-black?style=flat&logo=github">
   </a>
   <a target="_blank" href="https://railway.app/template/qaQEvv">
-    <img src="https://img.shields.io/badge/Railway-v1.0-purple?style=flat&logo=railway">
+    <img src="https://img.shields.io/badge/Railway-purple?style=flat&logo=railway">
   </a>
   <a target="_blank" href="https://hub.docker.com/repositories/chatbotuibiomania">
-    <img src="https://img.shields.io/badge/Docker-v1.0-blue?style=flat&logo=docker">
+    <img src="https://img.shields.io/badge/Docker-v1.1.9-blue?style=flat&logo=docker">
+  </a>
+  <a target="_blank" href="https://github.com/batmen-lab/BioMANIA/tests">
+    <img src="https://img.shields.io/badge/pytest-%E2%9C%94-4B8BBE.svg">
+  </a>
+  <a target="_blank" href="https://github.com/batmen-lab/BioMANIA/docs/build/html">
+    <img src="https://img.shields.io/badge/Documentation-%E2%9C%93-blue.svg">
   </a>
 </p>
 
@@ -98,6 +104,11 @@ conda create -n biomania python=3.10
 conda activate biomania
 pip install -r requirements.txt --index-url https://pypi.org/simple
 export PYTHONPATH=$PYTHONPATH:$(pwd)
+```
+
+(Optional) 240421: We provide Git installation. We will later provide a version that is compatible with external data support.
+```bash
+pip install git+https://github.com/batmen-lab/BioMANIA.git
 ```
 
 2. Set up your OpenAI API key in the `BioMANIA/.env` file.
@@ -210,13 +221,9 @@ Thank you for choosing BioMANIA. We hope this guide assists you in navigating th
 
 
 ## Version History
-- v1.1.9 (2023-12-24)
-  - Add Drive URL installation feature for convenient uploading of large files by users.
-  - Real-time informative displays for API execution, and enable image zoom and download features.
-  - Add Optional Cards for inputing optional parameters.
-  - Accelerate program by image transmission, inference speed, and the page loading.
-  - Provide one-click packaging and uploading, as well as one-click installation.
-  - Fix some issues.
+- v1.1.10 (2024-04-21)
+  - Add add git installation, add API documentation, add PyPI support.
+  - Add basic pytest cases.
 
 view [version_history](./docs/version_history.md) for more details!
 

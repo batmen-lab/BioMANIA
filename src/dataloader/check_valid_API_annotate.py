@@ -9,7 +9,6 @@ Description:
 from typing import Tuple
 from ..gpt.utils import load_json
 
-
 def get_training_and_test_sets(inquiry_data: list, annotated_data: list) -> Tuple[list, list]:
     """
     Separates the annotated data into training and test sets based on the presence of their query IDs in the inquiry data.
