@@ -1,0 +1,92 @@
+[build-system]
+#build-backend = "hatchling.build"
+#requires = ["hatchling", "hatch-vcs"]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.hatch.build]
+exclude = []
+[tool.hatch.version]
+source = "vcs"
+[tool.hatch.build.targets.wheel]
+packages = ["src/*"]
+
+[project]
+name = "BioMANIA"
+description = "Simplifying bioinformatics data analysis through conversation"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{name = "Zhengyuan Dong"}]
+maintainers = [{name = "Zhengyuan Dong", email = "z6dong@uwaterloo.ca"}]
+readme = "README.md"
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "astunparse==1.6.3",
+    "beautifulsoup4==4.12.2",
+    "bionty==0.36.0",
+    "biotite==0.38.0",
+    "biopython==1.81",
+    "bitsandbytes==0.41.1",
+    # "cellrank==2.0.2", # Uncomment if needed
+    "deap==1.4.1",
+    # "deepspeed==0.12.0", # Uncomment if needed
+    "docstring_parser==0.15",
+    "ehrapy==0.6.0",
+    "Flask==3.0.0",
+    "flask_cors==4.0.0",
+    "flask_socketio==5.3.6",
+    "fpdf==1.7.2",
+    "joblib==1.3.2",
+    "jsonargparse==4.27.0",
+    "langchain==0.0.330",
+    # "lightning==2.0.0", # Uncomment if needed
+    # "lightning @ git+https://github.com/Lightning-AI/lightning@master", # For custom handling
+    "lxml==4.9.3",
+    "matplotlib", # No version specified
+    "medcat==1.10.0",
+    "mmtf_python==1.1.3",
+    "nbformat==5.9.2",
+    "networkx==3.2.1",
+    "numpy", # No version specified
+    "openai==1.10.0",
+    "pandas", # No version specified
+    "peft==0.6.0",
+    "protobuf==3.20.0",
+    "pydantic==1.10.7",
+    "pydot==1.4.2",
+    "pyopenms==3.1.0",
+    "PyQt5", # No version specified
+    "pyteomics==4.6.3",
+    "python_dotenv", # No version specified
+    "rank_bm25==0.2.2",
+    "rdflib==7.0.0",
+    "ReportLab", # No version specified
+    "Requests==2.31.0",
+    "scikit_bio==0.5.9",
+    "scikit_learn", # No version specified
+    "scipy==1.9.2",
+    "scvi_tools==1.0.4",
+    "seaborn==0.13.0",
+    "sentence_transformers==2.2.2",
+    "sentencepiece==0.1.99",
+    "scanpy==1.9.5",
+    "scikit-learn-intelex", # No version specified
+    "scvelo==0.3.1",
+    "squidpy==1.3.1",
+    "tenacity==8.2.3",
+    "tensorboard==2.15.1",
+    "timm==0.9.12",
+    "torch==2.1.0",
+    "torchsummary==1.5.1",
+    "tqdm==4.66.1",
+    "transformers==4.35.0",
+    "typing_extensions==4.8.0",
+]
+dynamic = ["version"]
+
+[project.urls]
+Source = "https://github.com/batmen-lab/BioMANIA"
