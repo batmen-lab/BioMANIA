@@ -3,8 +3,8 @@ wget https://data.qiime2.org/distro/amplicon/qiime2-amplicon-2023.9-py38-linux-c
 conda env create -n qiime2-amplicon-2023.9 --file qiime2-amplicon-2023.9-py38-linux-conda.yml
 conda activate qiime2-amplicon-2023.9
 
-cd /app/src/
-python3 deploy/inference_dialog_server.py &
+cd /app/
+python3 -m src.deploy.inference_dialog_server &
 backend_pid=$!
 
 cd /app/chatbot_ui_biomania/

@@ -19,5 +19,5 @@ ENV PYTHONPATH="/app:${PYTHONPATH}"
 
 EXPOSE 5000
 
-CMD sh -c "LIB=${LIB} CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES} python3 deploy/inference_dialog_server.py"
+CMD sh -c "LIB=${LIB} CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES} python3 -m deploy.inference_dialog_server"
 
