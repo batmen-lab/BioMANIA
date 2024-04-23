@@ -5,7 +5,7 @@ from flask import Flask, Response, stream_with_context, request
 from flask_socketio import SocketIO
 from flask_cors import CORS, cross_origin
 from queue import Queue
-from ..deploy.ServerEventCallback import ServerEventCallback
+from ..deploy.ServerEventCallback import ServerEventCallback, SimpleServerEventCallback
 app = Flask(__name__)
 cors = CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -13,15 +13,21 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 import json, signal, time, base64, requests, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 from datetime import datetime
-from urllib.parse import urlparse
 # Computational
 import numpy as np, matplotlib.pyplot as plt
 from typing import Any
 import multiprocessing
 from sentence_transformers import SentenceTransformer
-from ..inference.utils import predict_by_similarity, json_to_docstring
-from ..deploy.utils import change_format
+from ..inference.utils import json_to_docstring, find_similar_two_pairs
+from ..deploy.utils import change_format, basic_types, generate_api_calling, download_file_from_google_drive, download_data, save_decoded_file, correct_bool_values, convert_bool_values, infer, dataframe_to_markdown, convert_image_to_base64, change_format
 from ..gpt.utils import get_all_api_json, correct_pred, load_json, save_json
+from ..models.model import LLM_response, LLM_model
+from ..configs.model_config import *
+from ..inference.execution_UI import CodeExecutor
+from ..inference.retriever_finetune_inference import ToolRetriever
+from ..prompt.parameters import prepare_parameters_prompt
+from ..prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
+from ..configs.Lib_cheatsheet import CHEATSHEET as LIB_CHEATSHEET
 
 import logging
 from datetime import datetime
@@ -51,178 +57,8 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # inference pipeline
-from ..models.model import LLM_response, LLM_model
-from ..configs.model_config import *
-from ..inference.execution_UI import CodeExecutor
-from ..inference.utils import find_similar_two_pairs, sentence_transformer_embed
-from ..inference.retriever_finetune_inference import ToolRetriever
-from ..deploy.utils import convert_image_to_base64
-from ..prompt.parameters import prepare_parameters_prompt
-from ..prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
-from ..configs.Lib_cheatsheet import CHEATSHEET as LIB_CHEATSHEET
-
-basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'List', 'Dict', 'Any', 'any', 'Path', 'path', 'Pathlike']
-basic_types.extend(['_AvailShapes']) # extend for squidpy `shape` type
-
-def generate_api_calling(api_name, api_details, returned_content_str):
-    """
-    Generates an API call and formats output based on provided API details and returned content string.
-    """
-    try:
-        returned_content_str_new = returned_content_str.replace('null', 'None').replace('None', '"None"')
-        returned_content = ast.literal_eval(returned_content_str_new)
-        returned_content_dict = {item['param_name']: item['value'] for item in returned_content if (item['value'] not in ['None', None, 'NoneType']) and item['value']} # remove null parameters from prompt
-    except Exception as e:
-        returned_content_dict = {}
-        print(f"Error parsing returned content: {e}")
-    api_description = api_details["description"]
-    parameters = api_details['Parameters']
-    return_type = api_details['Returns']['type']
-    parameters_dict = {}
-    parameters_info_list = []
-    for param_name, param_details in parameters.items():
-        # only include required parameters and optional parameters found from response, and a patch for color in scanpy/squidpy pl APIs
-        if (param_name in returned_content_dict) or (not param_details['optional']) or (param_name=='color' and (api_name.startswith('scanpy.pl') or api_name.startswith('squidpy.pl'))) or (param_name=='encodings' and (api_name.startswith('ehrapy.pp') or api_name.startswith('ehrapy.preprocessing'))) or (param_name=='encoded' and (api_name.startswith('ehrapy.'))):
-            #print(param_name, param_name in returned_content_dict, not param_details['optional'])
-            param_type = param_details['type']
-            if param_type in [None, 'None', 'NoneType']:
-                param_type = "Any"
-            param_description = param_details['description']
-            param_value = param_details['default']
-            param_optional = param_details['optional']
-            if returned_content_dict:
-                if param_name in returned_content_dict:
-                    param_value = returned_content_dict[param_name]
-                    #if param_type is not None and ('str' in param_type or 'PathLike' in param_type):
-                    #    if ('"' not in param_type and "'" not in param_type) and (param_value not in ['None', None]):
-                    #        param_value = "'"+str(param_value)+"'"
-            # added condition to differentiate between basic and non-basic types
-            if any(item in param_type for item in basic_types):
-                param_value = param_value if ((param_value not in [ 'None']) and param_value) else "@"
-            # add some general rules for basic types.
-            elif ('openable' in param_type) or ('filepath' in param_type) or ('URL' in param_type):
-                param_value = param_value if ((param_value not in [ 'None']) and param_value) else "@"
-            else:
-                param_value = param_value if ((param_value not in [ 'None']) and param_value) else "$"
-            parameters_dict[param_name] = param_value
-            parameters_info_list.append({
-                'name': param_name,
-                'type': param_type,
-                'value': param_value,
-                'description': param_description,
-                'optional': param_optional
-            })
-    parameters_str = ", ".join(f"{k}={v}" for k, v in parameters_dict.items())
-    api_calling = f"{api_name}({parameters_str})"
-    output = {
-        "api_name": api_name,
-        "parameters": {
-            param['name']: {
-                "type": param['type'],
-                "description": param['description'],
-                "value": param['value'],
-                "optional": param['optional']
-            } for param in parameters_info_list
-        },
-        "return_type": return_type
-    }
-    return api_name, api_calling, output
-
-def infer(query, model, centroids, labels):
-    # 240125 modified chitchat model
-    user_query_vector = np.array([sentence_transformer_embed(model, query)])
-    try:
-        predicted_label = predict_by_similarity(user_query_vector, centroids, labels)
-    except Exception as e:
-        print(e)
-    return predicted_label
-
 if not os.path.exists('tmp'):
     os.mkdir('tmp')
-
-def download_file_from_google_drive(file_id, save_dir="./tmp", output_path="output.zip"):
-    import gdown
-    url = f'https://drive.google.com/uc?id={file_id}'
-    gdown.download(url, os.path.join(save_dir, output_path), quiet=False)
-    subprocess.run(["unzip", os.path.join(save_dir, output_path), "-d", save_dir], check=True)
-
-def download_data(url, save_dir="tmp"):
-    # try uploading drive first
-    try:
-        save_path = download_file_from_google_drive(url)
-        return save_path
-    except:
-        pass
-    response = requests.head(url)
-    if response.status_code == 200:
-        content_length = response.headers.get('Content-Length')
-        if content_length:
-            size = int(content_length)
-            print(f"Data size: {size} bytes!")
-        else:
-            print("Can not estimate data size!")
-        response = requests.get(url)
-        if response.status_code == 200:
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            parsed_url = urlparse(url)
-            file_name = os.path.basename(parsed_url.path)
-            save_path = f"{save_dir}/data_{timestamp}_{file_name}"
-            with open(save_path, 'wb') as file:
-                file.write(response.content)
-            print("Data downloaded successfully!")
-            return save_path
-        else:
-            print("Data downloaded failed!")
-            return None
-    else:
-        print("Data request failed!")
-        return None
-
-def save_decoded_file(raw_file):
-    filename = raw_file['filename']
-    source_type = raw_file['type']
-    if source_type=='file':
-        data_type, decoded_data = raw_file['data'].split(",")[0].split(";")[0], base64.b64decode(raw_file['data'].split(",")[1])
-        filename = os.path.join('tmp', filename)
-        with open(filename, 'wb') as f:
-            f.write(decoded_data)
-    elif source_type=='url':
-        decoded_data = raw_file['data']
-        try:
-            filename = download_data(decoded_data)
-        except:
-            print('==>Input URL Error!')
-            pass
-    return filename
-
-def correct_bool_values(optional_param):
-    """
-    Convert boolean values from lowercase (true, false) to uppercase (True, False).
-
-    :param optional_param: The dictionary containing the optional parameters.
-    :return: The modified dictionary with corrected boolean values.
-    """
-    for key, value in optional_param.items():
-        if 'optional' in value and isinstance(value['optional'], bool):
-            value['optional'] = str(value['optional'])
-        if 'optional_value' in value and isinstance(value['optional_value'], bool):
-            value['optional_value'] = str(value['optional_value'])
-    return optional_param
-
-def convert_bool_values(optional_param):
-    """
-    Convert 'true' and 'false' in the 'optional' and 'optional_value' fields 
-    to 'True' and 'False' respectively.
-
-    :param optional_param: The dictionary containing the optional parameters.
-    :return: The modified dictionary with converted boolean values.
-    """
-    for key, value in optional_param.items():
-        if 'optional' in value and isinstance(value['optional'], str):
-            value['optional'] = value['optional'].capitalize()
-        if 'optional_value' in value and isinstance(value['optional_value'], str):
-            value['optional_value'] = value['optional_value'].capitalize()
-    return optional_param
 
 class Model:
     def __init__(self):
@@ -1473,6 +1309,27 @@ import threading
 model = Model()
 should_stop = threading.Event()
 
+def process_data(data):
+    """ Process the data as per your application's logic """
+    # Implement your data handling logic here
+    return Response(json.dumps({"status": "processed"}), status=200, mimetype='application/json')
+
+def log_interaction(data, method):
+    with open('log_file.txt', 'a') as log_file:
+        log_file.write(f"{method} - {json.dumps(data)}\n")
+
+def save_decoded_file(encoded_file, filename):
+    """Decode and save the base64 encoded file"""
+    file_path = os.path.join('tmp', filename)
+    with open(file_path, "wb") as file:
+        file.write(base64.b64decode(encoded_file.split(",")[1]))
+    return file_path
+
+def save_interaction_data(data):
+    with open('interaction_data.json', 'a') as f:
+        json.dump(data, f)
+        f.write('\n')
+
 @app.route('/api/stop_generation', methods=['POST'])
 def stop_generation():
     global should_stop
@@ -1483,6 +1340,9 @@ def stop_generation():
 @cross_origin()
 def stream():
     data = json.loads(request.data)
+    log_interaction(data, request.method)  # 立即记录接收到的数据
+    
+    #save_interaction_data(data)
     print('='*30)
     print('get data:')
     for key, value in data.items():
@@ -1557,6 +1417,7 @@ def stream():
                     continue
                 else:
                     obj = model.queue.get()
+                    log_interaction(obj, 'QUEUE')
                 if obj["method_name"] == "unknown": continue
                 if obj["method_name"] == "on_request_end":
                     yield json.dumps(obj)
