@@ -5,7 +5,7 @@ from flask import Flask, Response, stream_with_context, request
 from flask_socketio import SocketIO
 from flask_cors import CORS, cross_origin
 from queue import Queue
-from ..deploy.ServerEventCallback import ServerEventCallback, SimpleServerEventCallback
+from ..deploy.ServerEventCallback import ServerEventCallback
 app = Flask(__name__)
 cors = CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -665,9 +665,9 @@ class Model:
         
         [callback.on_tool_start() for callback in self.callbacks]
         [callback.on_tool_end() for callback in self.callbacks]
-        [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=response,task_title=f"Predicted API: {self.predicted_api_name}        ",) for callback in self.callbacks]
+        [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=response,task_title=f"Predicted API: {self.predicted_api_name}",) for callback in self.callbacks]
         self.indexxxx+=1
-        [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Could you confirm whether this API should be called? Please enter y/n.",task_title=f"Double Check        ",) for callback in self.callbacks]
+        [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Could you confirm whether this API should be called? Please enter y/n.",task_title=f"Double Check",) for callback in self.callbacks]
         self.indexxxx+=1
         self.last_user_states = self.user_states
         self.user_states = "run_pipeline_after_doublechecking_API_selection"
@@ -683,7 +683,7 @@ class Model:
                 self.user_states = "initial"
                 [callback.on_tool_start() for callback in self.callbacks]
                 [callback.on_tool_end() for callback in self.callbacks]
-                [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We will start another round. Could you re-enter your inquiry?",task_title=f"Start another round        ",) for callback in self.callbacks]
+                [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="We will start another round. Could you re-enter your inquiry?",task_title=f"Start another round",) for callback in self.callbacks]
                 self.indexxxx+=1
                 self.save_state()
                 return
@@ -1075,7 +1075,7 @@ class Model:
         response, _ = LLM_response(self.llm, self.tokenizer, summary_prompt, history=[], kwargs={})  
         [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task=response,task_title=f"Task summary before execution",) for callback in self.callbacks]
         self.indexxxx+=1
-        [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Could you confirm whether this task is what you aimed for, and the code should be executed? Please enter y/n.\nIf you press n, then we will re-direct to the parameter input step",task_title=f"Double Check        ",) for callback in self.callbacks]
+        [callback.on_agent_action(block_id="log-"+str(self.indexxxx),task="Could you confirm whether this task is what you aimed for, and the code should be executed? Please enter y/n.\nIf you press n, then we will re-direct to the parameter input step",task_title=f"Double Check",) for callback in self.callbacks]
         self.indexxxx+=1
         self.last_user_states = self.user_states
         self.user_states = "run_pipeline_after_doublechecking_execution_code"

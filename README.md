@@ -33,7 +33,18 @@ We welcome 🤗 you to refer to the [Q&A](./docs/Q&A.md) section if you encounte
 
 Our demonstration showcases how to utilize a chatbot to simultaneously use scanpy and squidpy in a single conversation, including loading data, invoking functions for analysis, and presenting outputs in the form of code, images, and tables
 
-<img src="examples/video_demo.gif" style="width:800px;height:460px;animation: play 0.25s steps(10) infinite;">
+<video width="800" height="460" controls>
+  <source src="examples/video_demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+We also offer a command-line interface (CLI) demo for enhanced ease of use through the terminal.
+
+<video width="800" height="460" controls>
+  <source src="examples/cli.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
 
 # Web access online demo
 
@@ -48,7 +59,7 @@ We provide several ways to run the service terminal CLI, Docker, railway, python
 ```bash
 # setup the environment, data, PYTHONPATH
 git clone https://github.com/batmen-lab/BioMANIA.git
-# download the data and retriever model from drive, and put them to the BioMANIA/data/standard_process/{LIB} and BioMANIA/hugging_models/retriever_model_finetuned/{LIB}
+# TODO: download the data and retriever model from drive, and put them to the BioMANIA/data/standard_process/{LIB} and BioMANIA/hugging_models/retriever_model_finetuned/{LIB}
 cd BioMANIA
 conda create -n biomania python=3.10
 conda activate biomania
@@ -230,7 +241,7 @@ Thank you for choosing BioMANIA. We hope this guide assists you in navigating th
 - v1.1.10 (2024-04-21)
   - Add add git installation, add basic API documentation, add PyPI packaging support.
   - Add basic pytest cases.
-  - Add terminal CLI, Colab demo (Under developing).
+  - Add terminal CLI with its video demo, and Colab demo (Under developing).
 
 view [version_history](./docs/version_history.md) for more details!
 
