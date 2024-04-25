@@ -89,13 +89,13 @@ class EmptyInitOnDevice(torch.overrides.TorchFunctionMode):
         if self.quantization_mode == 'llm.int8':
             if device.type != "cuda":
                 raise ValueError("Quantization is only supported on the GPU.")
-            from models.lit_llama.quantization import Linear8bitLt
+            from ...models.lit_llama.quantization import Linear8bitLt
             self.quantized_linear_cls = Linear8bitLt
         elif self.quantization_mode == 'gptq.int4':
-            from models.lit_llama.quantization import ColBlockQuantizedLinear
+            from ...models.lit_llama.quantization import ColBlockQuantizedLinear
             self.quantized_linear_cls = functools.partial(ColBlockQuantizedLinear, bits=4, tile_cols=-1)
         elif self.quantization_mode == 'gptq.int8':
-            from models.lit_llama.quantization import ColBlockQuantizedLinear
+            from ...models.lit_llama.quantization import ColBlockQuantizedLinear
             self.quantized_linear_cls = functools.partial(ColBlockQuantizedLinear, bits=8, tile_cols=-1)
         elif self.quantization_mode is not None:
             raise RuntimeError(f"unknown quantization mode {self.quantization_mode}")
@@ -139,13 +139,13 @@ class EmptyInitOnDevice(torch.overrides.TorchFunctionMode):
 def quantization(mode: str = None):
     quantized_linear_cls = None
     if mode == 'llm.int8':
-        from models.lit_llama.quantization import Linear8bitLt
+        from ...models.lit_llama.quantization import Linear8bitLt
         quantized_linear_cls = Linear8bitLt
     elif mode == 'gptq.int4':
-        from models.lit_llama.quantization import ColBlockQuantizedLinear
+        from ...models.lit_llama.quantization import ColBlockQuantizedLinear
         quantized_linear_cls = functools.partial(ColBlockQuantizedLinear, bits=4, tile_cols=-1)
     elif mode == 'gptq.int8':
-        from models.lit_llama.quantization import ColBlockQuantizedLinear
+        from ...models.lit_llama.quantization import ColBlockQuantizedLinear
         quantized_linear_cls = functools.partial(ColBlockQuantizedLinear, bits=8, tile_cols=-1)
     elif mode is not None:
         raise ValueError(f"Unknown quantization mode: {mode}")

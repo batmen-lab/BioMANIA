@@ -48,7 +48,7 @@ import torch.nn.functional as F
 import math
 from typing import Dict, List
 
-import models.lit_llama.model as llama
+from ...models.lit_llama import model as llama
 
 from contextlib import contextmanager
 from dataclasses import dataclass

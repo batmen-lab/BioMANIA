@@ -12,7 +12,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 from typing_extensions import Self
 
-from models.lit_llama.utils import find_multiple
+from ...models.lit_llama.utils import find_multiple
 
 
 MaskCache = torch.Tensor
