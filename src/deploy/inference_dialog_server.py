@@ -1340,8 +1340,7 @@ def stop_generation():
 @cross_origin()
 def stream():
     data = json.loads(request.data)
-    log_interaction(data, request.method)  # 立即记录接收到的数据
-    
+    log_interaction(data, request.method) # record received data immediately
     #save_interaction_data(data)
     print('='*30)
     print('get data:')
@@ -1349,6 +1348,9 @@ def stream():
         if key not in ['files']:
             print('%s: %s', key, value)
     print('='*30)
+    # makeup for top_k
+    if 'top_k' not in data:
+        data['top_k'] = 1
     #user_input = data["text"]
     #top_k = data["top_k"]
     #Lib = data["Lib"]

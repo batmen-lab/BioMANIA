@@ -33,17 +33,15 @@ We welcome 🤗 you to refer to the [Q&A](./docs/Q&A.md) section if you encounte
 
 Our demonstration showcases how to utilize a chatbot to simultaneously use scanpy and squidpy in a single conversation, including loading data, invoking functions for analysis, and presenting outputs in the form of code, images, and tables
 
-<video width="800" height="460" controls>
-  <source src="examples/video_demo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<img src="examples/video_demo.gif" style="width:800px;height:460px;animation: play 0.05s steps(100) infinite;">
 
-We also offer a command-line interface (CLI) demo for enhanced ease of use through the terminal.
+We also offer a command-line interface (CLI) demo through the terminal.
 
-<video width="800" height="460" controls>
-  <source src="examples/cli.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<img src="examples/cli.gif" style="width:600px;height:450px;animation: play 0.05s steps(100) infinite;">
+
+We also offer a GPTs demo (under developing).
+
+<img src="examples/GPTs.gif" style="width:600px;height:400px;animation: play 1s steps(10) infinite;">
 
 
 # Web access online demo
@@ -59,7 +57,7 @@ We provide several ways to run the service terminal CLI, Docker, railway, python
 ```bash
 # setup the environment, data, PYTHONPATH
 git clone https://github.com/batmen-lab/BioMANIA.git
-# TODO: download the data and retriever model from drive, and put them to the BioMANIA/data/standard_process/{LIB} and BioMANIA/hugging_models/retriever_model_finetuned/{LIB}
+# download the data and retriever model from drive, and put them to the BioMANIA/data/standard_process/{LIB} and BioMANIA/hugging_models/retriever_model_finetuned/{LIB}
 cd BioMANIA
 conda create -n biomania python=3.10
 conda activate biomania

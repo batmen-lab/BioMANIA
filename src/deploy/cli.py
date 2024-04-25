@@ -10,9 +10,8 @@ def encode_file_to_base64(filepath):
     with open(filepath, "rb") as file:
         return base64.b64encode(file.read()).decode('utf-8')
 
-def create_request(text, lib, filepath=None):
+def create_request(text, lib, session_id, filepath=None):
     """Create JSON request data for the backend."""
-    session_id = datetime.now().strftime("%Y%m%d%H%M%S")
     request_data = {
         "text": text,
         "top_k": 1,
@@ -102,6 +101,7 @@ def main():
         else:
             library = user_input.lower()
         print("="*80)
+    session_id = datetime.now().strftime("%Y%m%d%H%M%S")
     while True:
         user_input = input("Enter your inquiry:\n (if you have uploaded files, present as '<file>/path/to/file</file>') or enter 'exit' to quit: ")
         print("="*80)
@@ -113,9 +113,9 @@ def main():
         if match:
             file_path = match.group(1)
             text = re.sub(r"<file>.*?</file>", "", user_input).strip()
-            request_data = create_request(text, library, file_path)
+            request_data = create_request(text, library, session_id, file_path)
         else:
-            request_data = create_request(user_input, library)
+            request_data = create_request(user_input, library, session_id)
         response = send_request_to_backend(request_data)
         output = parse_backend_response(response)
         print(Fore.GREEN + "BioMANIA: 🤔" + Style.RESET_ALL)
