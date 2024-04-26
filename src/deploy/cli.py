@@ -65,7 +65,9 @@ def parse_backend_response(response):
                     else:
                         messages.append(message)
                     if imageData:
-                        image_path = f"tmp/{event['session_id']}.png"
+                        from datetime import datetime
+                        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                        image_path = f"tmp/{timestamp}.webp"
                         with open(image_path, "wb") as img_file:
                             img_file.write(base64.b64decode(imageData))
                         messages.append(Fore.GREEN + f"Image saved to {image_path}" + Style.RESET_ALL)

@@ -6,6 +6,7 @@ Last Edited Date: 2024-01-23
 Description: 
     Check whether there exist data leakage, duplicate queries, missing API for annotated data.
 """
+import inspect
 from typing import Tuple
 from ..gpt.utils import load_json
 
@@ -44,9 +45,9 @@ def check_api_coverage_and_uniqueness(train_data: list, test_data: list, LIB: st
     LIB : str
         The library prefix to filter API names by.
     """
-    train_apis = set(item["api_name"] for item in train_data)
+    train_apis = {item["api_name"] for item in train_data}
     # filter class and composite API
-    train_apis = set([i for i in list(train_apis) if i.startswith(LIB)])
+    train_apis = {i for i in list(train_apis) if i.startswith(LIB)}
     test_apis = {api_name: 0 for api_name in train_apis}
 
     for item in test_data:
@@ -66,8 +67,8 @@ def check_for_query_text_overlap(train_data: list, test_data: list) -> None:
     test_data : list
         List of dictionaries representing the test data, each containing a "query".
     """
-    train_queries = set(item["query"] for item in train_data)
-    test_queries = set(item["query"] for item in test_data)
+    train_queries = {item["query"] for item in train_data}
+    test_queries = {item["query"] for item in test_data}
     overlapping_queries = train_queries.intersection(test_queries)
     if overlapping_queries:
         print(f"Data leakage detected: Overlapping query texts in training and test datasets: {overlapping_queries}")
@@ -84,7 +85,7 @@ def check_all_queries_unique(annotated_data: list) -> None:
     queries = [item["query"] for item in annotated_data]
     unique_queries = set(queries)
     if len(queries) != len(unique_queries):
-        duplicated_queries = set([q for q in queries if queries.count(q) > 1])
+        duplicated_queries = {q for q in queries if queries.count(q) > 1}
         print(f"Duplicated queries detected: {duplicated_queries}")
     else:
         print("All queries are unique.")
@@ -100,8 +101,8 @@ def check_api_presence_in_inquiry(composite_data: dict, inquiry_data: list) -> N
     inquiry_data : list
         A list of inquiry data dictionaries, each containing an "api_calling" entry with API names.
     """
-    composite_apis = set(item for item in composite_data)
-    inquiry_apis = set(item['api_calling'][0].split('(')[0] for item in inquiry_data)
+    composite_apis = {item for item in composite_data}
+    inquiry_apis = {item['api_calling'][0].split('(')[0] for item in inquiry_data}
     print(f'length of composite/inquiry is {len(composite_apis)}, {len(inquiry_apis)}')
     missing_apis = composite_apis - inquiry_apis
     if missing_apis:
@@ -144,7 +145,6 @@ def main(LIB: str) -> None:
     """
     inquiry_data = load_json(f'./data/standard_process/{LIB}/API_inquiry.json')
     annotated_data = load_json(f'./data/standard_process/{LIB}/API_inquiry_annotate.json')
-    composite_data = load_json(f'./data/standard_process/{LIB}/API_composite.json')
     single_data = load_json(f'./data/standard_process/{LIB}/API_init.json')
     train_data, test_data = get_training_and_test_sets(inquiry_data, annotated_data)
     inquiry_api_names = set()
@@ -166,7 +166,6 @@ def main(LIB: str) -> None:
     compare_inquiries_in_datasets(inquiry_data, annotated_data)
     print("All checks passed successfully.")
 
-import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__ == "__main__":

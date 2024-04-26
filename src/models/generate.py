@@ -8,8 +8,8 @@ import torch
 wd = Path(__file__).parent.parent.resolve()
 sys.path.append(str(wd))
 
-from lit_llama import LLaMA, Tokenizer
-from lit_llama.utils import lazy_load, llama_model_lookup, quantization
+from ..models.lit_llama import LLaMA, Tokenizer
+from ..models.lit_llama.utils import lazy_load, llama_model_lookup, quantization
 
 
 @torch.no_grad()
