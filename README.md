@@ -14,7 +14,7 @@
 
 [![Docker Version](https://img.shields.io/badge/Docker-v1.1.9-blue?style=flat&logo=docker)](https://hub.docker.com/repositories/chatbotuibiomania)
 [![Railway](https://img.shields.io/badge/Railway-purple?style=flat&logo=railway)](https://railway.app/template/qaQEvv)
-<!-- [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14K4562oeesEz5qMoXmjv9gW_4VeLh6_U?usp=sharing) -->
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14K4562oeesEz5qMoXmjv9gW_4VeLh6_U?usp=sharing)
 
 
 Welcome to the BioMANIA! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
@@ -46,7 +46,7 @@ We also offer a GPTs demo (under developing).
 
 # Web access online demo
 
-We provide an [online demo](https://biomania.serveo.net/en) hosted on our server! 
+We provide a colab demo [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14K4562oeesEz5qMoXmjv9gW_4VeLh6_U?usp=sharing) and an [online demo](https://biomania.serveo.net/en) hosted on our server! 
 
 # Quick start
 
@@ -239,7 +239,8 @@ Thank you for choosing BioMANIA. We hope this guide assists you in navigating th
 - v1.1.10 (2024-04-21)
   - Add add git installation, add basic API documentation, add PyPI packaging support.
   - Add basic pytest cases.
-  - Add terminal CLI with its video demo, and Colab demo (Under developing).
+  - Add terminal CLI, and Colab demo, with their video demo.
+
 
 view [version_history](./docs/version_history.md) for more details!
 

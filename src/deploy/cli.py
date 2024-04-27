@@ -36,12 +36,15 @@ def send_request_to_backend(data, url = "http://localhost:5000/stream"):
     response = requests.post(url, json=data, stream=True)
     return response.iter_lines()
 
-def parse_backend_response(response):
+def parse_backend_response(response, yield_load=True):
     """Parse the response from the backend and extract meaningful data."""
     messages = []
     for line in response:
         if line:
-            event = json.loads(line.decode('utf-8'))
+            if yield_load:
+                event = json.loads(line.decode('utf-8'))
+            else:
+                event = line
             method_name = event.get('method_name')
             block_id = event.get('block_id')
             if method_name in ["on_tool_start", "on_tool_end", "on_agent_end"]:

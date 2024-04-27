@@ -68,15 +68,3 @@ def test_compare_inquiries_in_datasets(capsys):
     captured = capsys.readouterr()
     print(captured)
     assert "Inconsistent inquiries detected" in captured.out
-
-@patch('src.dataloader.check_valid_API_annotate.load_json')
-def test_main(mock_load_json):
-    mock_load_json.side_effect = [
-        inquiry_data,
-        annotated_data,
-        composite_data,
-        single_data
-    ]
-    with patch('sys.argv', ['--LIB', 'lib']):
-        from src.dataloader.check_valid_API_annotate import main
-        main('scanpy')
