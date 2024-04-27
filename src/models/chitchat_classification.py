@@ -37,14 +37,14 @@ def process_chitchat() -> None:
     combined_data.to_csv("./data/others-data/combined_data.csv", sep=',', index=False)
     print("Data has been combined and saved as combined_data.csv")
 
-def process_apiquery(lib_name: str, filename: str = "API_inquiry.json", start_id: int = 0, index_save: bool = True) -> pd.DataFrame:
+def process_apiquery(lib_data_path: str, filename: str = "API_inquiry.json", start_id: int = 0, index_save: bool = True) -> pd.DataFrame:
     """
     Processes API queries from a JSON file and optionally saves them to a CSV file.
 
     Parameters
     ----------
-    lib_name : str
-        The name of the library to process.
+    lib_data_path : str
+        The path to the library data.
     filename : str, optional
         The name of the JSON file containing API queries.
     start_id : int, optional
@@ -57,17 +57,15 @@ def process_apiquery(lib_name: str, filename: str = "API_inquiry.json", start_id
     pd.DataFrame
         A DataFrame containing the filtered API queries.
     """
-    json_data = load_json(f'./data/standard_process/{lib_name}/{filename}')
+    json_data = load_json(os.path.join(lib_data_path, filename))
     filtered_data = [entry for entry in json_data if entry['query_id'] >= start_id]
     questions = [entry['query'] for entry in filtered_data]
     df = pd.DataFrame({'Question': questions, 'Source': 'api-query'})
     if index_save:
-        df.to_csv(f'./data/standard_process/{lib_name}/api_data.csv', index=False)
+        df.to_csv(os.path.join(lib_data_path, "api_data.csv"), index=False)
     return df
 
-def sampledata_combine(data1: pd.DataFrame, data2: pd.DataFrame, data3: pd.DataFrame, test_data3: pd.DataFrame, 
-                       train_count_data1: int = 1000, train_count_data2: int = 1000, train_count_data3: int = 1000, 
-                       test_count_data1: int = 500, test_count_data2: int = 500, test_count_data3: int = 500) -> None:
+def sampledata_combine(data1: pd.DataFrame, data2: pd.DataFrame, data3: pd.DataFrame, test_data3: pd.DataFrame, train_count_data1: int = 1000, train_count_data2: int = 1000, train_count_data3: int = 1000, test_count_data1: int = 500, test_count_data2: int = 500, test_count_data3: int = 500) -> None:
     """
     Combines sampled data into train and test datasets and saves them as CSV files.
 
@@ -187,12 +185,14 @@ def plot_tsne_distribution_modified(lib_name: str, train_data: pd.DataFrame, tes
     plt.legend()
     plt.savefig(f'./plot/{lib_name}/chitchat_test_tsne_modified_{embed_method}.pdf')
 
-def main(LIB: str, ratio_1_to_3: float, ratio_2_to_3: float, embed_method: str, device: torch.device) -> None:
+def main(lib_data_path:str, LIB: str, ratio_1_to_3: float, ratio_2_to_3: float, embed_method: str, device: torch.device) -> None:
     """
     Main processing function that orchestrates data loading, processing, embedding, and plotting.
 
     Parameters
     ----------
+    lib_data_path: str
+        The path to the library data.
     LIB : str
         The library name to process.
     ratio_1_to_3 : float
@@ -206,15 +206,15 @@ def main(LIB: str, ratio_1_to_3: float, ratio_2_to_3: float, embed_method: str, 
     """
     process_topicalchat()
     process_chitchat()
-    tmp_data = process_apiquery(LIB)
-    json_data = load_json(f'./data/standard_process/{LIB}/API_inquiry.json')
+    tmp_data = process_apiquery(lib_data_path)
+    json_data = load_json(os.path.join(lib_data_path, 'API_inquiry.json'))
     max_query_id = max(entry['query_id'] for entry in json_data)
-    test_data3 = process_apiquery(LIB, 'API_inquiry_annotate.json', start_id=max_query_id + 1, index_save=False)
-    json_data = load_json(f'./data/standard_process/{LIB}/API_inquiry_annotate.json')
+    test_data3 = process_apiquery(lib_data_path, 'API_inquiry_annotate.json', start_id=max_query_id + 1, index_save=False)
+    json_data = load_json(os.path.join(lib_data_path, 'API_inquiry_annotate.json'))
     assert len(test_data3)+len(tmp_data)==len(json_data)
     data1 = pd.read_csv('./data/others-data/dialogue_questions.csv')
     data2 = pd.read_csv('./data/others-data/combined_data.csv')
-    data3 = pd.read_csv(f'./data/standard_process/{LIB}/api_data.csv')
+    data3 = pd.read_csv(os.path.join(lib_data_path, 'api_data.csv'))
 
     min_length_train = len(data3)
     min_length_test = len(test_data3)
@@ -285,7 +285,7 @@ def main(LIB: str, ratio_1_to_3: float, ratio_2_to_3: float, embed_method: str, 
 
     start_time = time.time()
     print('centroids shape: ', [i.shape for i in centroids])
-    with open(f'./data/standard_process/{LIB}/centroids.pkl', 'wb') as f:
+    with open(os.path.join(lib_data_path, 'centroids.pkl'), 'wb') as f:
         pickle.dump(centroids, f)
     start_time = time.time()
     os.makedirs(f"./plot/{LIB}", exist_ok=True)
@@ -307,4 +307,9 @@ if __name__=='__main__':
     parser.add_argument("--ratio_2_to_3", type=float, default=1.0, help="Ratio of data2 to data3.")
     parser.add_argument("--embed_method", type=str, choices=["st_untrained", "st_trained"], default="st_untrained", help="The method for embeddings: st_untrained, or st_trained")
     args = parser.parse_args()
-    main(args.LIB, args.ratio_1_to_3, args.ratio_2_to_3, args.embed_method, device)
+    
+    from ..configs.model_config import get_all_variable_from_cheatsheet
+    info_json = get_all_variable_from_cheatsheet(args.LIB)
+    LIB_DATA_PATH = info_json['LIB_DATA_PATH']
+    
+    main(LIB_DATA_PATH, args.LIB, args.ratio_1_to_3, args.ratio_2_to_3, args.embed_method, device)

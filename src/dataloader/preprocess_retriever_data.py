@@ -584,7 +584,7 @@ def preprocess_retriever_data_shuffle(OUTPUT_DIR: str, QUERY_FILE: str, QUERY_AN
     val_labels_df.to_csv(OUTPUT_DIR + '/qrels.val.tsv', sep='\t', index=False, header=False)
     documents_df.to_csv(OUTPUT_DIR + '/corpus.tsv', sep='\t', index=False)
 
-def get_all_path(lib_name: str) -> Tuple[str, str, str, str, str, str]:
+def get_all_path(lib_data_path: str) -> Tuple[str, str, str, str, str, str]:
     """
     Retrieves all necessary file paths based on the library name.
 
@@ -598,13 +598,13 @@ def get_all_path(lib_name: str) -> Tuple[str, str, str, str, str, str]:
     Tuple[str, str, str, str, str, str]
         A tuple containing paths to API initialization, API composite, output directory, query file, annotated query file, and index file.
     """
-    os.makedirs(f"data/standard_process/{lib_name}/retriever_train_data", exist_ok=True)
-    API_composite = f'./data/standard_process/{lib_name}/API_composite.json'
-    API_init = f'./data/standard_process/{lib_name}/API_init.json'
-    OUTPUT_DIR = f"data/standard_process/{lib_name}/retriever_train_data"
-    QUERY_FILE = f"data/standard_process/{lib_name}/API_inquiry.json"
-    QUERY_ANNOTATE_FILE = f"data/standard_process/{lib_name}/API_inquiry_annotate.json"
-    INDEX_FILE = f"data/standard_process/{lib_name}/API_instruction_testval_query_ids.json"
+    os.makedirs(os.path.join(lib_data_path, 'retriever_train_data'), exist_ok=True)
+    API_composite = os.path.join(lib_data_path, 'API_composite.json')
+    API_init = os.path.join(lib_data_path, 'API_init.json')
+    OUTPUT_DIR = os.path.join(lib_data_path, 'retriever_train_data')
+    QUERY_FILE = os.path.join(lib_data_path, 'API_inquiry.json')
+    QUERY_ANNOTATE_FILE = os.path.join(lib_data_path, 'API_inquiry_annotate.json')
+    INDEX_FILE = os.path.join(lib_data_path, 'API_instruction_testval_query_ids.json')
     return API_init, API_composite, OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE
 
 def preprocess_fake_test_data(QUERY_FILE: str, QUERY_ANNOTATE_FILE: str) -> None:
@@ -665,12 +665,14 @@ def create_corpus_from_json(API_init_json: dict, corpus_tsv_path: str) -> None:
     documents_df = pd.DataFrame(documents, columns=["docid", "document_content"])
     documents_df.to_csv(corpus_tsv_path, sep='\t', index=False)
 
-async def preprocess_instruction_d(desc_retriever: Any, API_init: dict, QUERY_FILE: str, LIB: str, GPT_model: str) -> None:
+async def preprocess_instruction_d(lib_data_path, desc_retriever: Any, API_init: dict, QUERY_FILE: str, LIB: str, GPT_model: str) -> None:
     """
     Asynchronously processes instruction data using a descriptor retriever and a language model.
 
     Parameters
     ----------
+    lib_data_path: str
+        The path to the library data.
     desc_retriever : Any
         The descriptor retriever for pulling similar API descriptions.
     API_init : dict
@@ -695,7 +697,7 @@ async def preprocess_instruction_d(desc_retriever: Any, API_init: dict, QUERY_FI
     progress = tqdm_asyncio(total=len(ori_data))
     idx = 0
     # get similar pairs
-    merged_pairs, similar_api_same_desc, similar_api_same_funcname = get_ambiguous_pairs(f"./data/standard_process/{LIB}/API_init.json")
+    merged_pairs, similar_api_same_desc, similar_api_same_funcname = get_ambiguous_pairs(os.path.join(lib_data_path, 'API_init.json'))
     for api_name in tqdm_asyncio(ori_data):
         async with semaphore:
             if True:
@@ -776,17 +778,20 @@ if __name__=='__main__':
     load_dotenv()
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
     
-    API_init, API_composite, OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE = get_all_path(args.LIB)
+    from ..configs.model_config import get_all_variable_from_cheatsheet
+    info_json = get_all_variable_from_cheatsheet(args.LIB)
+    LIB_DATA_PATH = info_json['LIB_DATA_PATH']
+    API_init, API_composite, OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE = get_all_path(LIB_DATA_PATH)
     API_init_json = load_json(API_init)
     # prepare desc_prompt corpus
     print('preparing desc_prompt corpus')
-    os.makedirs(f"./data/standard_process/{args.LIB}/prompt_desc/", exist_ok=True)
+    os.makedirs(os.path.join(LIB_DATA_PATH, 'prompt_desc'), exist_ok=True)
     print('preparing API corpus')
-    create_corpus_from_json(API_init_json,f"./data/standard_process/{args.LIB}/prompt_desc/corpus.tsv")
+    create_corpus_from_json(API_init_json,os.path.join(LIB_DATA_PATH, 'prompt_desc',"corpus.tsv"))
     # load pretrained bert model, prepare corpus
-    desc_retriever = ToolRetriever(LIB = args.LIB, corpus_tsv_path=f"./data/standard_process/{args.LIB}/prompt_desc/corpus.tsv", model_path="all-MiniLM-L6-v2", add_base=False,shuffle_data=False, process_func=process_retrieval_desc)
+    desc_retriever = ToolRetriever(LIB = args.LIB, corpus_tsv_path=os.path.join(LIB_DATA_PATH, 'prompt_desc',"corpus.tsv"), model_path="all-MiniLM-L6-v2", add_base=False,shuffle_data=False, process_func=process_retrieval_desc)
     t1 = time.time()
-    asyncio.run(preprocess_instruction_d(desc_retriever, API_init_json, QUERY_FILE, args.LIB, args.GPT_model))
+    asyncio.run(preprocess_instruction_d(LIB_DATA_PATH, desc_retriever, API_init_json, QUERY_FILE, args.LIB, args.GPT_model))
     print('step1 cost:', time.time()-t1)
     t1 = time.time()
     preprocess_fake_test_data(QUERY_FILE, QUERY_ANNOTATE_FILE)

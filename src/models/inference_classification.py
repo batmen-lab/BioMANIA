@@ -166,7 +166,11 @@ def evaluate_model(model: nn.Module, loader: DataLoader, criterion: nn.Module, m
         Returns the total loss, number of correct predictions, total number of predictions,
         list of logits for correct predictions, and list of logits for incorrect predictions.
     """
-    merged_pairs = find_similar_two_pairs(f"./data/standard_process/{LIB}/API_init.json")
+    from ..configs.model_config import get_all_variable_from_cheatsheet
+    info_json = get_all_variable_from_cheatsheet(LIB)
+    LIB_DATA_PATH = info_json['LIB_DATA_PATH']
+    
+    merged_pairs = find_similar_two_pairs(os.path.join(LIB_DATA_PATH, "API_init.json"))
     model.eval()
     total_loss = 0
     correct = 0

@@ -717,12 +717,14 @@ def main_get_API_composite(lib_analysis_path: str, output_folder_json: str, lib_
     print('get unique_code_blocks from tutorials:', unique_code_blocks)
     return unique_code_blocks
     
-def main_get_LLM_docstring(unique_code_blocks: list, LIB: str) -> None:
+def main_get_LLM_docstring(lib_data_path:str, unique_code_blocks: list, LIB: str) -> None:
     """
     Processes unique code blocks to generate enhanced docstrings using a language model.
 
     Parameters
     ----------
+    lib_data_path: str
+        The path to the library data directory.
     unique_code_blocks : list
         A list of unique code blocks to process.
     LIB : str
@@ -732,7 +734,7 @@ def main_get_LLM_docstring(unique_code_blocks: list, LIB: str) -> None:
     # LLM model
     llm, tokenizer = LLM_model()
     # load API_init.json
-    API_init = load_json(os.path.join('data','standard_process',LIB,"API_init.json"))
+    API_init = load_json(os.path.join(lib_data_path,"API_init.json"))
     API_composite = API_init.copy()
     idxxxxx = 1
     for code_blocks in unique_code_blocks:
@@ -782,7 +784,7 @@ def main_get_LLM_docstring(unique_code_blocks: list, LIB: str) -> None:
     API_composite = generate_api_callings(API_composite, basic_types=['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict'])
     # save API_composite.json
     #with open(os.path.join(LIB_ANALYSIS_PATH, 'API_composite.json'), 'w') as f: # test path
-    save_json(os.path.join("data","standard_process",LIB, 'API_composite.json', API_composite))
+    save_json(os.path.join(lib_data_path, 'API_composite.json', API_composite))
 
 def generate_api_callings(results: dict, basic_types: list = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'any', 'List', 'Dict']) -> dict:
     """
@@ -859,7 +861,7 @@ if __name__=='__main__':
     parser.add_argument('--file_type', type=str, default='ipynb', help='tutorial files type')
     args = parser.parse_args()
     info_json = get_all_variable_from_cheatsheet(args.LIB)
-    LIB_ALIAS, LIB_ANALYSIS_PATH = [info_json['LIB_ALIAS'], info_json['LIB_ANALYSIS_PATH']]
+    LIB_ALIAS, LIB_ANALYSIS_PATH, LIB_DATA_PATH = [info_json['LIB_ALIAS'], info_json['LIB_ANALYSIS_PATH'], info_json['LIB_DATA_PATH']]
     
     output_folder = os.path.join(ANALYSIS_PATH,args.LIB,"Git_Tut_py")
     output_folder_json = os.path.join(ANALYSIS_PATH,args.LIB,"Git_Tut_py2json")
@@ -872,4 +874,4 @@ if __name__=='__main__':
     print(all_files)
     
     unique_code_blocks = main_get_API_composite(os.path.join(ANALYSIS_PATH,args.LIB), output_folder_json, LIB_ALIAS)
-    main_get_LLM_docstring(unique_code_blocks, args.LIB)
+    main_get_LLM_docstring(LIB_DATA_PATH, unique_code_blocks, args.LIB)

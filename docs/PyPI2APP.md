@@ -73,7 +73,8 @@ Note: If you have prepared an API list txt file, you can add `--api_txt_path you
 # REQUEST 
 python -m src.dataloader.get_API_composite_from_tutorial --LIB ${LIB}
 # or skip it by running
-cp -r ./data/standard_process/${LIB}/API_init.json ./data/standard_process/${LIB}/API_composite.json
+DATA_PATH="./data/standard_process/${LIB}"
+cp -r ${DATA_PATH}/API_init.json ${DATA_PATH}/API_composite.json
 ```
 
 - NOTE that it requires TUTORIAL_GITHUB to run the first script!
@@ -114,11 +115,14 @@ python -m src.inference.retriever_bm25_inference --LIB ${LIB} --top_k 3
 7. Fine-tune the retriever.
 You can finetune the retriever based on the [bert-base-uncased](https://huggingface.co/bert-base-uncased) model
 ```bash
-mkdir ./hugging_models/retriever_model_finetuned/${LIB}
+DATA_PATH="./data/standard_process/${LIB}"
+MODEL_PATH="./hugging_models/retriever_model_finetuned/${LIB}"
+
+mkdir ${MODEL_PATH}
 python -m src.models.train_retriever \
-    --data_path ./data/standard_process/${LIB}/retriever_train_data/ \
+    --data_path ${DATA_PATH}/retriever_train_data/ \
     --model_name all-MiniLM-L6-v2 \
-    --output_path ./hugging_models/retriever_model_finetuned/${LIB} \
+    --output_path ${MODEL_PATH} \
     --num_epochs 20 \
     --train_batch_size 32 \
     --learning_rate 1e-5 \
@@ -135,13 +139,16 @@ You can check the training performance curve under `./plot/${LIB}/` to determine
 
 8. Test the inference performance using:
 ```bash 
+DATA_PATH="./data/standard_process/${LIB}"
+MODEL_PATH="./hugging_models/retriever_model_finetuned/${LIB}"
+
 export HUGGINGPATH=./hugging_models
 python -m src.inference.retriever_finetune_inference \
-    --retrieval_model_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned \
+    --retrieval_model_path ${MODEL_PATH}/assigned \
     --max_seq_length 256 \
-    --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
-    --input_query_file ./data/standard_process/${LIB}/API_inquiry_annotate.json \
-    --idx_file ./data/standard_process/${LIB}/API_instruction_testval_query_ids.json \
+    --corpus_tsv_path ${DATA_PATH}/retriever_train_data/corpus.tsv \
+    --input_query_file ${DATA_PATH}/API_inquiry_annotate.json \
+    --idx_file ${DATA_PATH}/API_instruction_testval_query_ids.json \
     --retrieved_api_nums 3 \
     --LIB ${LIB} \
     --filter_composite 
@@ -163,30 +170,35 @@ Please refer to [lit-llama](https://github.com/Lightning-AI/lit-llama) for getti
 
 process data:
 ```bash
+DATA_PATH="./data/standard_process/${LIB}"
+MODEL_PATH="./hugging_models/retriever_model_finetuned/${LIB}"
+
 export TOKENIZERS_PARALLELISM=true
 python -m src.models.data_classification \
     --pretrained_path ./hugging_models/llama-2-finetuned/checkpoints/lite-llama2/lit-llama.pth \
     --tokenizer_path ./hugging_models/llama-2-finetuned/checkpoints/tokenizer.model \
-    --corpus_tsv_path ./data/standard_process/${LIB}/retriever_train_data/corpus.tsv \
-    --retriever_path ./hugging_models/retriever_model_finetuned/${LIB}/assigned/ \
-    --data_dir ./data/standard_process/${LIB}/API_inquiry_annotate.json \
+    --corpus_tsv_path ${DATA_PATH}/retriever_train_data/corpus.tsv \
+    --retriever_path ${MODEL_PATH}/assigned/ \
+    --data_dir ${DATA_PATH}/API_inquiry_annotate.json \
     --out_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
     --plot_dir ./plot/${LIB}/classification \
     --device_count 1 \
     --top_k 3 \
     --debug_mode "1" \
-    --save_path ./data/standard_process/${LIB}/classification_train \
-    --idx_file ./data/standard_process/${LIB}/API_instruction_testval_query_ids.json \
-    --API_composite_dir ./data/standard_process/${LIB}/API_composite.json \
+    --save_path ${DATA_PATH}/classification_train \
+    --idx_file ${DATA_PATH}/API_instruction_testval_query_ids.json \
+    --API_composite_dir ${DATA_PATH}/API_composite.json \
     --batch_size 8 \
-    --retrieved_path ./data/standard_process/${LIB} \
+    --retrieved_path ${DATA_PATH} \
     --LIB ${LIB}
 ```
 
 Then, finetune model:
 ```bash
+DATA_PATH="./data/standard_process/${LIB}"
+
 python -m src.models.train_classification \
-    --data_dir ./data/standard_process/${LIB}/classification_train/ \
+    --data_dir ${DATA_PATH}/classification_train/ \
     --out_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
     --plot_dir ./plot/${LIB}/classification \
     --max_iters 120 \
@@ -195,8 +207,10 @@ python -m src.models.train_classification \
 
 Finally, check the performance:
 ```bash
+DATA_PATH="./data/standard_process/${LIB}"
+
 python -m src.models.inference_classification \
-    --data_dir ./data/standard_process/${LIB}/classification_train/ \
+    --data_dir ${DATA_PATH}/classification_train/ \
     --checkpoint_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/combined_model_checkpoint.pth \
     --batch_size 1 \
     --LIB ${LIB}

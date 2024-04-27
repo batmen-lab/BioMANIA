@@ -6,7 +6,7 @@ Last Edited Date: 2024-01-23
 Description: 
     Check whether there exist data leakage, duplicate queries, missing API for annotated data.
 """
-import inspect
+import inspect, os
 from typing import Tuple
 from ..gpt.utils import load_json
 
@@ -134,18 +134,20 @@ def compare_inquiries_in_datasets(inquiry_data: list, annotated_data: list) -> N
     else:
         print("All matching query_ids have consistent inquiries between inquiry_data and annotated_data.")
 
-def main(LIB: str) -> None:
+def main(lib_data_path:str, LIB: str) -> None:
     """
     Main function that loads data and performs checks to ensure data integrity for training and testing datasets.
 
     Parameters
     ----------
+    lib_data_path: str
+        The path to the library data.
     LIB : str
         The library name for the JSON data to be processed.
     """
-    inquiry_data = load_json(f'./data/standard_process/{LIB}/API_inquiry.json')
-    annotated_data = load_json(f'./data/standard_process/{LIB}/API_inquiry_annotate.json')
-    single_data = load_json(f'./data/standard_process/{LIB}/API_init.json')
+    inquiry_data = load_json(os.path.join(lib_data_path, 'API_inquiry.json'))
+    annotated_data = load_json(os.path.join(lib_data_path, 'API_inquiry_annotate.json'))
+    single_data = load_json(os.path.join(lib_data_path, 'API_init.json'))
     train_data, test_data = get_training_and_test_sets(inquiry_data, annotated_data)
     inquiry_api_names = set()
     for inquiry in inquiry_data:
@@ -173,4 +175,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Check data integrity for training and testing datasets.")
     parser.add_argument("--LIB", type=str, help="Library name for the JSON data.")
     args = parser.parse_args()
-    main(args.LIB)
+    
+    from ..configs.model_config import get_all_variable_from_cheatsheet
+    info_json = get_all_variable_from_cheatsheet(args.LIB)
+    LIB_DATA_PATH = info_json['LIB_DATA_PATH']
+    
+    main(LIB_DATA_PATH, args.LIB)

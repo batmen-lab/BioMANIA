@@ -126,6 +126,13 @@ def save_decoded_file(raw_file):
             pass
     return filename
 
+'''def save_decoded_file(encoded_file, filename):
+    """Decode and save the base64 encoded file"""
+    file_path = os.path.join('tmp', filename)
+    with open(file_path, "wb") as file:
+        file.write(base64.b64decode(encoded_file.split(",")[1]))
+    return file_path'''
+
 def correct_bool_values(optional_param):
     """
     Convert boolean values from lowercase (true, false) to uppercase (True, False).

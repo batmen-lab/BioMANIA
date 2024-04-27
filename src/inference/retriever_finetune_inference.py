@@ -19,6 +19,10 @@ class ToolRetriever:
         self.model_path = model_path
         self.corpus_tsv_path = corpus_tsv_path
         self.base_corpus_tsv_path = base_corpus_tsv_path
+        from ..configs.model_config import get_all_variable_from_cheatsheet
+        info_json = get_all_variable_from_cheatsheet(LIB)
+        self.LIB_DATA_PATH = info_json['LIB_DATA_PATH']
+        self.BASE_DATA_PATH = info_json['BASE_DATA_PATH']
         self.build_and_merge_corpus(add_base=add_base)
         if shuffle_data:
             self.shuffled_data = self.build_shuffle_data(LIB, add_base=add_base)
@@ -31,10 +35,10 @@ class ToolRetriever:
         def process_data(path, files_ids):
             data = load_json(f'{path}/API_inquiry_annotate.json')
             return [dict(query=row['query'], gold=row['api_name']) for row in data if row['query_id'] not in files_ids['val'] and row['query_id'] not in files_ids['test']]
-        lib_files_ids = load_json(f'./data/standard_process/{LIB}/API_instruction_testval_query_ids.json')
-        lib_data = process_data(f'./data/standard_process/{LIB}', lib_files_ids)
-        base_files_ids = load_json(f'./data/standard_process/base/API_instruction_testval_query_ids.json')
-        base_data = process_data('./data/standard_process/base', base_files_ids)
+        lib_files_ids = load_json(os.path.join(self.LIB_DATA_PATH, "API_instruction_testval_query_ids.json"))
+        lib_data = process_data(self.LIB_DATA_PATH, lib_files_ids)
+        base_files_ids = load_json(os.path.join(self.BASE_DATA_PATH, "API_instruction_testval_query_ids.json"))
+        base_data = process_data(self.BASE_DATA_PATH, base_files_ids)
         if add_base:
             lib_data = lib_data + base_data
         random.Random(0).shuffle(lib_data)
@@ -77,12 +81,14 @@ class ToolRetriever:
         similar_queries = ["\nInstruction: " + self.shuffled_data[hit['corpus_id']]['query'] + "\nFunction: " + self.shuffled_data[hit['corpus_id']]['gold'] for hit in hits[0]]
         return ''.join(similar_queries)
 
-def compute_accuracy(retriever: ToolRetriever, data: List[Dict[str, Any]], args: argparse.Namespace, name: str = 'train', LIB_ALIAS: str = 'scanpy') -> Tuple[float, Dict[str, List[float]], float, int]:
+def compute_accuracy(lib_data_path:str, retriever: ToolRetriever, data: List[Dict[str, Any]], args: argparse.Namespace, name: str = 'train', LIB_ALIAS: str = 'scanpy') -> Tuple[float, Dict[str, List[float]], float, int]:
     """
     Computes the accuracy of the retrieval based on the given data and the retriever's responses.
 
     Parameters
     ----------
+    lib_data_path : str
+        The path to the library data directory.
     retriever : ToolRetriever
         The retrieval tool to use for finding similar APIs.
     data : List[Dict[str, Any]]
@@ -103,7 +109,7 @@ def compute_accuracy(retriever: ToolRetriever, data: List[Dict[str, Any]], args:
         - Ambiguous accuracy as a percentage of correct predictions considering ambiguous matches.
         - The count of total non-ambiguous API matches.
     """
-    merged_pairs = find_similar_two_pairs(f"./data/standard_process/{args.LIB}/API_init.json")
+    merged_pairs = find_similar_two_pairs(os.path.join(lib_data_path, "API_init.json"))
     correct_predictions = 0
     ambiguous_correct_predictions = 0  # Additional metric for ambiguous matches
     error_predictions = 0
@@ -165,10 +171,10 @@ def compute_accuracy(retriever: ToolRetriever, data: List[Dict[str, Any]], args:
     }
     return accuracy, scores, ambiguous_accuracy, total_api_non_ambiguous
 
-def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train', LIB_ALIAS='scanpy'):
+def compute_accuracy_filter_compositeAPI(lib_data_path, retriever, data, args,name='train', LIB_ALIAS='scanpy'):
     # remove class type API, and composite API from the data
-    API_composite = load_json(f"./data/standard_process/{args.LIB}/API_composite.json")
-    merged_pairs = find_similar_two_pairs(f"./data/standard_process/{args.LIB}/API_init.json")
+    API_composite = load_json(os.path.join(lib_data_path,"API_composite.json"))
+    merged_pairs = find_similar_two_pairs(os.path.join(lib_data_path,"API_init.json"))
     correct_predictions = 0
     ambiguous_correct_predictions = 0  # Additional metric for ambiguous matches
     error_predictions = 0
@@ -243,9 +249,9 @@ def compute_accuracy_filter_compositeAPI(retriever, data, args,name='train', LIB
     }
     return accuracy, scores, ambiguous_accuracy, total_api_non_ambiguous
 
-def compute_and_plot(data_set, set_name, retriever, args, compute_func, LIB_ALIAS):
+def compute_and_plot(data_set, set_name, retriever, args, compute_func, LIB_ALIAS, lib_data_path):
     """Compute scores, visualize"""
-    accuracy, avg_scores, ambiguous_accuracy, total_api_non_ambiguous = compute_func(retriever, data_set, args, set_name, LIB_ALIAS)
+    accuracy, avg_scores, ambiguous_accuracy, total_api_non_ambiguous = compute_func(lib_data_path, retriever, data_set, args, set_name, LIB_ALIAS)
     print(f"{set_name.capitalize()} Accuracy: {accuracy:.2f}%, #samples {len(data_set)}")
     print(f"{set_name.capitalize()} ambiguous Accuracy: {ambiguous_accuracy:.2f}%, #samples {total_api_non_ambiguous}")
     scores = [avg_scores[f'rank_{i+1}'] for i in range(5)]
@@ -275,6 +281,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     info_json = get_all_variable_from_cheatsheet(args.LIB)
     LIB_ALIAS, API_HTML, TUTORIAL_GITHUB, API_HTML_PATH = [info_json[key] for key in ['LIB_ALIAS', 'API_HTML', 'TUTORIAL_GITHUB','API_HTML_PATH']]
+    LIB_DATA_PATH = info_json['LIB_DATA_PATH']
 
     # Step 1: Load API data from the JSON file
     api_data = load_json(args.input_query_file)
@@ -298,4 +305,4 @@ if __name__ == "__main__":
     compute_func = compute_accuracy_filter_compositeAPI if args.filter_composite else compute_accuracy
 
     for set_name, data_set in zip(['train', 'val', 'test'], [train_data, val_data, test_data]):
-        compute_and_plot(data_set, set_name, retriever, args, compute_func, LIB_ALIAS)
+        compute_and_plot(data_set, set_name, retriever, args, compute_func, LIB_ALIAS, LIB_DATA_PATH)

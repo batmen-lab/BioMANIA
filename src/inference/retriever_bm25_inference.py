@@ -1,4 +1,4 @@
-import ast
+import ast, os
 from rank_bm25 import BM25Okapi
 from ..retrievers import *
 from ..models.model import *
@@ -86,20 +86,20 @@ def evaluate_query_pairs(retriever: BM25Retriever, query_pairs_set: List[Tuple[s
     print(f"{name} retriever top-{top_k} accuracy rate: {retrieve_rate * 100:.2f}%")
     print(f"{name} retriever top-{top_k} ambiguous accuracy rate: {ambiguous_retrieve_rate * 100:.2f}%")
 
-def main(top_k: int, LIB: str) -> None:
+def main(lib_data_path, top_k: int) -> None:
     """
     Main function to prepare data, create a retriever, and evaluate its performance.
 
     Parameters
     ----------
+    lib_data_path: str
+        The path to the data directory.
     top_k : int
         The number of top documents to retrieve.
-    LIB : str
-        Library identifier used to specify paths and filenames.
     """
-    ori_data = load_json(f"./data/standard_process/{LIB}/API_composite.json")
-    results = load_json(f'./data/standard_process/{LIB}/API_inquiry_annotate.json')
-    index_file = load_json(f"./data/standard_process/{LIB}/API_instruction_testval_query_ids.json")
+    ori_data = load_json(os.path.join(lib_data_path, "API_composite.json"))
+    results = load_json(os.path.join(lib_data_path, "API_inquiry_annotate.json"))
+    index_file = load_json(os.path.join(lib_data_path, "API_instruction_testval_query_ids.json"))
     test_ids = index_file['test']
     val_ids = index_file['val']
     corpus, tokenized_corpus = prepare_corpus(ori_data)
@@ -116,7 +116,7 @@ def main(top_k: int, LIB: str) -> None:
     bm25 = BM25Okapi(tokenized_corpus)
     retriever = BM25Retriever(index=bm25, corpus=corpus, query_kwargs={"similarity_top_k": top_k})
 
-    merged_pairs = find_similar_two_pairs(f"./data/standard_process/{LIB}/API_init.json")
+    merged_pairs = find_similar_two_pairs(os.path.join(lib_data_path, "API_init.json"))
 
     # Evaluate for train and test sets
     evaluate_query_pairs(retriever, train_query_pairs, "train", top_k, merged_pairs)
@@ -132,4 +132,9 @@ if __name__ == "__main__":
     parser.add_argument('--top_k', type=int, default=3, help='')
     parser.add_argument('--LIB', type=str, help='')
     args = parser.parse_args()
-    main(args.top_k, args.LIB)
+    
+    from ..configs.model_config import get_all_variable_from_cheatsheet
+    info_json = get_all_variable_from_cheatsheet(args.LIB)
+    LIB_DATA_PATH = info_json['LIB_DATA_PATH']
+    
+    main(LIB_DATA_PATH, args.top_k)

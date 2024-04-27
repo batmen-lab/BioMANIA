@@ -74,7 +74,7 @@ def parse_backend_response(response):
                     if tableData:
                         messages.append(Fore.GREEN + f"Data: {tableData}" + Style.RESET_ALL)
                 if 'code-' in block_id:
-                    messages.append(Fore.YELLOW + f"**{task_title}**\n: {task}\n" + Style.RESET_ALL)
+                    messages.append(Fore.YELLOW + f"**{task_title}**:\n {task}\n" + Style.RESET_ALL)
             else:
                 raise ValueError(f"Unknown method name: {method_name}")
     return messages

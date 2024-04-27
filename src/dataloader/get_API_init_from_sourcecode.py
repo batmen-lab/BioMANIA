@@ -874,8 +874,7 @@ def parse_content_list(content_list: List[str]) -> List[str]:
             parsed_list.extend(sub_item.strip().split())
     return [item for item in parsed_list if item]  # Remove any empty strings
 
-
-def main_get_API_init(lib_name: str, lib_alias: str, analysis_path: str, api_html_path: Optional[str] = None, api_txt_path: Optional[str] = None) -> None:
+def main_get_API_init(lib_name: str, lib_alias: str, lib_data_path: str, api_html_path: Optional[str] = None, api_txt_path: Optional[str] = None) -> None:
     """
     Main function to initialize API data collection from either HTML or text files.
 
@@ -885,8 +884,8 @@ def main_get_API_init(lib_name: str, lib_alias: str, analysis_path: str, api_htm
         The library name.
     lib_alias : str
         The alias for the library.
-    analysis_path : str
-        The path to save analysis results.
+    lib_data_path : str
+        The path to save lib data API_init.json .
     api_html_path : Optional[str], optional
         The path to HTML API documentation. Default is None.
     api_txt_path : Optional[str], optional
@@ -934,28 +933,28 @@ def main_get_API_init(lib_name: str, lib_alias: str, analysis_path: str, api_htm
     tmp_results = filter_specific_apis(results, lib_name)
     print('After filtering non-calling #numbers are: ', len(tmp_results))
     # output_file = os.path.join(analysis_path,lib_name,"API_init.json")
-    os.makedirs(os.path.join('data','standard_process',lib_name), exist_ok=True)
-    output_file = os.path.join('data','standard_process',lib_name,"API_init.json")
+    os.makedirs(lib_data_path, exist_ok=True)
+    output_file = os.path.join(lib_data_path,"API_init.json")
     for api_name, api_info in tmp_results.items():
         api_info['relevant APIs'] = []
         api_info['type'] = 'singleAPI'
     save_json(output_file, tmp_results)
 
-def main_get_API_basic(cheatsheet: Dict[str, List[str]]) -> None:
+def main_get_API_basic(base_data_path, cheatsheet: Dict[str, List[str]]) -> None:
     """
     Main function to extract basic API information from a cheatsheet.
 
     Parameters
     ----------
-    analysis_path : str
-        The path to save analysis results.
+    base_data_path : str
+        The path to save base API_init.json .
     cheatsheet : Dict[str, List[str]]
         A dictionary containing API information.
     """
     # STEP1: get API from cheatsheet, save to basic_API.json
     #output_file = os.path.join(analysis_path,"API_base.json")
-    os.makedirs(os.path.join('data','standard_process',"base"), exist_ok=True)
-    output_file = os.path.join('data','standard_process',"base", "API_init.json")
+    os.makedirs(base_data_path, exist_ok=True)
+    output_file = os.path.join(base_data_path, "API_init.json")
     result_list = []
     print('Start getting docparam from source')
     for api in cheatsheet:
@@ -983,8 +982,8 @@ if __name__=='__main__':
     parser.add_argument('--api_txt_path', type=str, default=None, help='Your self-defined api txt path')
     args = parser.parse_args()
     info_json = get_all_variable_from_cheatsheet(args.LIB)
-    LIB_ALIAS, API_HTML, TUTORIAL_GITHUB, API_HTML_PATH = [info_json[key] for key in ['LIB_ALIAS', 'API_HTML', 'TUTORIAL_GITHUB','API_HTML_PATH']]
+    LIB_ALIAS, API_HTML, TUTORIAL_GITHUB, API_HTML_PATH, LIB_DATA_PATH, BASE_DATA_PATH = [info_json[key] for key in ['LIB_ALIAS', 'API_HTML', 'TUTORIAL_GITHUB','API_HTML_PATH', 'LIB_DATA_PATH', 'BASE_DATA_PATH']]
     CHEATSHEET = get_all_basic_func_from_cheatsheet()
-    main_get_API_init(args.LIB,LIB_ALIAS,ANALYSIS_PATH,API_HTML_PATH, api_txt_path=args.api_txt_path)
+    main_get_API_init(args.LIB,LIB_ALIAS,LIB_DATA_PATH,API_HTML_PATH, api_txt_path=args.api_txt_path)
     # currently we do not need the API_base.json
-    main_get_API_basic(CHEATSHEET)
+    main_get_API_basic(BASE_DATA_PATH, CHEATSHEET)
