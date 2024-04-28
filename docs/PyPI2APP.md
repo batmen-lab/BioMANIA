@@ -46,9 +46,9 @@ export LIB=scanpy
 ```bash
 # Under root `BioMANIA` folder
 # download materials according to your provided url links
-python -m src.dataloader.utils.other_download --LIB ${LIB}
+python -m BioMANIA.dataloader.utils.other_download --LIB ${LIB}
 # generate codes for your downloaded tutorial files, support for either html, ipynb.
-python -m src.dataloader.utils.tutorial_loader_strategy --LIB ${LIB} --file_type 'html'
+python -m BioMANIA.dataloader.utils.tutorial_loader_strategy --LIB ${LIB} --file_type 'html'
 ```
 
 NOTE it requires API_HTML_PATH, READTHEDOC_PATH and TUTORIAL_GITHUB to run the above script!
@@ -62,7 +62,7 @@ To use web UI smoothly, don't forget to add the new lib information to `BioMANIA
 
 2. Generate API_init.json using the provided script.
 ```bash
-python -m src.dataloader.get_API_init_from_sourcecode --LIB ${LIB}
+python -m BioMANIA.dataloader.get_API_init_from_sourcecode --LIB ${LIB}
 ```
 
 Note: If you have prepared an API list txt file, you can add `--api_txt_path your_file_path` to extract the API information. The sequence is firstly to recognize the API txt file, if not given then recognize the API html page, finally we start from Lib_ALIAS and check all its submodules.
@@ -71,7 +71,7 @@ Note: If you have prepared an API list txt file, you can add `--api_txt_path you
 ```bash
 # get composite API if you have already provided tutorial
 # REQUEST 
-python -m src.dataloader.get_API_composite_from_tutorial --LIB ${LIB}
+python -m BioMANIA.dataloader.get_API_composite_from_tutorial --LIB ${LIB}
 # or skip it by running
 DATA_PATH="./data/standard_process/${LIB}"
 cp -r ${DATA_PATH}/API_init.json ${DATA_PATH}/API_composite.json
@@ -85,12 +85,12 @@ If you skip this step, ensure that you contain a file of `./data/standard_proces
 
 4. Following this, create instructions, and split the data for retriever training preparation.
 ```bash
-python -m src.dataloader.preprocess_retriever_data --LIB ${LIB} --GPT_model gpt3.5/gpt4
+python -m BioMANIA.dataloader.preprocess_retriever_data --LIB ${LIB} --GPT_model gpt3.5/gpt4
 ```
 
 (Optional) You can validate of your annotated API_inquiry_annotate.json with 
 ```bash
-python -m src.dataloader.check_valid_API_annotate --LIB ${LIB}
+python -m BioMANIA.dataloader.check_valid_API_annotate --LIB ${LIB}
 ```
 
 Tips:
@@ -100,7 +100,7 @@ Tips:
 
 5. Train the api/non-api classification model.
 ```bash
-python -m src.models.chitchat_classification --LIB ${LIB} --ratio_1_to_3 1.0 --ratio_2_to_3 1.0 --embed_method st_untrained
+python -m BioMANIA.models.chitchat_classification --LIB ${LIB} --ratio_1_to_3 1.0 --ratio_2_to_3 1.0 --embed_method st_untrained
 # or train a classification model on multicorpus of 12 bio-tools.
 # python models/chitchat_classification_multicorpus.py
 ```
@@ -109,7 +109,7 @@ If you train a multicorpus one, please remember to copy the saved `.csv` and `.p
 
 6. (Optional) Try the unpretrained bm25 retriever for a quick inference on your generated instructions.
 ```bash
-python -m src.inference.retriever_bm25_inference --LIB ${LIB} --top_k 3
+python -m BioMANIA.inference.retriever_bm25_inference --LIB ${LIB} --top_k 3
 ```
 
 7. Fine-tune the retriever.
@@ -119,7 +119,7 @@ DATA_PATH="./data/standard_process/${LIB}"
 MODEL_PATH="./hugging_models/retriever_model_finetuned/${LIB}"
 
 mkdir ${MODEL_PATH}
-python -m src.models.train_retriever \
+python -m BioMANIA.models.train_retriever \
     --data_path ${DATA_PATH}/retriever_train_data/ \
     --model_name all-MiniLM-L6-v2 \
     --output_path ${MODEL_PATH} \
@@ -143,7 +143,7 @@ DATA_PATH="./data/standard_process/${LIB}"
 MODEL_PATH="./hugging_models/retriever_model_finetuned/${LIB}"
 
 export HUGGINGPATH=./hugging_models
-python -m src.inference.retriever_finetune_inference \
+python -m BioMANIA.inference.retriever_finetune_inference \
     --retrieval_model_path ${MODEL_PATH}/assigned \
     --max_seq_length 256 \
     --corpus_tsv_path ${DATA_PATH}/retriever_train_data/corpus.tsv \
@@ -174,7 +174,7 @@ DATA_PATH="./data/standard_process/${LIB}"
 MODEL_PATH="./hugging_models/retriever_model_finetuned/${LIB}"
 
 export TOKENIZERS_PARALLELISM=true
-python -m src.models.data_classification \
+python -m BioMANIA.models.data_classification \
     --pretrained_path ./hugging_models/llama-2-finetuned/checkpoints/lite-llama2/lit-llama.pth \
     --tokenizer_path ./hugging_models/llama-2-finetuned/checkpoints/tokenizer.model \
     --corpus_tsv_path ${DATA_PATH}/retriever_train_data/corpus.tsv \
@@ -197,7 +197,7 @@ Then, finetune model:
 ```bash
 DATA_PATH="./data/standard_process/${LIB}"
 
-python -m src.models.train_classification \
+python -m BioMANIA.models.train_classification \
     --data_dir ${DATA_PATH}/classification_train/ \
     --out_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
     --plot_dir ./plot/${LIB}/classification \
@@ -209,7 +209,7 @@ Finally, check the performance:
 ```bash
 DATA_PATH="./data/standard_process/${LIB}"
 
-python -m src.models.inference_classification \
+python -m BioMANIA.models.inference_classification \
     --data_dir ${DATA_PATH}/classification_train/ \
     --checkpoint_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/combined_model_checkpoint.pth \
     --batch_size 1 \

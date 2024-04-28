@@ -2,13 +2,14 @@
 mkdir hugging_models
 mkdir hugging_models/retriever_model_finetuned
 mkdir data
+pip install gdown==5.1.0
 
 # retriever model and data
-gdown --id 1PVsrsKnOdv0VrZw9sjkjsmQTm018MOG5 -O hugging_models/retriever_model_finetuned/your_lib
-gdown --id 1X-3xnTba9Mxb8SZ8oIEdxhVrGMdFVP-i -O data/your_second_file
-gdown --id 1NRKLDijLENR1vyQHFNT_vk5lLY4lL1CL -O data/your_third_file
-gdown --id 1wgYY9CD1hPfqlUUFFqDIeh9l4nEu124t -O data/your_fourth_file
-gdown --id 15vNIPK8ut8Hudbjwg_G1w0zJjs2gmmRb -O data/your_fifth_file
+gdown https://drive.google.com/uc?id=1PVsrsKnOdv0VrZw9sjkjsmQTm018MOG5 -O hugging_models/retriever_model_finetuned/your_lib
+gdown https://drive.google.com/uc?id=1X-3xnTba9Mxb8SZ8oIEdxhVrGMdFVP-i -O data/your_second_file
+gdown https://drive.google.com/uc?id=1NRKLDijLENR1vyQHFNT_vk5lLY4lL1CL -O data/your_third_file
+gdown https://drive.google.com/uc?id=1wgYY9CD1hPfqlUUFFqDIeh9l4nEu124t -O data/your_fourth_file
+gdown https://drive.google.com/uc?id=15vNIPK8ut8Hudbjwg_G1w0zJjs2gmmRb -O data/your_fifth_file
 
 cd data
 unzip your_second_file

@@ -50,22 +50,26 @@ We provide a colab demo [![Open In Colab](https://colab.research.google.com/asse
 
 # Quick start
 
-We provide several ways to run the service terminal CLI, Docker, railway, python script. Among those, Docker is the easiest way to start.
+We provide several ways to run the service: terminal CLI, Docker, railway, python script, colab demo. Among those, Docker is the easiest way to start.
 
 ## Run with terminal CLI
 
 ```bash
 # setup the environment, data, PYTHONPATH
-git clone https://github.com/batmen-lab/BioMANIA.git
-# download the data and retriever model from drive, and put them to the BioMANIA/data/standard_process/{LIB} and BioMANIA/hugging_models/retriever_model_finetuned/{LIB}
-cd BioMANIA
-conda create -n biomania python=3.10
-conda activate biomania
-pip install -r requirements.txt --index-url https://pypi.org/simple
+pip install git+https://github.com/batmen-lab/BioMANIA.git  --index-url https://pypi.org/simple
+# save your OPENAI_API_KEY here
+echo 'OPENAI_API_KEY="sk-proj-your_OPENAI_API_KEY-xxxx"' >> .env
+# download the data, retriever model, and resources from drive, and put them to the 
+# - data/standard_process/{LIB} and 
+# - hugging_models/retriever_model_finetuned/{LIB} and 
+# - ../../resources/
+pip install gdown==5.1.0
+gdown https://drive.google.com/uc?id=1lLIbYLd6596xra6wb7ex4Qw-g41fhdAW
+sh download_data_model.sh
+# setup the PYTHONPATH
 export PYTHONPATH=$PYTHONPATH:$(pwd)
 # CLI service quick start!
-python -m src.deploy.inference_dialog_server # CLI need to be run together with backend service
-python -m src.deploy.cli # open and run this in another terminal
+python -m BioMANIA.deploy.cli_demo
 ```
 
 ## Run with Docker
@@ -240,7 +244,7 @@ Thank you for choosing BioMANIA. We hope this guide assists you in navigating th
   - Add add git installation, add basic API documentation, add PyPI packaging support.
   - Add basic pytest cases.
   - Add terminal CLI, and Colab demo, with their video demo.
-
+  - Setup and simplify the process through PyPI installation!
 
 view [version_history](./docs/version_history.md) for more details!
 

@@ -12,7 +12,7 @@ def parse_backend_queue(queue):
         messages.append(event)
     return messages
 
-def colab_demo():
+def cli_demo():
     from loguru import logger
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     os.makedirs(f"./logs", exist_ok=True)
@@ -61,4 +61,4 @@ def colab_demo():
                 print(out)
 
 if __name__ == "__main__":
-    colab_demo()
+    cli_demo()
