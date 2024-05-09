@@ -17,8 +17,9 @@ from ..configs.Lib_cheatsheet import CHEATSHEET as LIB_CHEATSHEET
 from ..deploy.utils import change_format, basic_types, generate_api_calling, download_file_from_google_drive, download_data, save_decoded_file, correct_bool_values, convert_bool_values, infer, dataframe_to_markdown, convert_image_to_base64, change_format
 
 class Model:
-    def __init__(self, logger, device):
+    def __init__(self, logger, device, model_llm_type="gpt-3.5-turbo-0125"): # llama3
         print('start initialization!')
+        self.model_llm_type = model_llm_type
         self.logger = logger
         self.logger.debug("Initializing...")
         self.device=device
@@ -305,7 +306,7 @@ class Model:
         self.logger.info("retrieved_names: {}", retrieved_names)
         return retrieved_names
     def initialize_executor(self):
-        self.executor = CodeExecutor()
+        self.executor = CodeExecutor(self.logger)
         self.executor.callbacks = self.callbacks
         self.executor.variables={}
         self.executor.execute_code=[]
@@ -316,7 +317,7 @@ class Model:
             if var.startswith(prefix):
                 del globals()[var]
     def load_llm_model(self):
-        self.llm, self.tokenizer = LLM_model()
+        self.llm, self.tokenizer = LLM_model(self.model_llm_type)
     def load_data(self, API_file):
         # fix 231227, add API_base.json
         data = load_json(API_file)

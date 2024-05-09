@@ -36,8 +36,12 @@ def send_request_to_backend(data, url = "http://localhost:5000/stream"):
     response = requests.post(url, json=data, stream=True)
     return response.iter_lines()
 
-def parse_backend_response(response, yield_load=True):
+def parse_backend_response(response, yield_load=True, add_color=True):
     """Parse the response from the backend and extract meaningful data."""
+    from colorama import Fore, Style  # Ensure these are imported only if required
+    def colorize(message, color):
+        """Apply color format to the message if use_colors is True."""
+        return f"{color}{message}{Style.RESET_ALL}" if add_color else message
     messages = []
     for line in response:
         if line:
@@ -57,14 +61,14 @@ def parse_backend_response(response, yield_load=True):
                 tableData = event.get('tableData', '')  ##### Check and include tableData
                 if 'log-' in block_id:
                     message = f"**{task_title}**:\n {task}\n"
-                    if '[Fail]' in task_title:
-                        messages.append(Fore.RED + message + Style.RESET_ALL)
+                    if '[Fail]' in task_title or 'GPT predict Error' in task_title:
+                        messages.append(colorize(message, Fore.RED))
                     elif '[Success]' in task_title:
-                        messages.append(Fore.GREEN + message + Style.RESET_ALL)
-                    elif 'Double Check' in task_title:
-                        messages.append(Fore.MAGENTA + message + Style.RESET_ALL)
+                        messages.append(colorize(message, Fore.GREEN))
+                    elif 'Double Check' in task_title or 'Enter Parameters' in task_title:
+                        messages.append(colorize(message, Fore.MAGENTA))
                     elif 'Predicted API' in task_title:
-                        messages.append(Fore.YELLOW + message + Style.RESET_ALL)
+                        messages.append(colorize(message, Fore.YELLOW))
                     else:
                         messages.append(message)
                     if imageData:
@@ -73,11 +77,11 @@ def parse_backend_response(response, yield_load=True):
                         image_path = f"tmp/{timestamp}.webp"
                         with open(image_path, "wb") as img_file:
                             img_file.write(base64.b64decode(imageData))
-                        messages.append(Fore.GREEN + f"Image saved to {image_path}" + Style.RESET_ALL)
+                        messages.append(colorize(f"Image saved to {image_path}", Fore.GREEN))
                     if tableData:
-                        messages.append(Fore.GREEN + f"Data: {tableData}" + Style.RESET_ALL)
+                        messages.append(colorize(f"Data: {tableData}", Fore.GREEN))
                 if 'code-' in block_id:
-                    messages.append(Fore.YELLOW + f"**{task_title}**:\n {task}\n" + Style.RESET_ALL)
+                    messages.append(colorize(f"**{task_title}**:\n {task}\n", Fore.YELLOW))
             else:
                 raise ValueError(f"Unknown method name: {method_name}")
     return messages

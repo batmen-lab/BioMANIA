@@ -31,7 +31,7 @@ class ServerEventCallback():
             depth=depth,
             color=color,
         )
-        print("on_agent_action method called")
+        #print("on_agent_action method called")
         return block_id
 
     def on_tool_start(self, api_name: str = "", api_calling: str = "", api_description: str = "", depth: int = 0) -> Any:
@@ -44,7 +44,7 @@ class ServerEventCallback():
             api_calling=api_calling,
             depth=depth
         )
-        print("on_tool_start method called")
+        #print("on_tool_start method called")
 
     def on_tool_end(self, task:str="", status:str="0", depth: int=0) -> Any:
         method_name = "on_tool_end"
@@ -55,7 +55,7 @@ class ServerEventCallback():
             status=status,
             depth=depth
         )
-        print("on_tool_end method called")
+        #print("on_tool_end method called")
 
     def on_agent_end(self, block_id:str, depth: int):
         self.add_to_queue(
@@ -63,4 +63,4 @@ class ServerEventCallback():
             block_id=block_id,
             depth=depth
         )
-        print("on_agent_end method called")
+        #print("on_agent_end method called")

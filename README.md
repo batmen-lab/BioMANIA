@@ -48,7 +48,7 @@ We provide a colab demo [![Open In Colab](https://colab.research.google.com/asse
 
 # Quick start
 
-We provide several ways to run the service: terminal CLI, Docker, railway, python script, colab demo. Among those, terminal CLI is the easiest way to start.
+We provide several ways to run the service: terminal CLI, Docker, railway, python script, colab demo. Among those, terminal CLI is the easiest way to start. \
 
 ## Setup dataset and models
 ```bash

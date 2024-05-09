@@ -2,8 +2,16 @@ import pickle, importlib, json, inspect, os, io, sys, re
 from anndata import AnnData
 from ..gpt.utils import save_json, load_json
 
+class FakeLogger:
+    def info(self, message):
+        print("Logged info:", message)
+
 class CodeExecutor:
-    def __init__(self):
+    def __init__(self, logger=None):
+        if logger:
+            self.logger = logger
+        else:
+            self.logger = FakeLogger()
         self.variables = {}
         self.save_directory = "./tmp"
         self.generate_code = []
@@ -23,9 +31,9 @@ class CodeExecutor:
             return False
     def filter_picklable_variables(self, ):
         nonok_var = {k: v for k, v in self.variables.items() if not self.is_picklable(v)} 
-        print('not ok var:', nonok_var.keys())
+        self.logger.info('not ok var:', nonok_var.keys())
         return_var = {k: v for k, v in self.variables.items() if self.is_picklable(v)} #  if isinstance(v, (pd.DataFrame, pd.Series, int, float, str, bool))
-        print('return_var save :', list(return_var.keys()))
+        self.logger.info('return_var save :', list(return_var.keys()))
         return return_var
     def load_object(self,load_info):
         if load_info['type'] == 'AnnData':
@@ -60,7 +68,7 @@ class CodeExecutor:
 
     def save_environment(self, file_name):
         """Save environment, with special handling for AnnData objects."""
-        print('current variables are: ', self.variables.keys())
+        self.logger.info('current variables are: ', self.variables.keys())
         serializable_vars = self.filter_picklable_variables()
         # Handle AnnData objects separately
         ann_data_vars = {k: v for k, v in self.variables.items() if isinstance(v, AnnData)}
@@ -151,13 +159,13 @@ class CodeExecutor:
                         "optional": param_info["optional"],
                     }
                 except StopIteration:
-                    print(f"==?Insufficient values provided in user_input for parameter '{param_name}'")
+                    self.logger.info(f"==?Insufficient values provided in user_input for parameter '{param_name}'")
                     # You might want to handle this error more gracefully, depending on your requirements
         return params
     def makeup_for_missing_single_parameter(self, params, param_name_to_update, user_input, param_spec_type='@'):
         # Check if the given parameter name is valid and its value is '@'
         if param_name_to_update not in params or params[param_name_to_update]["value"] != param_spec_type:
-            print(f"==?Invalid parameter name '{param_name_to_update}' or the parameter doesn't need a value.")
+            self.logger.info(f"==?Invalid parameter name '{param_name_to_update}' or the parameter doesn't need a value.")
             return params
         param_info = params[param_name_to_update]
         value = user_input  # Since user_input is for a single parameter, we directly use it
@@ -174,7 +182,7 @@ class CodeExecutor:
     def makeup_for_missing_single_parameter_type_special(self, params, param_name_to_update, user_input):
         # Check if the given parameter name is valid and its value is list type
         if param_name_to_update not in params or ('list' not in str(type(params[param_name_to_update]["value"]))):
-            print(f"==?Invalid parameter name '{param_name_to_update}' or the parameter doesn't have multiple choice.")
+            self.logger.info(f"==?Invalid parameter name '{param_name_to_update}' or the parameter doesn't have multiple choice.")
             return params
         param_info = params[param_name_to_update]
         value = user_input  # Since user_input is for a single parameter, we directly use it
@@ -189,7 +197,7 @@ class CodeExecutor:
         }
         return params
     def get_import_code(self, api_name):
-        #print(f'==>start importing code for {api_name}')
+        #self.logger.info(f'==>start importing code for {api_name}')
         if '.' not in api_name:
             return "", 'function'
         try:
@@ -209,10 +217,10 @@ class CodeExecutor:
                     return f"from {module_name} import {attr_name}", type_name
             except ModuleNotFoundError:
                 continue
-        print(f"==?# Error: Could not generate import code for {api_name}")
+        self.logger.info(f"==?# Error: Could not generate import code for {api_name}")
         return "", ""
     def is_str_at_first_level(self, type_str):
-        print('change a stype for ensuring str type')
+        self.logger.info('change a stype for ensuring str type')
         # remove "Optional[" and "]", to solve the internal type
         def remove_outer_optional(s):
             if s.startswith("Optional[") and s.endswith("]"):
@@ -278,7 +286,7 @@ class CodeExecutor:
             return_type = api_info['return_type']
             class_selected_params = api_info['class_selected_params']
             api_type = api_info['api_type']
-            print(f'==>check individual apis now, api_name {api_name}, selected_params {selected_params}, class_selected_params {class_selected_params}')
+            self.logger.info(f'==>check individual apis now, api_name {api_name}, selected_params {selected_params}, class_selected_params {class_selected_params}')
             if len(api_params_list)==1:
                 if api_type=='class':
                     code_for_one_api = self.generate_execution_code_for_one_api(api_name, selected_params, return_type, class_selected_params, single_class_API=True)
@@ -290,28 +298,28 @@ class CodeExecutor:
         return '\n'.join(generated_code)
     
     def generate_execution_code_for_one_api(self, api_name, selected_params, return_type, class_selected_params={}, single_class_API=False):
-        print('api_name', api_name)
+        self.logger.info('api_name', api_name)
         import_code, type_api = self.get_import_code(api_name)
-        print(f'==>import_code, type_api, {import_code, type_api}')
+        self.logger.info(f'==>import_code, type_api, {import_code, type_api}')
         if import_code in [i['code'] for i in self.execute_code if i['success']=='True']:
-            print('==>api already imported!')
+            self.logger.info('==>api already imported!')
             pass
         else:
-            print('==>api not imported, import now!', import_code)
+            self.logger.info('==>api not imported, import now!', import_code)
             tmp_result = self.execute_api_call(import_code, "import")
             if tmp_result:
-                print(f'==?Error during importing of api calling! {tmp_result}')
+                self.logger.info(f'==?Error during importing of api calling! {tmp_result}')
         api_parts = api_name.split('.')
         # Convert the parameters to the format 'param_name=param_value' or 'param_value' based on optionality
-        #print('selected_params', selected_params)
+        #self.logger.info('selected_params', selected_params)
         params_formatted = self.format_arguments(selected_params)
         class_params_formatted = self.format_arguments(class_selected_params)
-        print('params_formatted:', params_formatted, 'class_params_formatted: ', class_params_formatted)
+        self.logger.info('params_formatted:', params_formatted, 'class_params_formatted: ', class_params_formatted)
         if type_api == "class":
-            print('==>Class type API need to be initialized first, then used')
+            self.logger.info('==>Class type API need to be initialized first, then used')
             # double check for API type
             if not class_selected_params:
-                print('==>?No class_selected_params')
+                self.logger.info('==>?No class_selected_params')
                 #raise ValueError
             if single_class_API:
                 final_api_name = ''
@@ -319,7 +327,7 @@ class CodeExecutor:
             else:
                 final_api_name = api_parts[-1]
                 maybe_class_name = api_parts[-2]
-            print('final_api_name', final_api_name)
+            self.logger.info('final_api_name', final_api_name)
             maybe_instance_name = maybe_class_name.lower() + "_instance"
             if single_class_API:
                 api_call = f"{maybe_instance_name} = {maybe_class_name}({class_params_formatted})"
@@ -329,10 +337,10 @@ class CodeExecutor:
                 api_call = f"{maybe_instance_name}.{final_api_name}({params_formatted})"
             class_API = maybe_instance_name
         else:
-            print('==>no Class type API')
+            self.logger.info('==>no Class type API')
             final_api_name = api_parts[-1]
             api_call = f"{final_api_name}({params_formatted})"
-        print('generate return information')
+        self.logger.info('generate return information')
         if (return_type not in ["NoneType", None, "None"]) and (not return_type.startswith('Optional')):
             self.counter += 1
             tmp_api_call = api_call.split('\n')[-1]
@@ -340,10 +348,10 @@ class CodeExecutor:
             index_parenthesis = tmp_api_call.find("(")
             comparison_result = index_equal < index_parenthesis
             if index_equal!=-1 and comparison_result:
-                print('debugging1 for return class API:', api_name, return_type, api_call, '--end')
+                self.logger.info('debugging1 for return class API:', api_name, return_type, api_call, '--end')
                 return import_code+'\n'+f"{api_call}"
             else:
-                print('debugging2 for return class API:', api_name, return_type, api_call, '--end')
+                self.logger.info('debugging2 for return class API:', api_name, return_type, api_call, '--end')
                 return_var = f"result_{self.counter} = "
                 new_code = f"{return_var}{tmp_api_call}"
                 # TODO: note this step assumes the lastline is the class.attribute line
@@ -352,41 +360,41 @@ class CodeExecutor:
                 self.generate_code.append(new_code)
                 return import_code+'\n'+new_code
         else:
-            print('debugging3 for return class API:', api_name, return_type, api_call, '--end')
+            self.logger.info('debugging3 for return class API:', api_name, return_type, api_call, '--end')
             self.generate_code.append(f"{api_call}")
             return import_code+'\n'+f"{api_call}"
     def split_tuple_variable(self, last_code_status):
-        print('==>start split_tuple_variable')
+        self.logger.info('==>start split_tuple_variable')
         # generate splitting code if the results is a tuple
         # split result_n into result_n+1, reuslt_n+2, result_n+3 = result_n
         try:
             code = last_code_status['code'].split('\n')[-1].strip()
             # Check if the last code snippet ends with 'result'
             if code.startswith('result'):
-                print('code is start with result:', code)
+                self.logger.info('code is start with result:', code)
                 # Extract the variable name that starts with 'result'
                 result_name_tuple = code.strip().split('=')[0].strip()
-                #print(f'self.variables: {self.variables},')
+                #self.logger.info(f'self.variables: {self.variables},')
                 result_variable = self.variables[result_name_tuple]
                 # Check if the variable is a tuple
                 if ('tuple' in str(type(result_variable['value']))) and ('None' not in str(result_variable['value'])):
-                    #print('==>start split tuple variables!')
+                    #self.logger.info('==>start split tuple variables!')
                     length = len(result_variable['value'])
                     new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
                     new_code = ', '.join(new_variables) + f" = {result_name_tuple}"
                     # execute new api call
-                    #print('==>for split_tuple_variable, execute code: ', code+'\n'+new_code)
+                    #self.logger.info('==>for split_tuple_variable, execute code: ', code+'\n'+new_code)
                     self.execute_api_call(new_code, last_code_status['code_type'])
                     # Update the count
                     self.counter += length
-                    print('Finished split_tuple_variable')
+                    self.logger.info('Finished split_tuple_variable')
                     return True, new_code
                 else:
                     return False, ""
             else:
                 return False, ""
         except Exception as e:
-            print(f'Something wrong in split_tuple_variable: {e}')
+            self.logger.info(f'Something wrong in split_tuple_variable: {e}')
             return False, ""
     def get_max_result_from_variable_list(self, result_name_list):
         max_value = float('-inf')
@@ -428,15 +436,15 @@ class CodeExecutor:
             new_vars = globals_after - globals_before
             if 'tmp' in globals_before:
                 new_vars=set(list(new_vars)+['tmp'])
-            #print('globals_before:',globals_before)
-            #print('globals_after:',globals_after)
-            #print('new_vars:', new_vars)
+            #self.logger.info('globals_before:',globals_before)
+            #self.logger.info('globals_after:',globals_after)
+            #self.logger.info('new_vars:', new_vars)
             if len(new_vars)<=0:
-                #print('oops, there is no new vars even executed successfully')
+                #self.logger.info('oops, there is no new vars even executed successfully')
                 if len(api_call_code.split('(')[0].split('='))>1:
                     new_vars = [api_call_code.split('(')[0].split('=')[0].strip()] # need to substitute result_*
             for var_name in new_vars: # this depends on the difference between two globals status
-                #print('added var_name:', var_name)
+                #self.logger.info('added var_name:', var_name)
                 var_value = globals()[var_name]
                 var_type = type(var_value).__name__
                 self.variables[var_name] = {
@@ -447,13 +455,13 @@ class CodeExecutor:
             if "Error" in captured_output_value:
                 self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'False', 'error': captured_output_value})
                 return captured_output_value
-            #print(f'why not append? {api_call_code}')
+            #self.logger.info(f'why not append? {api_call_code}')
             self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'True', 'error':''})
-            #print('self.execute_code', self.execute_code)
+            #self.logger.info('self.execute_code', self.execute_code)
             return captured_output_value
         except Exception as e:
             error = f"{e}"
-            print('==?error in execute api call:', error)
+            self.logger.info('==?error in execute api call:', error)
             self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'False', 'error': error})
             return error
     def save_variables_to_json(self, ):
@@ -473,21 +481,21 @@ class CodeExecutor:
         api_name = api_info['api_name']
         params = api_info['parameters']
         class_selected_params = api_info['class_selected_params']
-        #print('==>Automatically/Manually Selected params for $:')
+        #self.logger.info('==>Automatically/Manually Selected params for $:')
         selected_params = self.select_parameters(params)
-        print('==>After selecting parameters: ', selected_params)
+        self.logger.info('==>After selecting parameters: ', selected_params)
         none_value_params = [param_name for param_name, param_info in selected_params.items() if param_info["value"] in ['@']]
         if none_value_params:
-            print("==>Parameters @ with value unassigned are:", none_value_params)
+            self.logger.info("==>Parameters @ with value unassigned are:", none_value_params)
             selected_params = self.makeup_for_missing_parameters(selected_params, 'user_input_placeholder')
-            print('==>After Entering parameters: ', selected_params)
+            self.logger.info('==>After Entering parameters: ', selected_params)
         return_type = api_info['return_type']
         api_params_list = [{"api_name":api_name, 
                             "class_selected_params":class_selected_params, 
                             "return_type":return_type,
                             "parameters":api_info['parameters']}]
         execution_code = self.generate_execution_code(api_params_list)
-        print(execution_code)
+        self.logger.info(execution_code)
         execution_code_list = execution_code.split('\n')
         for code in execution_code_list:
             self.execute_api_call(code, "code")
@@ -497,7 +505,7 @@ class CodeExecutor:
             try:
                 exec(code)
             except Exception as e:
-                print(f"An error occurred while executing '{code}': {e}")
+                self.logger.info(f"An error occurred while executing '{code}': {e}")
 
 import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
@@ -691,16 +699,16 @@ if __name__=='__main__':
         executor.execute_one_pass(api_info)
         last_code_status = executor.execute_code[-1]
         executor.split_tuple_variable(last_code_status)
-    print('-'*10)
-    print('Current variables in namespace:')
-    print(json.dumps(str(executor.variables.keys())))
-    print('All successfully executed code:')
-    print('='*10)
-    print('code:    success or not:')
+    executor.logger.info('-'*10)
+    executor.logger.info('Current variables in namespace:')
+    executor.logger.info(json.dumps(str(executor.variables.keys())))
+    executor.logger.info('All successfully executed code:')
+    executor.logger.info('='*10)
+    executor.logger.info('code:    success or not:')
     for i in executor.execute_code:
         if i['success']=='True':
-            print(i['code'])
-    print('Save variable json:')
+            executor.logger.info(i['code'])
+    executor.logger.info('Save variable json:')
     executor.save_environment(os.path.join(executor.save_directory,f"_environment.pkl"))
     #executor.save_variables_to_json()
     import copy
@@ -708,11 +716,11 @@ if __name__=='__main__':
     tmp_execute_code = copy.deepcopy(executor.execute_code)
     executor.variables={}
     executor.execute_code = []
-    print('Load variable json:')
+    executor.logger.info('Load variable json:')
     #executor.load_variables_to_json()
     executor.load_environment(os.path.join(executor.save_directory,f"_environment.pkl"))
-    print(executor.variables.keys())
-    print(executor.execute_code)
+    executor.logger.info(executor.variables.keys())
+    executor.logger.info(executor.execute_code)
     assert list(tmp_variables.keys()) == list(executor.variables.keys()), "Variables do not match after loading."
     assert tmp_execute_code == executor.execute_code, "Execute code records do not match after loading."
     executor.execute_code_past_success(code_type='import')

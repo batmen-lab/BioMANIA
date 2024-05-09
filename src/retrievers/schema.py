@@ -6,7 +6,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Generic, List, NamedTuple, Optional, TypeVar, Union
 
-from pydantic import BaseModel, Extra, Field, model_validator, root_validator
+from pydantic import BaseModel, Extra, Field, root_validator #model_validator, 
 
 
 def get_buffer_string(

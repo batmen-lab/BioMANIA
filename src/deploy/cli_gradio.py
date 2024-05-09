@@ -31,7 +31,7 @@ def process_input(user_input, library):
     #output_texts = ["<div style='font-family: Arial, sans-serif;'>"]
     output_texts = []
     for msg in messages:
-        output = parse_backend_response([msg], yield_load=False)
+        output = parse_backend_response([msg], yield_load=False, add_color=False)
         for out in output:
             output_texts.append(out)
             #formatted_output = ansi_to_html(out)
@@ -49,17 +49,11 @@ def ansi_to_html(text):
         text = text.replace(ansi, html)
     return text
 
-"""for msg in messages:
-        output = parse_backend_response([msg], yield_load=False)
-        output = [ansi_to_html(out) for out in output]
-        output_texts.extend(output)
-    return "<br>".join(output_texts)"""
-
 def main():
     global model
     global conversation_started
     conversation_started = True
-    model = Model(logger=logger, device='cpu')
+    model = Model(logger=logger, device='cpu', model_llm_type='llama3')
     libs = ["scanpy", "squidpy", "ehrapy", "snapatac2"]
     description = "Welcome to BioMANIA Web Demo! Choose a library and enter your inquiry."
     iface = gr.Interface(
@@ -69,7 +63,7 @@ def main():
             gr.Dropdown(choices=libs, label="Library")
         ],
         #outputs=gr.Textbox(),
-        outputs=gr.HTML(),
+        outputs=gr.Textbox(),
         title="BioMANIA Model Interaction",
         description=description
     )
