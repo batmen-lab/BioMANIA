@@ -206,18 +206,21 @@ Your chatbot server is now operational at `http://localhost:3000/en`, primed to 
 
 ### DIY
 
-```bash
-
-## Run with gradio app
+For users who wish to customize functionality more deeply, we provide a script example that demonstrates direct interaction with the BioMANIA library via a Python script. In this example, users can 
+- switch different initial loaded library
+- change the llm type by either ollama supported models i.e. llama3, or openai supported models i.e. gpt-3.5-turbo
+- manage the conversation state, either continue the previous saved session, or start a new conversation
+This method is particularly suited for developers and researchers who want to quickly adjust and test different data processing strategies based on specific research needs.
 
 ```bash
 # under BioMANIA/
 from src.deploy.model import Model
 conversation_started = True
-model = Model(logger=logger, device='cpu', model_llm_type='llama3')
+model = Model(logger=None, device='cpu', model_llm_type='llama3')
 user_input = "Could you load the built in dataset?"
 library = "scanpy"
-# for the first dialog, use conversation_started=True, then conversation_started=False
+# for the first turn of a dialog, use conversation_started=True, then use conversation_started=False for the following dialogs
+# if you want to use previous session, use the same session_id as before and conversation_started = False
 model.run_pipeline(user_input, library, top_k=1, files=[], conversation_started=conversation_started, session_id="")
 ```
 
