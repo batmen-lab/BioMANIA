@@ -245,8 +245,9 @@ if __name__=='__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--LIB', type=str, required=True, help='PyPI tool')
+    parser.add_argument('--use_source', type=str, default='readthedoc', help='source of the tutorial')
     args = parser.parse_args()
     info_json = get_all_variable_from_cheatsheet(args.LIB)
     TUTORIAL_HTML, LIB_ANALYSIS_PATH, LIB_ALIAS = [info_json[key] for key in ['TUTORIAL_HTML', 'LIB_ANALYSIS_PATH', 'LIB_ALIAS']]
-    combined_tutorials = get_tutorial_pieces(args.LIB, TUTORIAL_HTML, LIB_ANALYSIS_PATH)
+    combined_tutorials = get_tutorial_pieces(args.LIB, TUTORIAL_HTML, LIB_ANALYSIS_PATH, use_source="github")
     summarized_responses = get_relevant_API(combined_tutorials, LIB_ALIAS)

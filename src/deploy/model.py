@@ -18,6 +18,7 @@ from ..deploy.utils import change_format, basic_types, generate_api_calling, dow
 
 class Model:
     def __init__(self, logger, device):
+        print('start initialization!')
         self.logger = logger
         self.logger.debug("Initializing...")
         self.device=device
@@ -39,6 +40,7 @@ class Model:
         self.initialize_executor()
         reset_result = self.reset_lib(self.LIB)
         if reset_result=='Fail':
+            print('Reset lib fail! Exit the dialog!')
             return
         self.last_user_states = ""
         self.user_states = "run_pipeline"
@@ -56,7 +58,6 @@ class Model:
         #    self.vectorizer = pickle.load(f)
         with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
             self.centroids = pickle.load(f)
-        print('==>chitchat vectorizer loaded!')
         self.retrieve_query_mode = "similar"
         self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
         print("Server ready")
@@ -88,7 +89,6 @@ class Model:
             self.load_bert_model()
             self.logger.info("==>loaded finetuned bert for chitchat")
             #self.load_composite_code(lib_name)
-            #print('==>loaded API composite done')
             t1 = time.time()
             self.logger.info('==>Start loading model!')
             self.load_llm_model()
@@ -107,6 +107,8 @@ class Model:
             self.load_multiple_corpus_in_namespace()
             self.executor.execute_api_call(f"import {lib_name}", "import")
             self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{lib_name}/API_init.json", mode='single')
+            with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
+                self.centroids = pickle.load(f)
             self.logger.info('==>Successfully loading model!')
             self.logger.info("loading model cost: {} s", str(time.time()-t1))
             reset_result = "Success"
@@ -159,7 +161,7 @@ class Model:
             "python", "dataloader/preprocess_retriever_data.py",
             "--LIB", self.LIB
         ]
-        print("Running command:", command)
+        #print("Running command:", command)
         subprocess.Popen(command)
         ###########
         self.callback_func('installation', "Copying chitchat model from multicorpus pretrained chitchat model ...", "65")
@@ -396,6 +398,7 @@ class Model:
             reset_result = self.reset_lib(lib)
             if reset_result=='Fail':
                 self.logger.error('Reset lib fail! Exit the dialog!')
+                print('Reset lib fail! Exit the dialog!')
                 return 
             self.args_retrieval_model_path = f'./hugging_models/retriever_model_finetuned/{lib}/assigned'
             self.LIB = lib
@@ -742,7 +745,7 @@ class Model:
         if self.last_user_states == "run_select_special_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter_type_special(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         self.initialize_tool()
-        print('self.filtered_params: {}', json.dumps(self.filtered_params))
+        #print('self.filtered_params: {}', json.dumps(self.filtered_params))
         if len(self.filtered_params)>1:
             self.last_param_name = list(self.filtered_params.keys())[0]
             candidate_text = ""
@@ -752,7 +755,7 @@ class Model:
             self.callback_func('log', f"Which value do you think is appropriate for the parameters '{self.last_param_name}'? We find some candidates:\n {candidate_text}. ", "Enter Parameters: special type", "red")
             self.update_user_state("run_select_special_params")
             del self.filtered_params[self.last_param_name]
-            print('self.filtered_params: {}', json.dumps(self.filtered_params))
+            #print('self.filtered_params: {}', json.dumps(self.filtered_params))
             self.save_state()
             return
         elif len(self.filtered_params)==1:
@@ -764,7 +767,7 @@ class Model:
             self.callback_func('log', f"Which value do you think is appropriate for the parameters '{self.last_param_name}'? We find some candidates \n {candidate_text}. ", "Enter Parameters: special type", "red")
             self.update_user_state("run_pipeline_after_select_special_params")
             del self.filtered_params[self.last_param_name]
-            print('self.filtered_params: {}', json.dumps(self.filtered_params))
+            #print('self.filtered_params: {}', json.dumps(self.filtered_params))
             self.save_state()
         else:
             self.callback_func('log', "The parameters candidate list is empty", "Error Enter Parameters: basic type", "red")
@@ -985,6 +988,7 @@ class Model:
         temp_output_file = "./sub_process_execution.txt"
         process = multiprocessing.Process(target=self.run_pipeline_execution_code_list, args=(execution_code_list, temp_output_file))
         process.start()
+        #process.join()
         while process.is_alive():
             self.logger.info('process is alive!')
             time.sleep(1)

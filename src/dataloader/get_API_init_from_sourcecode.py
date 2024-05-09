@@ -914,8 +914,7 @@ def main_get_API_init(lib_name: str, lib_alias: str, lib_data_path: str, api_htm
         elif api_html_path.endswith('html'):
             content = process_html(api_html_path)
         else:
-            print('Please double check the given html! File format error!')
-            raise ValueError
+            raise ValueError('Please double check the given html! File format error!')
         pattern = re.compile(r"(\b\w+(\.\w+)+\b)")
         ori_content_keys = list(set([match[0] for match in pattern.findall(content)]))
         ori_content_keys = [i for i in ori_content_keys if lib_alias in i]

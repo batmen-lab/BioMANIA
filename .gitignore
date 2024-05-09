@@ -18,6 +18,7 @@ __pycache__/
 **/node_modules/*
 
 # Specialized
+hugging_models/*
 plot/*
 data/*
 Src/gpt_bak_240416/*

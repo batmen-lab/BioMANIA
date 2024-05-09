@@ -6,7 +6,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Generic, List, NamedTuple, Optional, TypeVar, Union
 
-from pydantic import BaseModel, Extra, Field, root_validator
+from pydantic import BaseModel, Extra, Field, model_validator, root_validator
 
 
 def get_buffer_string(
@@ -135,10 +135,11 @@ def messages_from_dict(messages: List[dict]) -> List[BaseMessage]:
 class ChatGeneration(Generation):
     """Output of a single generation."""
 
-    text = ""
+    text:str = ""
     message: BaseMessage
 
-    @root_validator
+    #@model_validator
+    @root_validator(pre=False, skip_on_failure=True)
     def set_text(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         values["text"] = values["message"].content
         return values

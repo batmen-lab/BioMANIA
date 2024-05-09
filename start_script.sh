@@ -1,7 +1,7 @@
 ssh -R biomania.serveo.net:80:localhost:3000 -i ~/.ssh/serveo_key serveo.net &
 tunnel_pid=$!
 
-python -m src.deploy.inference_dialog_server.py &
+python -m src.deploy.inference_dialog_server &
 backend_pid=$!
 
 cd chatbot_ui_biomania/

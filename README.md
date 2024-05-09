@@ -5,7 +5,6 @@
   <h1 style="margin: 0; white-space: nowrap;">BioMANIA</h1>
 </div>
 
-
 [![Paper](https://img.shields.io/badge/Paper-burgundy?style=flat&logo=arxiv)](https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1)
 [![GitHub stars](https://img.shields.io/github/stars/batmen-lab/BioMANIA?style=social)](https://github.com/batmen-lab/BioMANIA)
 [![Documentation Status](https://img.shields.io/readthedocs/biomania/latest?style=flat&logo=readthedocs&label=Doc)](https://biomania.readthedocs.io/en/latest/?badge=latest)
@@ -33,16 +32,15 @@ We welcome 🤗 you to refer to the [Q&A](./docs/Q&A.md) section if you encounte
 
 Our demonstration showcases how to utilize a chatbot to simultaneously use scanpy and squidpy in a single conversation, including loading data, invoking functions for analysis, and presenting outputs in the form of code, images, and tables
 
-<img src="examples/video_demo.gif" style="width:800px;height:460px;animation: play 0.05s steps(100) infinite;">
+<img src="examples/video_demo.gif" style="width:800px;height:400px;animation: play 0.05s steps(100) infinite;">
 
 We also offer a command-line interface (CLI) demo through the terminal.
 
-<img src="examples/cli.gif" style="width:600px;height:450px;animation: play 0.05s steps(100) infinite;">
+<img src="examples/cli.gif" style="width:800px;height:500px;animation: play 0.05s steps(100) infinite;">
 
 We also offer a GPTs demo (under developing).
 
-<img src="examples/GPTs.gif" style="width:600px;height:400px;animation: play 1s steps(10) infinite;">
-
+<img src="examples/GPTs.gif" style="width:800px;height:450px;animation: play 1s steps(10) infinite;">
 
 # Web access online demo
 
@@ -50,24 +48,28 @@ We provide a colab demo [![Open In Colab](https://colab.research.google.com/asse
 
 # Quick start
 
-We provide several ways to run the service: terminal CLI, Docker, railway, python script, colab demo. Among those, Docker is the easiest way to start.
+We provide several ways to run the service: terminal CLI, Docker, railway, python script, colab demo. Among those, terminal CLI is the easiest way to start.
 
-## Run with terminal CLI
-
+## Setup dataset and models
 ```bash
-# setup the environment, data, PYTHONPATH
+# setup the environment
 pip install git+https://github.com/batmen-lab/BioMANIA.git  --index-url https://pypi.org/simple
-# save your OPENAI_API_KEY here
-echo 'OPENAI_API_KEY="sk-proj-your_OPENAI_API_KEY-xxxx"' >> .env
-# download the data, retriever model, and resources from drive, and put them to the 
+# setup OPENAI_API_KEY
+echo 'OPENAI_API_KEY="sk-proj-xxxx"' >> .env
+# download data, retriever, and resources from drive, and put them to the 
 # - data/standard_process/{LIB} and 
 # - hugging_models/retriever_model_finetuned/{LIB} and 
 # - ../../resources/
 pip install gdown==5.1.0
-gdown https://drive.google.com/uc?id=1lLIbYLd6596xra6wb7ex4Qw-g41fhdAW
+gdown https://drive.google.com/uc?id=1nT28pIJ_dsdvi2yD8ffWt_aePXsSWdqI
 sh download_data_model.sh
 # setup the PYTHONPATH
 export PYTHONPATH=$PYTHONPATH:$(pwd)
+```
+
+## Run with terminal CLI
+
+```bash
 # CLI service quick start!
 python -m BioMANIA.deploy.cli_demo
 ```
@@ -110,6 +112,8 @@ To use railway, you'll need to fill in the `OpenAI_API_KEY` in the Variables pag
 
 ## Run with script
 
+This section is provided for user who want DIY more flexible function.
+
 For instance, let's take `scanpy` as an example. Detailed library support information can be found in the [Q&A](./docs/Q&A.md)
 
 ### Setting up for environment
@@ -125,14 +129,9 @@ pip install -r requirements.txt --index-url https://pypi.org/simple
 export PYTHONPATH=$PYTHONPATH:$(pwd)
 ```
 
-(Optional) 240421: We provide Git installation. We will later provide a version that is compatible with external data support.
-```bash
-pip install git+https://github.com/batmen-lab/BioMANIA.git
-```
-
 2. Set up your OpenAI API key in the `BioMANIA/.env` file.
 ```bash
-"OPENAI_API_KEY"="your-openai-api-key-here"
+echo 'OPENAI_API_KEY="sk-proj-xxxx"' >> .env
 ```
 
 - For inference purposes, a standard OpenAI API key is sufficient.
@@ -142,9 +141,10 @@ pip install git+https://github.com/batmen-lab/BioMANIA.git
 ### Prepare for Data and Model
 Download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link) or [Baidu Drive link](https://pan.baidu.com/s/1AZgKRfptrUTI3L2YbZwHww?pwd=36fi). For those library data, you can download only the one you need.
 
-We provide a script for downloading models and datas from Google Drive for scanpy as an example. This works if you are accessible to google. And don't forget to rename the retriever model `multicorpus` as your lib name for usage.
+We provide a script for downloading models and datas from Google Drive for scanpy as an example. This works if you are accessible to google.
 ```bash
-sh src/download_data_model.sh
+gdown https://drive.google.com/uc?id=1nT28pIJ_dsdvi2yD8ffWt_aePXsSWdqI
+sh download_data_model.sh
 ```
 
 Organize the downloaded files at `BioMANIA/data` or `BioMANIA/hugging_models` as follows (`base` are necessary):
@@ -168,6 +168,8 @@ hugging_models
 └── retriever_model_finetuned
     ├── {LIB}
     └── ...
+
+../../resources
 ```
 
 By meticulously following the steps above, you'll have all the essential data and models perfectly organized for the project.
@@ -189,7 +191,11 @@ npm install && npm run build
 Start both services for back-end and front-end UI with:
 ```bash
 # Under folder `BioMANIA/`
-sh start_script.sh
+# backend, in one terminal
+python -m src.deploy.inference_dialog_server
+# frontend, in another terminal
+cd chatbot_ui_biomania/
+npm run dev 
 ```
 
 Your chatbot server is now operational at `http://localhost:3000/en`, primed to process user queries.
@@ -202,7 +208,6 @@ Please refer to the separate README for tutorials that supporting converting dif
 - [For PyPI Tools](./docs/PyPI2APP.md)
 - [For Python Source Code from Git Repo](./docs/Git2APP.md)
 - [For R Package](./docs/R2APP.md) (231123-Still under developing)
-
 
 ## Share your APP!
 
@@ -224,7 +229,6 @@ Notice if you want to include some data inside the docker, please modify the `Do
 
 You can just share your `data` and `hugging_models` folder and `logo` image by drive link to [our issue](https://github.com/batmen-lab/BioMANIA/issues/2).
 
-
 ## Reference and Acknowledgments
 
 We extend our gratitude to the following references:
@@ -239,7 +243,7 @@ We extend our gratitude to the following references:
 Thank you for choosing BioMANIA. We hope this guide assists you in navigating through our project with ease.
 
 
-## Version History
+## **Version History**
 - v1.1.10 (2024-04-21)
   - Add add git installation, add basic API documentation, add PyPI packaging support.
   - Add basic pytest cases.
@@ -248,6 +252,21 @@ Thank you for choosing BioMANIA. We hope this guide assists you in navigating th
 
 view [version_history](./docs/version_history.md) for more details!
 
-## Star History
+## **Star History**
 
 [![Star History Chart](https://api.star-history.com/svg?repos=batmen-lab/BioMANIA&type=Date)](https://star-history.com/#batmen-lab/BioMANIA&Date)
+
+## **Citation**
+
+Please cite our paper if you fine our data, model or code useful.
+
+```
+@article{dong2023biomania,
+  title={BioMANIA: Simplifying bioinformatics data analysis through conversation},
+  author={Dong, Zhengyuan and Zhong, Victor and Lu, Yang},
+  journal={bioRxiv},
+  pages={2023--10},
+  year={2023},
+  publisher={Cold Spring Harbor Laboratory}
+}
+```

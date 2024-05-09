@@ -46,23 +46,22 @@ export LIB=scanpy
 ```bash
 # Under root `BioMANIA` folder
 # download materials according to your provided url links
-python -m BioMANIA.dataloader.utils.other_download --LIB ${LIB}
+python -m src.dataloader.utils.other_download --LIB ${LIB}
 # generate codes for your downloaded tutorial files, support for either html, ipynb.
-python -m BioMANIA.dataloader.utils.tutorial_loader_strategy --LIB ${LIB} --file_type 'html'
+python -m src.dataloader.utils.tutorial_loader_strategy --LIB ${LIB} --file_type 'html'
 ```
 
 NOTE it requires API_HTML_PATH, READTHEDOC_PATH and TUTORIAL_GITHUB to run the above script!
 
-Install the PyPI library by below, or other ways that recommended from their Github.
 ```bash
-pip install {LIB}
+pip install {LIB} # install your target PyPI lib, or other installation methods
 ```
 
 To use web UI smoothly, don't forget to add the new lib information to `BioMANIA/chatbot_ui_biomania/components/Chat/LibCardSelect.tsx`. Also add the new lib logo to `BioMANIA/chatbot_ui_biomania/public/apps/`.
 
 2. Generate API_init.json using the provided script.
 ```bash
-python -m BioMANIA.dataloader.get_API_init_from_sourcecode --LIB ${LIB}
+python -m src.dataloader.get_API_init_from_sourcecode --LIB ${LIB}
 ```
 
 Note: If you have prepared an API list txt file, you can add `--api_txt_path your_file_path` to extract the API information. The sequence is firstly to recognize the API txt file, if not given then recognize the API html page, finally we start from Lib_ALIAS and check all its submodules.
@@ -72,7 +71,7 @@ Note: If you have prepared an API list txt file, you can add `--api_txt_path you
 # get composite API if you have already provided tutorial
 # REQUEST 
 python -m BioMANIA.dataloader.get_API_composite_from_tutorial --LIB ${LIB}
-# or skip it by running
+# Or skip this step by copying API_init to API_composite
 DATA_PATH="./data/standard_process/${LIB}"
 cp -r ${DATA_PATH}/API_init.json ${DATA_PATH}/API_composite.json
 ```
@@ -101,11 +100,7 @@ Tips:
 5. Train the api/non-api classification model.
 ```bash
 python -m BioMANIA.models.chitchat_classification --LIB ${LIB} --ratio_1_to_3 1.0 --ratio_2_to_3 1.0 --embed_method st_untrained
-# or train a classification model on multicorpus of 12 bio-tools.
-# python models/chitchat_classification_multicorpus.py
 ```
-
-If you train a multicorpus one, please remember to copy the saved `.csv` and `.pkl` files under `data/standard_process/multicorpus/` and put under your lib's path.
 
 6. (Optional) Try the unpretrained bm25 retriever for a quick inference on your generated instructions.
 ```bash
@@ -117,7 +112,6 @@ You can finetune the retriever based on the [bert-base-uncased](https://huggingf
 ```bash
 DATA_PATH="./data/standard_process/${LIB}"
 MODEL_PATH="./hugging_models/retriever_model_finetuned/${LIB}"
-
 mkdir ${MODEL_PATH}
 python -m BioMANIA.models.train_retriever \
     --data_path ${DATA_PATH}/retriever_train_data/ \
@@ -141,7 +135,6 @@ You can check the training performance curve under `./plot/${LIB}/` to determine
 ```bash 
 DATA_PATH="./data/standard_process/${LIB}"
 MODEL_PATH="./hugging_models/retriever_model_finetuned/${LIB}"
-
 export HUGGINGPATH=./hugging_models
 python -m BioMANIA.inference.retriever_finetune_inference \
     --retrieval_model_path ${MODEL_PATH}/assigned \
@@ -172,7 +165,6 @@ process data:
 ```bash
 DATA_PATH="./data/standard_process/${LIB}"
 MODEL_PATH="./hugging_models/retriever_model_finetuned/${LIB}"
-
 export TOKENIZERS_PARALLELISM=true
 python -m BioMANIA.models.data_classification \
     --pretrained_path ./hugging_models/llama-2-finetuned/checkpoints/lite-llama2/lit-llama.pth \
@@ -196,7 +188,6 @@ python -m BioMANIA.models.data_classification \
 Then, finetune model:
 ```bash
 DATA_PATH="./data/standard_process/${LIB}"
-
 python -m BioMANIA.models.train_classification \
     --data_dir ${DATA_PATH}/classification_train/ \
     --out_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
@@ -208,7 +199,6 @@ python -m BioMANIA.models.train_classification \
 Finally, check the performance:
 ```bash
 DATA_PATH="./data/standard_process/${LIB}"
-
 python -m BioMANIA.models.inference_classification \
     --data_dir ${DATA_PATH}/classification_train/ \
     --checkpoint_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/combined_model_checkpoint.pth \

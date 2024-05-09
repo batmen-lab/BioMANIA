@@ -1,6 +1,6 @@
 from ..deploy.model import Model
 
-import os
+import os, torch
 from datetime import datetime
 from colorama import Fore, Style
 from ..deploy.cli import encode_file_to_base64, parse_backend_response
@@ -22,7 +22,7 @@ def cli_demo():
     print("Logging setup complete.")
     if not os.path.exists('tmp'):
         os.mkdir('tmp')
-    device='cuda'
+    device= 'cuda' if torch.cuda.is_available() else 'cpu'
     model = Model(logger,device)
     print(Fore.GREEN + "Welcome to BioMANIA CLI Demo!" + Style.RESET_ALL)
     print(Fore.BLUE + "[Would you like to see some examples to learn how to interact with the bot?](https://github.com/batmen-lab/BioMANIA/tree/main/examples)" + Style.RESET_ALL)
