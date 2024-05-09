@@ -67,11 +67,13 @@ sh download_data_model.sh
 export PYTHONPATH=$PYTHONPATH:$(pwd)
 ```
 
-## Run with terminal CLI
+## Run with terminal CLI or gradio app
 
 ```bash
 # CLI service quick start!
 python -m BioMANIA.deploy.cli_demo
+# or gradio app. (TODO 240509: Images showing are under developing!)
+python -m BioMANIA.deploy.cli_gradio
 ```
 
 ## Run with Docker
@@ -139,7 +141,7 @@ echo 'OPENAI_API_KEY="sk-proj-xxxx"' >> .env
 - **Feel free to switch to `model_name='gpt-3.5-turbo-0125'` or `gpt-4-0125-preview` in `src/models/model.py` if you want.**
 
 ### Prepare for Data and Model
-Download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1vWef2csBMe-PSPqA9pY2IVCY_JT5ac7p?usp=drive_link) or [Baidu Drive link](https://pan.baidu.com/s/1AZgKRfptrUTI3L2YbZwHww?pwd=36fi). For those library data, you can download only the one you need.
+Download the necessary data and models from our [Google Drive link](https://drive.google.com/drive/folders/1BRoq007udu8QH-lwTwCkaFZfG69amB01?usp=drive_link). For those library data, you can download only the one you need.
 
 We provide a script for downloading models and datas from Google Drive for scanpy as an example. This works if you are accessible to google.
 ```bash
@@ -201,6 +203,23 @@ npm run dev
 Your chatbot server is now operational at `http://localhost:3000/en`, primed to process user queries.
 
 > **When selecting different libraries on the UI page, the retriever's path will automatically be changed based on the library selected**
+
+### DIY
+
+```bash
+
+## Run with gradio app
+
+```bash
+# under BioMANIA/
+from src.deploy.model import Model
+conversation_started = True
+model = Model(logger=logger, device='cpu', model_llm_type='llama3')
+user_input = "Could you load the built in dataset?"
+library = "scanpy"
+# for the first dialog, use conversation_started=True, then conversation_started=False
+model.run_pipeline(user_input, library, top_k=1, files=[], conversation_started=conversation_started, session_id="")
+```
 
 ## Build your APP!
 

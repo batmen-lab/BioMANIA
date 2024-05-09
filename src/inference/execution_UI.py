@@ -3,8 +3,9 @@ from anndata import AnnData
 from ..gpt.utils import save_json, load_json
 
 class FakeLogger:
-    def info(self, message):
-        print("Logged info:", message)
+    def info(self, *messages):
+        combined_message = " ".join(str(message) for message in messages)
+        print("Logged info:", combined_message)
 
 class CodeExecutor:
     def __init__(self, logger=None):
