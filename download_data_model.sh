@@ -21,3 +21,10 @@ rm -rf your_fourth_file
 gdown https://drive.google.com/uc?id=111jnPEzPD6BGMDbVDfO9vpk4g1l8c1XE -O your_fifth_file
 unzip your_fifth_file
 rm -rf your_fifth_file
+# data/standard_process/base
+gdown https://drive.google.com/uc?id=1_iNt0kNepFoi_fHckHCKMJ9fnj7JwaJf -O your_sixth_file
+tar -xzvf your_sixth_file
+mkdir data
+mkdir data/standard_process
+mv base data/standard_process/
+rm -rf your_sixth_file

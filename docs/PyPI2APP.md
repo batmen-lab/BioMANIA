@@ -74,6 +74,7 @@ python -m BioMANIA.dataloader.get_API_composite_from_tutorial --LIB ${LIB}
 # Or skip this step by copying API_init to API_composite
 DATA_PATH="./data/standard_process/${LIB}"
 cp -r ${DATA_PATH}/API_init.json ${DATA_PATH}/API_composite.json
+cp -r ./data/standard_process/base/API_init.json ./data/standard_process/base/API_composite.json
 ```
 
 - NOTE that it requires TUTORIAL_GITHUB to run the first script!
