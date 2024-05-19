@@ -1,5 +1,36 @@
 # prompt
 def prepare_parameters_prompt(user_query, api_docstring, parameters_name_list):
+    # modified on 240519
+    return f"""
+USER QUERY: {user_query}
+API DOCSTRING: {api_docstring}
+Task Description: Extract and format parameter values from a USER QUERY based on the parameters information provided from API DOCSTRING. Focus on parameters listed in {parameters_name_list}, ensuring values are ready for API usage.
+Instructions:
+- Identify all parameters from {parameters_name_list}.
+- Extract values for parameters explicitly mentioned or inferred from the USER QUERY. Use context clues to infer parameter values when not explicitly mentioned.
+- Only return parameters that should be modified from their default values based on the USER QUERY.
+- Format results as [{{"param_name": "name", "value": "extracted value"}}], ensuring the values are executable and match the type specified in the API DOCSTRING.
+- Avoid using 'or' in parameter values and do not use descriptions as values. Ensure all extracted values are properly formatted, case-sensitive, and directly usable in API calls.
+- For parameters of type 'int', 'str', etc., extract the possible value from the inquiry. For parameters of type 'Literal', extract the value from the provided candidate list.
+- Pay extra attention to boolean types, and infer their values based on their descriptions and overall context of the USER QUERY.
+- Ensure that every parameter mentioned in the query is matched with a corresponding parameter in {parameters_name_list}. Use the provided list, tuple, or dictionary values to predict parameters. Extract numerical values for prediction.
+- Ensure the response matches the parameters' type specified in the API DOCSTRING. For example, do not return [] for a parameter expecting Tuple ().
+- Separate different parameters. For example, if the inquiry is 'I want to hide the default legends and the colorbar legend in the dot plot', return two parameters: "show": "False" and "show_colorbar": "False".
+- Pay attention to synonyms. For example, for the query "Could you downsample counts from count matrix, allowing counts to be sampled with replacement?", infer the appropriate parameters.
+- For boolean parameters, carefully consider the overall query context and the parameter description to determine if the value should be True or False.
+- For similar parameters like 'knn' and 'knn_max', assign values based on the specific details mentioned in the USER QUERY. Ensure the values are correctly assigned to the appropriate parameters.
+- If the inquiry contains information like "Diffusion Map", infer and extract the correct parameter values to ensure correct execution, such as converting "Diffusion Map" to "diffmap", and converting "blank space delimiter" to "delimiter=' '".
+- Ensure the final returned values match the expected parameter type, including complex structures like [("keyxx", 1)] for parameters such as "obsm_keys" with types like "Iterable[tuple[str, int]]".
+
+In-context examples for inferring values:
+  - If the inquiry mentions "with logarithmic axes", infer log=True.
+  - If the inquiry states "without returning axis information", infer show=True if the parameter description implies this functionality.
+  - If the inquiry mentions "chunk_size 6000", infer chunked=True in addition to setting chunk_size=6000.
+  - For list, tuple, or dictionary values, ensure all mentioned elements are included. For example, if the inquiry includes "['A', 'B', 'C']", extract ['A', 'B', 'C'] and find the corresponding parameters to assign this value.
+"""
+
+def bak_bak_prepare_parameters_prompt(user_query, api_docstring, parameters_name_list):
+    # before 240519
     return f"""
 USER QUERY: {user_query}
 API Docstring: {api_docstring}
