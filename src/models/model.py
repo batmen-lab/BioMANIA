@@ -28,33 +28,17 @@ def generate_completion_stream(model_name, prompt):
         print(f"Error: {response.status_code}")
         return response.status_code
 
-def LLM_model(llm_model = 'gpt-3.5-turbo-0125'):
-    if llm_model in ['gpt-3.5-turbo','gpt-3.5-turbo-1106','gpt-3.5-turbo-0613','gpt-3.5-turbo-16k-0613','gpt-3.5-turbo-0301','gpt-3.5-turbo-0125','gpt-3.5-turbo-instruct','gpt-4','gpt-4-32k','gpt-4-turbo-2024-04-09','gpt-4-0125-preview','gpt-4-vision-preview','gpt-4-0613','gpt-4-32k-0613','gpt-4-1106-preview']:
-        gpt_interface.setup_openai('', mode='openai')
-        llm = None
-        tokenizer = None
-    elif llm_model in ['llama2','mistral','dolphin-phi','phi','neural-chat','starling-lm','codellama','llama2-uncensored','llama2:13b','llama2:70b','orca-mini','vicuna','llava','gemma:2b','gemma:7b']:
-        # use ollama instead, required ollama installed and models downloaded, https://github.com/ollama/ollama/tree/main?tab=readme-ov-file
-        llm = None
-        tokenizer = None
-    else:
-        raise NotImplementedError
-    print('Using model: ', llm_model)
-    return llm, tokenizer
-
-def LLM_response(llm,tokenizer,chat_prompt,version="gpt-3.5-turbo-0125",history=[],kwargs={}): # "gpt-4-0125-preview"
+def LLM_response(chat_prompt,llm_model="gpt-3.5-turbo-0125",history=[],kwargs={}): # "gpt-4-0125-preview"
     """
     get response from LLM
     """
-    if LLM_MODEL in llm_model_dict and llm_model_dict[LLM_MODEL]['platform'] in ['OPENAI']:
+    if llm_model.startswith('gpt-3.5') or llm_model.startswith('gpt-4') or llm_model.startswith('gpt3.5') or llm_model.startswith('gpt4'):
         gpt_interface.setup_openai('', mode='openai')
-        response = gpt_interface.query_openai(chat_prompt, mode="openai", model=version, max_tokens=MAX_NEW_TOKENS)
+        response = gpt_interface.query_openai(chat_prompt, mode="openai", model=llm_model, max_tokens=MAX_NEW_TOKENS)
         history.append([chat_prompt, response])
-    elif LLM_MODEL in llm_model_dict and llm_model_dict[LLM_MODEL]['platform'] in ['HUGGINGFACE']:
-        response, history = llm.chat(tokenizer, chat_prompt, history=history)
-    elif LLM_MODEL in ['llama3','llama2','mistral','dolphin-phi','phi','neural-chat','starling-lm','codellama','llama2-uncensored','llama2:13b','llama2:70b','orca-mini','vicuna','llava','gemma:2b','gemma:7b']:
+    elif llm_model in ['llama3','llama2','mistral','dolphin-phi','phi','neural-chat','starling-lm','codellama','llama2-uncensored','llama2:13b','llama2:70b','orca-mini','vicuna','llava','gemma:2b','gemma:7b']:
         # use ollama instead, required ollama installed and models downloaded, https://github.com/ollama/ollama/tree/main?tab=readme-ov-file
-        response = generate_completion_stream(LLM_MODEL, chat_prompt)
+        response = generate_completion_stream(llm_model, chat_prompt)
         history.append([chat_prompt, response])
     else:
         raise NotImplementedError
@@ -64,9 +48,9 @@ import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__=='__main__':
-    LLM_MODEL = "dolphin-phi"
-    llm, tokenizer = LLM_model(LLM_MODEL)
+    #llm_model = "dolphin-phi"
+    llm_model = "gpt-3.5-turbo-0125"
     prompt = "hello"
-    response, history = LLM_response(llm,tokenizer,prompt)
+    response, history = LLM_response(prompt, llm_model)
     print(f'User: {prompt}')
     print(f'LLM: {response}')

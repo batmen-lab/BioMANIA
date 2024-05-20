@@ -160,7 +160,6 @@ def set_api_key():
     data = json.loads(request.data)
     api_key = data.get('apiKey')
     os.environ["OPENAI_API_KEY"] = api_key
-    model.load_llm_model()
     return Response(json.dumps({"status": "success"}), status=200, mimetype='application/json')
 
 """GITHUB_CLIENT_ID = os.environ.get('GITHUB_CLIENT_ID')

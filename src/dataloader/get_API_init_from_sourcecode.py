@@ -983,7 +983,7 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--LIB', type=str, help='PyPI tool')
     parser.add_argument('--api_txt_path', type=str, default=None, help='Your self-defined api txt path')
-    parser.add_argument('--unpredicted_API_types', type=list, default=["module", "constant", "property", "getset_descriptor"], help='The unpredicted types to filter out')
+    parser.add_argument('--unpredicted_API_types', action='append', help='Add multiple types') # --type "module" --type "constant" --type "getset_descriptor" --type "property"
     args = parser.parse_args()
     info_json = get_all_variable_from_cheatsheet(args.LIB)
     LIB_ALIAS, API_HTML, TUTORIAL_GITHUB, API_HTML_PATH, LIB_DATA_PATH, BASE_DATA_PATH = [info_json[key] for key in ['LIB_ALIAS', 'API_HTML', 'TUTORIAL_GITHUB','API_HTML_PATH', 'LIB_DATA_PATH', 'BASE_DATA_PATH']]

@@ -8,7 +8,7 @@ from ..configs.model_config import get_all_variable_from_cheatsheet, READTHEDOC_
 from ..dataloader.utils.tutorial_loader_strategy import main_convert_tutorial_to_py
 import os, ast, io, tokenize
 from collections import OrderedDict
-from ..models.model import LLM_model, LLM_response
+from ..models.model import LLM_response
 from tqdm import tqdm
 from ..gpt.utils import save_json
 #from dataloader.preprocess_retriever_data import preprocess_fake_test_data
@@ -205,8 +205,6 @@ def extract_comments_from_code(code):
     return comments
 
 def get_relevant_API(combined_tutorials, LIB_ALIAS, ask_GPT=False):
-    if ask_GPT:
-        llm, tokenizer = LLM_model()
     summarized_responses = {}
     for tut_key in tqdm(combined_tutorials):
         combined_pieces = combined_tutorials[tut_key]
@@ -223,7 +221,7 @@ def get_relevant_API(combined_tutorials, LIB_ALIAS, ask_GPT=False):
             if ask_GPT:
                 # ask gpt to polish and summarize the tutorial text
                 prompt = build_prompt_for_summarize(code, text)
-                response, history = LLM_response(llm, tokenizer, prompt)
+                response, history = LLM_response(prompt, llm_model="gpt-3.5-turbo-0125")
             else:
                 response = text
             if not relevant_API:

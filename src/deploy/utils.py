@@ -45,7 +45,6 @@ def post_process_parsed_params(predicted_params, api_name, api_data):
             pass
     return corrected_pred_params
 
-
 def parse_json_safely(json_str):
     # Clean up the JSON string by removing unnecessary escape characters and handling mixed quotes
     json_str = json_str.replace('\\"', '"').replace("\\'", "'").replace('\'\'', '"').replace('\n', '')

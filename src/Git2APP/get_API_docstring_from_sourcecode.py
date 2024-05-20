@@ -153,7 +153,6 @@ def get_params_info(function_code, params_list, llm, code_body):
 def main():
     with open(f'data/standard_process/{args.LIB}/API_init_prepare.json', 'r') as f:
         data = json.load(f)
-    from models.model import LLM_model
     from tqdm import tqdm
     # LLM model
     llm, tokenizer = LLM_model()

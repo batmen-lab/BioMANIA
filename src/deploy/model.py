@@ -7,7 +7,7 @@ import numpy as np, matplotlib.pyplot as plt
 from ..deploy.ServerEventCallback import ServerEventCallback
 from ..gpt.utils import get_all_api_json, correct_pred, load_json, save_json, get_retrieved_prompt
 from ..inference.utils import json_to_docstring, find_similar_two_pairs
-from ..models.model import LLM_response, LLM_model
+from ..models.model import LLM_response
 from ..configs.model_config import *
 from ..inference.execution_UI import CodeExecutor
 from ..inference.retriever_finetune_inference import ToolRetriever
@@ -94,7 +94,6 @@ class Model:
             #self.load_composite_code(lib_name)
             t1 = time.time()
             self.logger.info('==>Start loading model!')
-            self.load_llm_model()
             self.logger.info('loaded llm model!')
             retrieval_model_path = self.args_retrieval_model_path
             parts = retrieval_model_path.split('/')
@@ -318,8 +317,6 @@ class Model:
         for var in global_vars:
             if var.startswith(prefix):
                 del globals()[var]
-    def load_llm_model(self):
-        self.llm, self.tokenizer = LLM_model(self.model_llm_type)
     def load_data(self, API_file):
         # fix 231227, add API_base.json
         data = load_json(API_file)
@@ -437,7 +434,7 @@ class Model:
             self.logger.info('----query inferred as {}----', predicted_source)
             if predicted_source!='api-query':
                 self.initialize_tool()
-                response, _ = LLM_response(self.llm, self.tokenizer, user_input, history=[], kwargs={})  # llm
+                response, _ = LLM_response(user_input, self.model_llm_type, history=[], kwargs={})  # llm
                 self.callback_func('log', response, "Non API chitchat")
                 return
             else:
@@ -474,7 +471,7 @@ class Model:
             success = False
             for _ in range(self.predict_api_gpt_retry):
                 try:
-                    response, _ = LLM_response(self.llm, self.tokenizer, api_predict_prompt, history=[], kwargs={})  # llm
+                    response, _ = LLM_response(api_predict_prompt, self.model_llm_type, history=[], kwargs={})  # llm
                     self.logger.info('==>Ask GPT: {}\n==>GPT response: {}', api_predict_prompt, response)
                     # hack for if GPT answers this or that
                     """response = response.split(',')[0].split("(")[0].split(' or ')[0]
@@ -598,7 +595,7 @@ class Model:
         # summary task
         summary_prompt = prepare_summary_prompt(user_input, self.predicted_api_name, api_description, self.API_composite[self.predicted_api_name]['Parameters'],self.API_composite[self.predicted_api_name]['Returns'])
         self.logger.info('summary_prompt: {}', summary_prompt)
-        response, _ = LLM_response(self.llm, self.tokenizer, summary_prompt, history=[], kwargs={})
+        response, _ = LLM_response(summary_prompt, self.model_llm_type, history=[], kwargs={})
         self.logger.info('summary_prompt response: {}', response)
         self.initialize_tool()
         self.callback_func('log', response, f"Predicted API: {self.predicted_api_name}")
@@ -680,7 +677,7 @@ class Model:
             success = False
             for _ in range(self.param_gpt_retry):
                 try:
-                    response, _ = LLM_response(self.llm, self.tokenizer, parameters_prompt, history=[], kwargs={})
+                    response, _ = LLM_response(parameters_prompt, self.model_llm_type, history=[], kwargs={})
                     self.logger.info('==>Asking GPT: {}, ==>GPT response: {}', parameters_prompt, response)
                     returned_content_str_new = response.replace('null', 'None').replace('None', '"None"')
                     # 240519 fix
@@ -981,7 +978,7 @@ class Model:
         self.callback_func('code', self.execution_code, "Executed code")
         # LLM response
         summary_prompt = prepare_summary_prompt_full(user_input, self.predicted_api_name, self.API_composite[self.predicted_api_name]['description'], self.API_composite[self.predicted_api_name]['Parameters'],self.API_composite[self.predicted_api_name]['Returns'], self.execution_code)
-        response, _ = LLM_response(self.llm, self.tokenizer, summary_prompt, history=[], kwargs={})  
+        response, _ = LLM_response(summary_prompt, self.model_llm_type, history=[], kwargs={})
         self.callback_func('log', response, "Task summary before execution")
         self.callback_func('log', "Could you confirm whether this task is what you aimed for, and the code should be executed? Please enter y/n.\nIf you press n, then we will re-direct to the parameter input step", "Double Check")
         self.update_user_state("run_pipeline_after_doublechecking_execution_code")

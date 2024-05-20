@@ -70,7 +70,7 @@ Note: If you have prepared an API list txt file, you can add `--api_txt_path you
 ```bash
 # get composite API if you have already provided tutorial
 # REQUEST 
-python -m BioMANIA.dataloader.get_API_composite_from_tutorial --LIB ${LIB}
+python -m src.dataloader.get_API_composite_from_tutorial --LIB ${LIB}
 # Or skip this step by copying API_init to API_composite
 DATA_PATH="./data/standard_process/${LIB}"
 cp -r ${DATA_PATH}/API_init.json ${DATA_PATH}/API_composite.json
@@ -85,12 +85,12 @@ If you skip this step, ensure that you contain a file of `./data/standard_proces
 
 4. Following this, create instructions, and split the data for retriever training preparation.
 ```bash
-python -m BioMANIA.dataloader.preprocess_retriever_data --LIB ${LIB} --GPT_model gpt3.5/gpt4
+python -m src.dataloader.preprocess_retriever_data --LIB ${LIB} --GPT_model gpt3.5/gpt4
 ```
 
 (Optional) You can validate of your annotated API_inquiry_annotate.json with 
 ```bash
-python -m BioMANIA.dataloader.check_valid_API_annotate --LIB ${LIB}
+python -m src.dataloader.check_valid_API_annotate --LIB ${LIB}
 ```
 
 Tips:

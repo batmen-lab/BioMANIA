@@ -23,7 +23,7 @@ def setup_openai(fname, mode='azure'):
     return secrets
 
 @T.retry(stop=T.stop_after_attempt(5), wait=T.wait_fixed(60), after=lambda s: logging.error(repr(s)))
-def query_openai(prompt, mode='azure', model='gpt-35-turbo', **kwargs):
+def query_openai(prompt, mode='azure', model='gpt-35-turbo', max_tokens=1200, **kwargs):
     # 240127: update openai version
     if mode == 'openai':
         response = openai.chat.completions.create(model=model,

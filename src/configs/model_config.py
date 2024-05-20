@@ -67,36 +67,7 @@ elif platform.system() == 'Darwin':
     HUGGINGPATH = "./hugging_models"
 else:
     HUGGINGPATH = "./hugging_models"
-hugging_model = {
-    "chatglm-6b":"THUDM/chatglm-6b",
-    "chatglm2-6b":"THUDM/chatglm2-6b",
-}
-llm_model_dict = {
-    "openai":{
-        "platform":"OPENAI",
-    },
-    "gorilla-7b-hf-v1":{
-        "platform":"GORILLA",
-    },
-    "THUDM/chatglm2-6b": {
-        "platform":"HUGGINGFACE",
-        "LOCALPATH":os.path.join(HUGGINGPATH,'chatglm2-6b'),
-    },
-    "guanaco":{
-        "platform":"PEFT",
-        "LOCALPATH":None,
-        "pretrained_model":""
-    },
-    "tiiuae/falcon-7b":{
-        "platform":"HUGGINGFACE",
-        "LOCALPATH":os.path.join(HUGGINGPATH,'falcon-7b'),
-    },
-    "llama-2-7b-chat-hf":{
-        "platform":"PEFT",
-        "LOCALPATH":os.path.join(HUGGINGPATH,'llama-2-7b-chat-hf'),
-    },
-}
-LLM_MODEL = "openai"
+
 EMBEDDING_MODEL = "text-embedding-ada-002"
 MAX_NEW_TOKENS = 800
 TEMPERATURE = 0.01

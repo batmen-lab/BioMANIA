@@ -6,7 +6,7 @@ from tqdm.asyncio import tqdm_asyncio
 import pandas as pd
 from sklearn.utils import shuffle
 from typing import Any, Tuple, Optional
-from ..models.model import LLM_response, LLM_model
+from ..models.model import LLM_response
 from ..prompt.instruction import make_instruction_generation_prompt
 from ..inference.utils import json_to_docstring, process_retrieval_desc
 from ..dataloader.get_API_init_from_sourcecode import parse_content_list
@@ -135,7 +135,7 @@ def parse_json_response(response: str) -> list:
         valid_responses.append(d)
     return valid_responses
 
-async def async_LLM_response(llm: Any, tokenizer: Any, prompt: str, GPT_model: str, history: list = [], kwargs: dict = {}) -> Tuple[str, list]:
+async def async_LLM_response(prompt: str, GPT_model: str, history: list = [], kwargs: dict = {}) -> Tuple[str, list]:
     """
     Asynchronously sends a prompt to a language model and awaits the response.
 
@@ -159,9 +159,9 @@ async def async_LLM_response(llm: Any, tokenizer: Any, prompt: str, GPT_model: s
     Tuple[str, list]
         A tuple containing the model's response and the interaction history.
     """
-    model_version = "gpt-4-0125-preview" if args.GPT_model == 'gpt4' else "gpt-3.5-turbo-0125"
+    model_version = "gpt-4-0125-preview" if GPT_model == 'gpt4' else "gpt-3.5-turbo-0125"
     loop = asyncio.get_event_loop()
-    response, history = await loop.run_in_executor(None, LLM_response, llm, tokenizer, prompt, model_version, history, kwargs)
+    response, history = await loop.run_in_executor(None, LLM_response, prompt, model_version, history, kwargs)
     return response, history
 
 async def process_prompt_async(desc_retriever: Any, API_init: dict, api_name: str, api: dict, llm: Any, tokenizer: Any, tmp_docstring: str, progress: tqdm_normal, similar_api_same_desc: dict, similar_api_same_funcname: dict, GPT_model: str) -> list:
@@ -231,7 +231,7 @@ async def process_prompt_async(desc_retriever: Any, API_init: dict, api_name: st
     MAX_trial = 3
     valid_response = None
     while retry_count < MAX_trial:
-        response, _ = await async_LLM_response(llm, tokenizer, prompt, GPT_model)
+        response, _ = await async_LLM_response(prompt, GPT_model)
         try:
             response_list = parse_json_response(response)
             if response_list and isinstance(response_list, list) and isinstance(response_list[0], dict) and all('instruction' in response for response in response_list) and len(response_list)>=10:
@@ -689,7 +689,6 @@ async def preprocess_instruction_d(lib_data_path, desc_retriever: Any, API_init:
     ori_data = {api: details for api, details in API_init.items() if details['api_type'] != 'class' and details['api_type']!='unknown'}
     print('The length of api_data after filtering class type API is: ',len(ori_data))
     # Convert the output data dict to a list of dicts
-    llm, tokenizer = LLM_model()
     results = []
     #tasks = [process_api_async(api_name, ori_data[api_name], llm, tokenizer) for api_name in tqdm(ori_data)]
     all_tasks = []

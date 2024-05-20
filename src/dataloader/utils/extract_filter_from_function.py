@@ -109,7 +109,6 @@ class LLMFilterStrategy:
         print('After step2, ', len(filtered_data),' func detected!')
         
         # LLM and prompt
-        self.llm, self.tokenizer = LLM_model()
         self.chat_prompt = Factory_prompt_json("askfullAPI")
         
     def filter_keys(self, json_data):
@@ -138,7 +137,7 @@ class LLMFilterStrategy:
                     continue
                 kwargs = {"API":key,"content":content}
                 print(f'Can you help to find the full command of keyword {key}?')
-                response, history = LLM_response(self.llm,self.tokenizer,self.chat_prompt,history=[],kwargs=kwargs)
+                response, history = LLM_response(self.chat_prompt,history=[],kwargs=kwargs)
                 print('Agent:',response)
                 self.answer_api_available[key].append(response)
         save_json(os.path.join(LIB_ANALYSIS_PATH,'askLLM_API.json'), self.answer_api_available)

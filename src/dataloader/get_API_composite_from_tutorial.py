@@ -9,7 +9,7 @@ from docstring_parser import parser
 from ..configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet #tut, html_dict, code
 from ..dataloader.utils.tutorial_loader_strategy import main_convert_tutorial_to_py
 #from dataloader.utils.code_analyzer import extract_io_variables
-from ..models.model import LLM_model, LLM_response
+from ..models.model import LLM_response
 from ..prompt.composite import build_prompt_for_composite_docstring, build_prompt_for_composite_name
 from typing import Optional, Any, Tuple
 from ..gpt.utils import load_json, save_json
@@ -603,16 +603,12 @@ def extract_api_calls(code_block: str, imports: dict, lib_alias: str) -> list:
     except SyntaxError:
         return []
 
-def process_docstring_with_LLM(llm: Any, tokenizer: Any, API_description: str, func_inputs: list, func_outputs: list, description_text: str = "") -> str:
+def process_docstring_with_LLM(API_description: str, func_inputs: list, func_outputs: list, description_text: str = "") -> str:
     """
     Processes a docstring using a language model to modify or enhance it based on the provided API description and inputs/outputs.
 
     Parameters
     ----------
-    llm : Any
-        The language model to use.
-    tokenizer : Any
-        The tokenizer for the language model.
     API_description : str
         The description of the API to include in the prompt.
     func_inputs : list
@@ -629,23 +625,19 @@ def process_docstring_with_LLM(llm: Any, tokenizer: Any, API_description: str, f
     """
     # LLM for modifying docstring
     prompt = build_prompt_for_composite_docstring(API_description, func_inputs, func_outputs, description_text)
-    response, history = LLM_response(llm,tokenizer,prompt,history=[],kwargs={})
+    response, history = LLM_response(prompt,history=[],kwargs={})
     print(f'==>GPT docstring response: {response}')
     if 'def' in response.split('\n')[0]:
         return '\n'.join(response.split('\n')[1:])
     else:
         return response
 
-def process_name_with_LLM(llm: Any, tokenizer: Any, sub_API_names: str, llm_docstring: str) -> str:
+def process_name_with_LLM(sub_API_names: str, llm_docstring: str) -> str:
     """
     Processes API names using a language model to generate a function name based on the docstring and API details.
 
     Parameters
     ----------
-    llm : Any
-        The language model to use.
-    tokenizer : Any
-        The tokenizer for the language model.
     sub_API_names : str
         A comma-separated string of sub-API names to include in the prompt.
     llm_docstring : str
@@ -657,7 +649,7 @@ def process_name_with_LLM(llm: Any, tokenizer: Any, sub_API_names: str, llm_docs
         The generated function name.
     """
     prompt = build_prompt_for_composite_name(sub_API_names, llm_docstring)
-    response, history = LLM_response(llm,tokenizer,prompt,history=[],kwargs={})
+    response, history = LLM_response(prompt,history=[],kwargs={})
     print(f'==>GPT name response: {response}')
     MAX_trial = 5
     count=0
@@ -670,7 +662,7 @@ def process_name_with_LLM(llm: Any, tokenizer: Any, sub_API_names: str, llm_docs
                 ans = ast.literal_eval(response)
                 return list(ans.keys())[0]
             except:
-                response, history = LLM_response(llm,tokenizer,prompt,history=[],kwargs={})
+                response, history = LLM_response(prompt,history=[],kwargs={})
                 print(f'==>retry GPT {count}: {response}')
         count+=1
     return "function"
@@ -731,8 +723,6 @@ def main_get_LLM_docstring(lib_data_path:str, unique_code_blocks: list, LIB: str
         The library for which the docstrings are being generated.
 
     """
-    # LLM model
-    llm, tokenizer = LLM_model()
     # load API_init.json
     API_init = load_json(os.path.join(lib_data_path,"API_init.json"))
     API_composite = API_init.copy()
@@ -757,9 +747,8 @@ def main_get_LLM_docstring(lib_data_path:str, unique_code_blocks: list, LIB: str
         # drop duplicate
         func_inputs = list(set(func_inputs))
         # prompt
-        print('llm: ', llm)
-        llm_docstring = process_docstring_with_LLM(llm, tokenizer, '\n'.join(API_description), json.dumps(func_inputs),json.dumps(func_outputs), description_text=code_blocks['text'])
-        new_name = process_name_with_LLM(llm, tokenizer, ','.join(sub_API_names),llm_docstring)
+        llm_docstring = process_docstring_with_LLM('\n'.join(API_description), json.dumps(func_inputs),json.dumps(func_outputs), description_text=code_blocks['text'])
+        new_name = process_name_with_LLM(','.join(sub_API_names),llm_docstring)
         if new_name=='function':
             new_name = f'function_{idxxxxx}'
             idxxxxx+=1
