@@ -768,7 +768,7 @@ def merge_jsons(json_list: List[Dict[str, Any]]) -> Dict[str, Any]:
         merged_json.update(json_dict)
     return merged_json
 
-def filter_specific_apis(data: Dict[str, Any], lib_name: str) -> Dict[str, Any]:
+def filter_specific_apis(data: Dict[str, Any], lib_name: str, unpredicted_types:list=["module", "constant", "property", "getset_descriptor"]) -> Dict[str, Any]:
     """
     Filters out specific APIs from the data based on defined criteria.
 
@@ -778,6 +778,8 @@ def filter_specific_apis(data: Dict[str, Any], lib_name: str) -> Dict[str, Any]:
         The API data to filter.
     lib_name : str
         The library name to use for filtering context.
+    unpredicted_types : list, optional
+        A list of unpredicted API types to filter out. Default includes module, constant, property, and getset_descriptor.
 
     Returns
     -------
@@ -805,7 +807,7 @@ def filter_specific_apis(data: Dict[str, Any], lib_name: str) -> Dict[str, Any]:
         parameters = details['Parameters']
         Returns_type = details['Returns']['type']
         Returns_description = details['Returns']['description']
-        if api_type in ["module", "constant", "property", "getset_descriptor"]:
+        if api_type in unpredicted_types:
             filter_counts["api_type_module_constant_property_getsetdescriptor"] += 1
             filter_API["api_type_module_constant_property_getsetdescriptor"].append(api)
             continue
@@ -874,7 +876,7 @@ def parse_content_list(content_list: List[str]) -> List[str]:
             parsed_list.extend(sub_item.strip().split())
     return [item for item in parsed_list if item]  # Remove any empty strings
 
-def main_get_API_init(lib_name: str, lib_alias: str, lib_data_path: str, api_html_path: Optional[str] = None, api_txt_path: Optional[str] = None) -> None:
+def main_get_API_init(lib_name: str, lib_alias: str, lib_data_path: str, api_html_path: Optional[str] = None, api_txt_path: Optional[str] = None, unpredicted_types:list=["module", "constant", "property", "getset_descriptor"]) -> None:
     """
     Main function to initialize API data collection from either HTML or text files.
 
@@ -890,6 +892,8 @@ def main_get_API_init(lib_name: str, lib_alias: str, lib_data_path: str, api_htm
         The path to HTML API documentation. Default is None.
     api_txt_path : Optional[str], optional
         The path to a text file containing API documentation. Default is None.
+    unpredicted_types : list, optional
+        A list of unpredicted API types to filter out. Default includes module, constant, property, and getset_descriptor.
     """
     # STEP1
     if api_txt_path:
@@ -929,7 +933,7 @@ def main_get_API_init(lib_name: str, lib_alias: str, lib_data_path: str, api_htm
     #results = filter_optional_parameters(results)
     results = generate_api_callings(results)
     print('Get API #numbers are: ', len(results))
-    tmp_results = filter_specific_apis(results, lib_name)
+    tmp_results = filter_specific_apis(results, lib_name, unpredicted_types)
     print('After filtering non-calling #numbers are: ', len(tmp_results))
     # output_file = os.path.join(analysis_path,lib_name,"API_init.json")
     os.makedirs(lib_data_path, exist_ok=True)
@@ -979,10 +983,11 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--LIB', type=str, help='PyPI tool')
     parser.add_argument('--api_txt_path', type=str, default=None, help='Your self-defined api txt path')
+    parser.add_argument('--unpredicted_API_types', type=list, default=["module", "constant", "property", "getset_descriptor"], help='The unpredicted types to filter out')
     args = parser.parse_args()
     info_json = get_all_variable_from_cheatsheet(args.LIB)
     LIB_ALIAS, API_HTML, TUTORIAL_GITHUB, API_HTML_PATH, LIB_DATA_PATH, BASE_DATA_PATH = [info_json[key] for key in ['LIB_ALIAS', 'API_HTML', 'TUTORIAL_GITHUB','API_HTML_PATH', 'LIB_DATA_PATH', 'BASE_DATA_PATH']]
     CHEATSHEET = get_all_basic_func_from_cheatsheet()
-    main_get_API_init(args.LIB,LIB_ALIAS,LIB_DATA_PATH,API_HTML_PATH, api_txt_path=args.api_txt_path)
+    main_get_API_init(args.LIB,LIB_ALIAS,LIB_DATA_PATH,API_HTML_PATH, api_txt_path=args.api_txt_path, unpredicted_types=args.unpredicted_API_types)
     # currently we do not need the API_base.json
     main_get_API_basic(BASE_DATA_PATH, CHEATSHEET)

@@ -14,7 +14,7 @@ from ..inference.retriever_finetune_inference import ToolRetriever
 from ..prompt.parameters import prepare_parameters_prompt
 from ..prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
 from ..configs.Lib_cheatsheet import CHEATSHEET as LIB_CHEATSHEET
-from ..deploy.utils import change_format, basic_types, generate_api_calling, download_file_from_google_drive, download_data, save_decoded_file, correct_bool_values, convert_bool_values, infer, dataframe_to_markdown, convert_image_to_base64, change_format
+from ..deploy.utils import change_format, basic_types, generate_api_calling, download_file_from_google_drive, download_data, save_decoded_file, correct_bool_values, convert_bool_values, infer, dataframe_to_markdown, convert_image_to_base64, change_format, parse_json_safely, post_process_parsed_params, special_types, io_types, io_param_names
 
 class Model:
     def __init__(self, logger, device, model_llm_type="gpt-3.5-turbo-0125"): # llama3
@@ -49,6 +49,8 @@ class Model:
         self.image_folder = "./tmp/images/"
         if not os.path.exists(self.image_folder):
             os.makedirs(self.image_folder, exist_ok=True)
+        if not os.path.exists("./tmp"):
+            os.makedirs("./tmp", exist_ok=True)
         if not os.path.exists("./tmp/states/"):
             os.makedirs("./tmp/states/", exist_ok=True)
         if not os.path.exists("./tmp/sessions/"):
@@ -379,7 +381,9 @@ class Model:
         file_name = f"./tmp/states/{a}_state.pkl"
         with open(file_name, 'rb') as file:
             state = pickle.load(file)
+        print('before loadstate', self.executor.counter)
         self.__dict__.update(state)
+        print('after loadstate', self.executor.counter)
         self.logger.info("State loaded from {}", file_name)
     def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True,session_id=""):
         self.indexxxx = 2
@@ -388,9 +392,15 @@ class Model:
             self.session_id = session_id
             try:
                 self.load_state(session_id)
+                self.logger.info(f"Current folder path: {os.getcwd()}")
+                self.logger.info(f"subfolderpath: {os.listdir('.')}")
+                self.logger.info('load state successfully!')
                 a = str(self.session_id)
                 self.executor.load_environment(f"./tmp/sessions/{a}_environment.pkl")
-            except:
+                self.logger.info('load environment successfully!')
+                self.logger.info(self.executor.counter)
+            except Exception as e:
+                self.logger.error(e)
                 self.logger.error('no local session_id environment exist! start from scratch')
                 self.initialize_executor()
                 pass
@@ -472,7 +482,7 @@ class Model:
                     response = response.split(':')[0]# for robustness, sometimes gpt will return api:description"""
                     response = correct_pred(response, self.LIB)
                     response = response.strip()
-                    self.logger.info('self.all_apis_json keys: {}', self.all_apis_json.keys())
+                    #self.logger.info('self.all_apis_json keys: {}', self.all_apis_json.keys())
                     self.logger.info('response in self.all_apis_json: {}', response in self.all_apis_json)
                     self.all_apis_json[response]
                     self.predicted_api_name = response 
@@ -501,6 +511,7 @@ class Model:
                     self.update_user_state("run_pipeline_after_ambiguous")
                     idx_api+=1
                 self.callback_func('log', next_str, f"Can you confirm which of the following {len(self.filtered_api)} candidates")
+                self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
                 self.save_state()
             else:
                 self.update_user_state("run_pipeline_after_fixing_API_selection")
@@ -539,6 +550,7 @@ class Model:
             return 'break'
         self.update_user_state("run_pipeline_after_fixing_API_selection")
         self.predicted_api_name = self.filtered_api[int(user_input)-1]
+        self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
         self.save_state()
     def process_api_info(self, api_info, single_api_name):
         relevant_apis = api_info.get(single_api_name, {}).get("relevant APIs")
@@ -592,6 +604,7 @@ class Model:
         self.callback_func('log', response, f"Predicted API: {self.predicted_api_name}")
         self.callback_func('log', "Could you confirm whether this API should be called? Please enter y/n.", "Double Check")
         self.update_user_state("run_pipeline_after_doublechecking_API_selection")
+        self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
         self.save_state()
     
     def run_pipeline_after_doublechecking_API_selection(self, user_input):
@@ -602,6 +615,7 @@ class Model:
                 self.update_user_state("run_pipeline")
                 self.initialize_tool()
                 self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
+                self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
                 self.save_state()
                 return
             else:
@@ -610,6 +624,7 @@ class Model:
             self.logger.info('input is not y or n')
             self.initialize_tool()
             self.callback_func('log', "The input was not y or n, please enter the correct value.", "Index Error")
+            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
             self.save_state()
             # user_states didn't change
             return
@@ -668,26 +683,25 @@ class Model:
                     response, _ = LLM_response(self.llm, self.tokenizer, parameters_prompt, history=[], kwargs={})
                     self.logger.info('==>Asking GPT: {}, ==>GPT response: {}', parameters_prompt, response)
                     returned_content_str_new = response.replace('null', 'None').replace('None', '"None"')
-                    try:
-                        returned_content = ast.literal_eval(returned_content_str_new)
-                        success = True
-                        break
-                    except:
-                        try:
-                            returned_content = json.loads(returned_content_str_new)
-                            success = True
-                            break
-                        except:
-                            pass
+                    # 240519 fix
+                    pred_params, success = parse_json_safely(returned_content_str_new)
+                    predicted_parameters = post_process_parsed_params(pred_params, apis_name, self.API_composite)
                 except Exception as e:
+                    self.logger.error('error during parameters prediction: {}', e)
                     pass
-                    #return # 231130 fix 
             self.logger.info('success or not: {}', success)
             if not success:
                 self.callback_func('log', "GPT can not return valid parameters prediction, please redesign prompt in backend if you want to predict parameters. We will skip parameters prediction currently", "GPT predict Error")
                 response = "{}"
+                predicted_parameters = {}
+        self.logger.info('predicted_parameters: {}', predicted_parameters)
+        # filter predicted_parameters
+        required_param_list = [param_name for param_name, param_info in self.API_composite[apis_name]['Parameters'].items() if param_info['type'] in special_types or param_info['type'] in io_types or param_name in io_param_names]
+        predicted_parameters = {key: value for key, value in predicted_parameters.items() if value not in [None, "None", "null"] or key in required_param_list}
+        self.logger.info('after filtering, predicted_parameters: {}', predicted_parameters)
         # generate api_calling
-        self.predicted_api_name, api_calling, self.parameters_info_list = generate_api_calling(self.predicted_api_name, self.API_composite[self.predicted_api_name], response)
+        self.predicted_api_name, api_calling, self.parameters_info_list = generate_api_calling(self.predicted_api_name, self.API_composite[self.predicted_api_name], predicted_parameters)
+        self.logger.info('parameters_info_list:', self.parameters_info_list)
         self.logger.info('finished generate api calling')
         if len(self.api_name_json)> len(self.relevant_api_list):
             #assume_class_API = list(set(list(self.api_name_json.keys()))-set(self.relevant_api_list))[0]
@@ -715,6 +729,7 @@ class Model:
             self.initialize_tool()
             self.callback_func('log', "However, there are still some parameters with special type undefined. Please start from uploading data, or check your parameter type in json files.", "Missing Parameters: special type")
             self.update_user_state("run_pipeline")
+            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
             self.save_state()
             return
         # $ param if multiple choice
@@ -732,6 +747,7 @@ class Model:
             self.callback_func('log', f"The predicted API takes {tmp_input_para} as input. However, there are still some parameters undefined in the query.", "Enter Parameters: special type", "red")
             self.update_user_state("run_select_special_params")
             self.run_select_special_params(user_input)
+            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
             self.save_state()
             return
         self.run_pipeline_after_select_special_params(user_input)
@@ -757,6 +773,7 @@ class Model:
             self.update_user_state("run_select_special_params")
             del self.filtered_params[self.last_param_name]
             #print('self.filtered_params: {}', json.dumps(self.filtered_params))
+            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
             self.save_state()
             return
         elif len(self.filtered_params)==1:
@@ -769,9 +786,11 @@ class Model:
             self.update_user_state("run_pipeline_after_select_special_params")
             del self.filtered_params[self.last_param_name]
             #print('self.filtered_params: {}', json.dumps(self.filtered_params))
+            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
             self.save_state()
         else:
             self.callback_func('log', "The parameters candidate list is empty", "Error Enter Parameters: basic type", "red")
+            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
             self.save_state()
             raise ValueError
 
@@ -797,6 +816,7 @@ class Model:
             self.callback_func('log', f"The predicted API takes {tmp_input_para} as input. However, there are still some parameters undefined in the query.", "Enter Parameters: basic type", "red")
             self.user_states = "run_select_basic_params"
             self.run_select_basic_params(user_input)
+            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
             self.save_state()
             return
         self.run_pipeline_after_entering_params(user_input)
@@ -812,6 +832,7 @@ class Model:
             self.callback_func('log', "Which value do you think is appropriate for the parameters '" + self.last_param_name + "'?", "Enter Parameters: basic type","red")
             self.update_user_state("run_select_basic_params")
             del self.filtered_params[self.last_param_name]
+            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
             self.save_state()
             return
         elif len(self.filtered_params)==1:
@@ -819,10 +840,12 @@ class Model:
             self.callback_func('log', "Which value do you think is appropriate for the parameters '" + self.last_param_name + "'?", "Enter Parameters: basic type", "red")
             self.update_user_state("run_pipeline_after_entering_params")
             del self.filtered_params[self.last_param_name]
+            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
             self.save_state()
         else:
             # break out the pipeline
             self.callback_func('log', "The parameters candidate list is empty", "Error Enter Parameters: basic type","red")
+            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
             self.save_state()
             raise ValueError
     def split_params(self, selected_params, parameters_list):
@@ -853,12 +876,13 @@ class Model:
     def restore_streams(self):
         sys.stdout = self.stdout_orig
         sys.stderr = self.stderr_orig
-    def extract_parameters(self, api_name_json, api_info):
+    def extract_parameters(self, api_name_json, api_info, selected_params):
         parameters_combined = []
         for api_name in api_name_json:
             details = api_info[api_name]
             parameters = details["Parameters"]
-            api_params = {param_name: {"type": param_details["type"]} for param_name, param_details in parameters.items() if (not param_details['optional']) or (param_name=="color" and (("scanpy.pl" in api_name) or ("squidpy.pl" in api_name))) or (param_name=='encodings' and (api_name.startswith('ehrapy.pp') or api_name.startswith('ehrapy.preprocessing'))) or (param_name=='encoded' and (api_name.startswith('ehrapy.')))} # TODO: currently not use optional parameters!!!
+            api_params = {param_name: {"type": param_details["type"]} for param_name, param_details in parameters.items() if (param_name in selected_params) or (not param_details['optional']) or (param_name=="color" and (("scanpy.pl" in api_name) or ("squidpy.pl" in api_name))) or (param_name=='encodings' and (api_name.startswith('ehrapy.pp') or api_name.startswith('ehrapy.preprocessing'))) or (param_name=='encoded' and (api_name.startswith('ehrapy.')))} # TODO: currently not use optional parameters!!!
+            # TODO: add which have been predicted in selected_params
             api_params.update({})
             combined_params = {}
             for param_name, param_info in api_params.items():
@@ -886,7 +910,8 @@ class Model:
         self.logger.info('self.selected_params:')
         self.logger.info(json.dumps(self.selected_params))
         # split parameters according to multiple API, or class/method API
-        parameters_list = self.extract_parameters(self.api_name_json, self.API_composite)
+        parameters_list = self.extract_parameters(self.api_name_json, self.API_composite, self.selected_params)
+        self.logger.info('==>parameters_list: {}', json.dumps(parameters_list))
         extracted_params = self.split_params(self.selected_params, parameters_list)
         self.logger.info('==>self.api_name_json: {}, parameters_list: {}', self.api_name_json, parameters_list)
         self.logger.info('==>extracted_params: {}', extracted_params)
@@ -960,6 +985,7 @@ class Model:
         self.callback_func('log', response, "Task summary before execution")
         self.callback_func('log', "Could you confirm whether this task is what you aimed for, and the code should be executed? Please enter y/n.\nIf you press n, then we will re-direct to the parameter input step", "Double Check")
         self.update_user_state("run_pipeline_after_doublechecking_execution_code")
+        self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
         self.save_state()
         
     def run_pipeline_after_doublechecking_execution_code(self, user_input):
@@ -971,6 +997,7 @@ class Model:
                 #self.user_states = "run_pipeline"
                 self.update_user_state("run_pipeline_after_doublechecking_API_selection")#TODO: check if exist issue
                 self.callback_func('log', "We will redirect to the parameters input", "Re-enter the parameters")
+                self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
                 self.save_state()
                 self.run_pipeline_after_doublechecking_API_selection('y')
                 return
@@ -979,6 +1006,7 @@ class Model:
         else:
             self.logger.info('input not y or n')
             self.callback_func('log', "The input was not y or n, please enter the correct value.", "Index Error")
+            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
             self.save_state()
             # user_states didn't change
             return
@@ -1101,9 +1129,8 @@ class Model:
         for i in self.executor.execute_code:
             new_str.append({"code":i['code'],"execution_results":i['success']})
         self.logger.info("Currently all executed code: {}", json.dumps(new_str))
-        filename = f"./tmp/sessions/{str(self.session_id)}_environment.pkl"
         self.update_user_state("run_pipeline")
-        self.executor.save_environment(filename)
+        self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
         self.save_state()
     def modify_code_add_tmp(self, code, add_tmp = "tmp"):
         """

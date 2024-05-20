@@ -92,8 +92,10 @@ class CodeExecutor:
             for k in list(self.variables.keys()):
                 if k.endswith("_AnnData"):  # Assuming you have a way to recognize AnnData objects
                     self.variables[k] = read_h5ad(f"{file_name}_{k}.h5ad")  # Load AnnData object from file
-            self.execute_code = loaded_data.get("execute_code", [])
-            self.counter = loaded_data.get("counter", 1)
+            self.execute_code = loaded_data["execute_code"]
+            print('before loading environment:', self.counter)
+            self.counter = loaded_data["counter"]
+            print('after loading environment:', self.counter)
             tmp_variables = {k: self.variables[k]['value'] for k in self.variables if not k.endswith("_AnnData")}
             globals().update(tmp_variables)
             locals().update(tmp_variables)
@@ -342,8 +344,8 @@ class CodeExecutor:
             final_api_name = api_parts[-1]
             api_call = f"{final_api_name}({params_formatted})"
         self.logger.info('generate return information')
-        if (return_type not in ["NoneType", None, "None"]) and (not return_type.startswith('Optional')):
-            self.counter += 1
+        if (return_type not in ["NoneType", None, "None"]): #  and (not return_type.startswith('Optional'))
+            #self.counter += 1
             tmp_api_call = api_call.split('\n')[-1]
             index_equal = tmp_api_call.find("=")
             index_parenthesis = tmp_api_call.find("(")
@@ -353,6 +355,7 @@ class CodeExecutor:
                 return import_code+'\n'+f"{api_call}"
             else:
                 self.logger.info('debugging2 for return class API:', api_name, return_type, api_call, '--end')
+                self.counter += 1
                 return_var = f"result_{self.counter} = "
                 new_code = f"{return_var}{tmp_api_call}"
                 # TODO: note this step assumes the lastline is the class.attribute line
@@ -382,6 +385,7 @@ class CodeExecutor:
                     #self.logger.info('==>start split tuple variables!')
                     length = len(result_variable['value'])
                     new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
+                    #self.counter+=1
                     new_code = ', '.join(new_variables) + f" = {result_name_tuple}"
                     # execute new api call
                     #self.logger.info('==>for split_tuple_variable, execute code: ', code+'\n'+new_code)

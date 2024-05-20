@@ -3,21 +3,142 @@ from datetime import datetime
 import numpy as np
 from ..inference.utils import sentence_transformer_embed, predict_by_similarity
 from urllib.parse import urlparse
+import re, json
 
 basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'List', 'Dict', 'Any', 'any', 'Path', 'path', 'Pathlike']
 basic_types.extend(['_AvailShapes']) # extend for squidpy `shape` type
 
-def generate_api_calling(api_name, api_details, returned_content_str):
+special_types = {'AnnData', 'ndarray', 'spmatrix', 'DataFrame', 'recarray', 'Axes'}
+io_types = {'PathLike', 'Path'}
+io_param_names = {'filename'}
+
+def post_process_parsed_params(predicted_params, api_name, api_data):
+    if predicted_params:
+        pass
+    else:
+        predicted_params = {}
+    if len(predicted_params)>0 and 'param_name' in predicted_params[0] and 'value' in predicted_params[0]:
+        pred_params = {tmp_item['param_name']: None if tmp_item['value']=='None' else str(tmp_item['value']) for tmp_item in predicted_params}
+    elif len(predicted_params)>0 and 'name' in predicted_params[0] and 'value' in predicted_params[0]:
+        pred_params = {tmp_item['name']: None if tmp_item['value']=='None' else str(tmp_item['value']) for tmp_item in predicted_params}
+    else:
+        try:
+            pred_params = {list(tmp_item.keys())[0]: None if list(tmp_item.values())[0]=='None' else str(list(tmp_item.values())[0]) for tmp_item in predicted_params}
+        except:
+            pred_params = predicted_params
+    corrected_pred_params = {}
+    for param_name, value in pred_params.items():
+        if value in [None, "None"]:
+            corrected_pred_params[param_name]=None
+            continue
+        value = correct_param_type(param_name, value, api_data, api_name)
+        corrected_pred_params[param_name] = None if value == 'None' else str(value)
+        if value != 'None' or value is not None:
+            value = str(value)
+        try:
+            if value is not None and '"' in value:
+                corrected_pred_params[param_name] = value.replace('"', '')
+            if value is not None and "'" in value:
+                corrected_pred_params[param_name] = value.replace("'", '')
+        except Exception as e:
+            print('error:', e)
+            pass
+    return corrected_pred_params
+
+
+def parse_json_safely(json_str):
+    # Clean up the JSON string by removing unnecessary escape characters and handling mixed quotes
+    json_str = json_str.replace('\\"', '"').replace("\\'", "'").replace('\'\'', '"').replace('\n', '')
+    # Handle special cases with embedded quotes
+    json_str = re.sub(r'""(None)""', r'"None"', json_str)
+    json_str = re.sub(r'"\(([^)]*)\)"', r'[\1]', json_str)  # Convert tuple-like strings to list-like
+    json_str = re.sub(r'"\'([^"]*)\'"', r'"\1"', json_str)  # Replace single quotes within double quotes
+    # Normalize potential JSON format issues
+    json_str = json_str.replace('}{', '},{').replace('}\n{', '},{')
+    # Remove leading non-JSON characters such as dashes or whitespace
+    json_str = re.sub(r'^\s*-\s*', '', json_str)
+    # Ensure JSON-like structure by adding brackets if missing
+    if not (json_str.startswith('[') and json_str.endswith(']')):
+        json_str = '[' + json_str + ']'
+    # Attempt to parse as JSON directly
+    try:
+        parsed_data = json.loads(json_str)
+        if isinstance(parsed_data, list):
+            return parsed_data, True
+        elif isinstance(parsed_data, dict):
+            return [parsed_data], True
+    except json.JSONDecodeError:
+        pass
+    # Attempt to parse using ast.literal_eval
+    try:
+        parsed_data = ast.literal_eval(json_str)
+        if isinstance(parsed_data, list):
+            for item in parsed_data:
+                if isinstance(item, dict):
+                    continue
+                else:
+                    return [], False
+            return parsed_data, True
+        elif isinstance(parsed_data, dict):
+            return [parsed_data], True
+    except (ValueError, SyntaxError):
+        pass
+    # Handle single-line and multi-line key-value pairs
+    parsed_data = []
+    for line in json_str.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        match = re.match(r'^\s*"([^"]+)"\s*:\s*"([^"]*)"\s*$', line)
+        if match:
+            key, value = match.groups()
+            parsed_data.append({key: value})
+        else:
+            parts = line.split(':', 1)
+            if len(parts) == 2:
+                key = parts[0].strip().strip('"')
+                value = parts[1].strip().strip('"')
+                if key and value:
+                    parsed_data.append({key: value})
+            else:
+                try:
+                    parsed_line = ast.literal_eval(line)
+                    if isinstance(parsed_line, dict):
+                        parsed_data.append(parsed_line)
+                except (ValueError, SyntaxError):
+                    continue
+    if isinstance(parsed_data, dict):
+        parsed_data = list(parsed_data.keys())
+    return parsed_data, bool(parsed_data)
+
+def correct_param_type(param_name, param_value, api_data, api_name):
+    if param_name not in api_data[api_name]['Parameters']:
+        return param_value
+    param_type = api_data[api_name]['Parameters'][param_name]['type']
+    if param_type in [None, "None"]:
+        return param_value
+    if 'List' in param_type or 'list' in param_type:
+        if param_value.startswith('(') and param_value.endswith(')'):
+            param_value = param_value.replace('(', '[').replace(')', ']')
+        # Convert string representation of numbers to list
+        elif re.match(r'^\d+(,\d+)*$', param_value):
+            param_value = f'[{param_value}]'
+    elif 'Tuple' in param_type or 'tuple' in param_type:
+        if param_value.startswith('[') and param_value.endswith(']'):
+            param_value = param_value.replace('[', '(').replace(']', ')')
+        # Convert string representation of numbers to tuple
+        elif re.match(r'^\d+(,\d+)*$', param_value):
+            param_value = f'({param_value})'
+    if 'Iterable' in param_type or 'List' in param_type or 'Tuple' in param_type:
+        if not param_value.startswith('[') and not param_value.startswith('('):
+            param_value = '[' + param_value + ']'
+    return param_value
+
+def generate_api_calling(api_name, api_details, predicted_parameters):
     """
     Generates an API call and formats output based on provided API details and returned content string.
     """
-    try:
-        returned_content_str_new = returned_content_str.replace('null', 'None').replace('None', '"None"')
-        returned_content = ast.literal_eval(returned_content_str_new)
-        returned_content_dict = {item['param_name']: item['value'] for item in returned_content if (item['value'] not in ['None', None, 'NoneType']) and item['value']} # remove null parameters from prompt
-    except Exception as e:
-        returned_content_dict = {}
-        print(f"Error parsing returned content: {e}")
+    returned_content_dict = predicted_parameters
     api_description = api_details["description"]
     parameters = api_details['Parameters']
     return_type = api_details['Returns']['type']
@@ -41,12 +162,12 @@ def generate_api_calling(api_name, api_details, returned_content_str):
                     #        param_value = "'"+str(param_value)+"'"
             # added condition to differentiate between basic and non-basic types
             if any(item in param_type for item in basic_types):
-                param_value = param_value if ((param_value not in [ 'None']) and param_value) else "@"
+                param_value = param_value if ((param_value not in [None,  'None']) and param_value) else "@"
             # add some general rules for basic types.
             elif ('openable' in param_type) or ('filepath' in param_type) or ('URL' in param_type):
-                param_value = param_value if ((param_value not in [ 'None']) and param_value) else "@"
+                param_value = param_value if ((param_value not in [None, 'None']) and param_value) else "@"
             else:
-                param_value = param_value if ((param_value not in [ 'None']) and param_value) else "$"
+                param_value = param_value if ((param_value not in [None,  'None']) and param_value) else "$"
             parameters_dict[param_name] = param_value
             parameters_info_list.append({
                 'name': param_name,
@@ -63,13 +184,27 @@ def generate_api_calling(api_name, api_details, returned_content_str):
             param['name']: {
                 "type": param['type'],
                 "description": param['description'],
-                "value": param['value'],
+                "value": format_string_list(param['value'], "[", "]") if '[' in param['value'] else format_string_list(param['value'], "(", ")") if '(' in param['value'] else param['value'], # TODO: 240519, add patches if gpt response is not formatted correctly
                 "optional": param['optional']
             } for param in parameters_info_list
         },
         "return_type": return_type
     }
     return api_name, api_calling, output
+
+def format_string_list(input_string, left_bracket="[", right_bracket="]"):
+    # Safely evaluate the string to convert it into a Python list
+    # ast.literal_eval is used here for safety to prevent execution of arbitrary code
+    try:
+        # Convert the input string to a valid list string by adding quotes around elements
+        safe_input = input_string.replace(left_bracket, f'{left_bracket}"').replace(right_bracket, f'"{right_bracket}').replace(', ', '", "')
+        data_list = ast.literal_eval(safe_input)
+    except Exception as e:
+        return f"Error parsing input: {str(e)}"
+    formatted_list = [f"'{item}'" if isinstance(item, str) and "'" not in item else str(item) for item in data_list]
+    # Convert list back to string representation
+    result_string = left_bracket + ", ".join(formatted_list) + right_bracket
+    return result_string
 
 def download_file_from_google_drive(file_id, save_dir="./tmp", output_path="output.zip"):
     import gdown
@@ -207,4 +342,5 @@ def change_format(input_params, param_name_list):
 
 
 import inspect
-__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))])) + [sentence_transformer_embed, predict_by_similarity, urlparse, basic_types]
+__all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))])) + [sentence_transformer_embed, predict_by_similarity, urlparse, basic_types, special_types, io_types, io_param_names
+]
