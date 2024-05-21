@@ -100,12 +100,12 @@ Tips:
 
 5. Train the api/non-api classification model.
 ```bash
-python -m BioMANIA.models.chitchat_classification --LIB ${LIB} --ratio_1_to_3 1.0 --ratio_2_to_3 1.0 --embed_method st_untrained
+python -m src.models.chitchat_classification --LIB ${LIB} --ratio_1_to_3 1.0 --ratio_2_to_3 1.0 --embed_method st_untrained
 ```
 
 6. (Optional) Try the unpretrained bm25 retriever for a quick inference on your generated instructions.
 ```bash
-python -m BioMANIA.inference.retriever_bm25_inference --LIB ${LIB} --top_k 3
+python -m src.inference.retriever_bm25_inference --LIB ${LIB} --top_k 3
 ```
 
 7. Fine-tune the retriever.
@@ -114,7 +114,7 @@ You can finetune the retriever based on the [bert-base-uncased](https://huggingf
 DATA_PATH="./data/standard_process/${LIB}"
 MODEL_PATH="./hugging_models/retriever_model_finetuned/${LIB}"
 mkdir ${MODEL_PATH}
-python -m BioMANIA.models.train_retriever \
+python -m src.models.train_retriever \
     --data_path ${DATA_PATH}/retriever_train_data/ \
     --model_name all-MiniLM-L6-v2 \
     --output_path ${MODEL_PATH} \
@@ -137,7 +137,7 @@ You can check the training performance curve under `./plot/${LIB}/` to determine
 DATA_PATH="./data/standard_process/${LIB}"
 MODEL_PATH="./hugging_models/retriever_model_finetuned/${LIB}"
 export HUGGINGPATH=./hugging_models
-python -m BioMANIA.inference.retriever_finetune_inference \
+python -m src.inference.retriever_finetune_inference \
     --retrieval_model_path ${MODEL_PATH}/assigned \
     --max_seq_length 256 \
     --corpus_tsv_path ${DATA_PATH}/retriever_train_data/corpus.tsv \
@@ -167,7 +167,7 @@ process data:
 DATA_PATH="./data/standard_process/${LIB}"
 MODEL_PATH="./hugging_models/retriever_model_finetuned/${LIB}"
 export TOKENIZERS_PARALLELISM=true
-python -m BioMANIA.models.data_classification \
+python -m src.models.data_classification \
     --pretrained_path ./hugging_models/llama-2-finetuned/checkpoints/lite-llama2/lit-llama.pth \
     --tokenizer_path ./hugging_models/llama-2-finetuned/checkpoints/tokenizer.model \
     --corpus_tsv_path ${DATA_PATH}/retriever_train_data/corpus.tsv \
@@ -189,7 +189,7 @@ python -m BioMANIA.models.data_classification \
 Then, finetune model:
 ```bash
 DATA_PATH="./data/standard_process/${LIB}"
-python -m BioMANIA.models.train_classification \
+python -m src.models.train_classification \
     --data_dir ${DATA_PATH}/classification_train/ \
     --out_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/ \
     --plot_dir ./plot/${LIB}/classification \
@@ -200,7 +200,7 @@ python -m BioMANIA.models.train_classification \
 Finally, check the performance:
 ```bash
 DATA_PATH="./data/standard_process/${LIB}"
-python -m BioMANIA.models.inference_classification \
+python -m src.models.inference_classification \
     --data_dir ${DATA_PATH}/classification_train/ \
     --checkpoint_dir ./hugging_models/llama-2-finetuned/${LIB}/finetuned/combined_model_checkpoint.pth \
     --batch_size 1 \

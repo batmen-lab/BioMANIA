@@ -141,10 +141,6 @@ async def async_LLM_response(prompt: str, GPT_model: str, history: list = [], kw
 
     Parameters
     ----------
-    llm : Any
-        The language learning model.
-    tokenizer : Any
-        The tokenizer for processing text.
     prompt : str
         The prompt to send to the language model.
     GPT_model : str
@@ -164,7 +160,7 @@ async def async_LLM_response(prompt: str, GPT_model: str, history: list = [], kw
     response, history = await loop.run_in_executor(None, LLM_response, prompt, model_version, history, kwargs)
     return response, history
 
-async def process_prompt_async(desc_retriever: Any, API_init: dict, api_name: str, api: dict, llm: Any, tokenizer: Any, tmp_docstring: str, progress: tqdm_normal, similar_api_same_desc: dict, similar_api_same_funcname: dict, GPT_model: str) -> list:
+async def process_prompt_async(desc_retriever: Any, API_init: dict, api_name: str, api: dict, tmp_docstring: str, progress: tqdm_normal, similar_api_same_desc: dict, similar_api_same_funcname: dict, GPT_model: str) -> list:
     """
     Processes a prompt asynchronously by preparing the prompt, sending it to a language model, and processing the response.
 
@@ -178,10 +174,6 @@ async def process_prompt_async(desc_retriever: Any, API_init: dict, api_name: st
         The name of the API being processed.
     api : dict
         The API data dictionary.
-    llm : Any
-        The language learning model.
-    tokenizer : Any
-        The tokenizer for processing text.
     tmp_docstring : str
         The temporary docstring prepared for the prompt.
     progress : tqdm_normal
@@ -690,7 +682,7 @@ async def preprocess_instruction_d(lib_data_path, desc_retriever: Any, API_init:
     print('The length of api_data after filtering class type API is: ',len(ori_data))
     # Convert the output data dict to a list of dicts
     results = []
-    #tasks = [process_api_async(api_name, ori_data[api_name], llm, tokenizer) for api_name in tqdm(ori_data)]
+    #tasks = [process_api_async(api_name, ori_data[api_name]) for api_name in tqdm(ori_data)]
     all_tasks = []
     print('Num. of instruction generation Tasks is one times of the num. of APIs ...')
     progress = tqdm_asyncio(total=len(ori_data))
@@ -701,7 +693,7 @@ async def preprocess_instruction_d(lib_data_path, desc_retriever: Any, API_init:
         async with semaphore:
             if True:
                 tmp_doc = json_to_docstring(api_name, API_init[api_name]['description'].replace('\n',' '), process_parameters(API_init[api_name]['Parameters']))
-                all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], llm, tokenizer, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model)) # .split('\n')[0]
+                all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model)) # .split('\n')[0]
             else:
                 pass
     # Run the tasks and collect results
@@ -710,10 +702,10 @@ async def preprocess_instruction_d(lib_data_path, desc_retriever: Any, API_init:
     progress.close()
     first_results = copy.deepcopy([item for sublist in first_round_results for item in sublist])
     
-    async def process_api_async(api_name, api_data, api_ori_data, llm, tokenizer, max_retries = 3):
+    async def process_api_async(api_name, api_data, api_ori_data, max_retries = 3):
         for _ in range(max_retries):
             tmp_doc = json_to_docstring(api_name, api_data['description'].replace('\n', ' '), process_parameters(api_data['Parameters']))
-            task_results = await process_prompt_async(desc_retriever, API_init, api_name, api_ori_data, llm, tokenizer, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model)
+            task_results = await process_prompt_async(desc_retriever, API_init, api_name, api_ori_data, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model)
             if len(task_results) == 10:
                 return task_results
         return task_results
@@ -736,10 +728,10 @@ async def preprocess_instruction_d(lib_data_path, desc_retriever: Any, API_init:
             async with semaphore:
                 if api_name in insufficient_apis:
                     tmp_doc = json_to_docstring(api_name, API_init[api_name]['description'].replace('\n',' '), process_parameters(API_init[api_name]['Parameters']))
-                    all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], llm, tokenizer, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model)) # .split('\n')[0]
+                    all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], ltmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model)) # .split('\n')[0]
                 else:
                     pass"""
-        retry_tasks = [process_api_async(api_name, API_init[api_name], ori_data[api_name], llm, tokenizer, max_retries=3) for api_name in insufficient_apis]
+        retry_tasks = [process_api_async(api_name, API_init[api_name], ori_data[api_name], max_retries=3) for api_name in insufficient_apis]
         second_round_results = await asyncio.gather(*(retry_tasks))
         progress.close()
         retry_results = copy.deepcopy([item for sublist in second_round_results for item in sublist])

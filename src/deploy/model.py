@@ -9,7 +9,7 @@ from ..gpt.utils import get_all_api_json, correct_pred, load_json, save_json, ge
 from ..inference.utils import json_to_docstring, find_similar_two_pairs
 from ..models.model import LLM_response
 from ..configs.model_config import *
-from ..inference.execution_UI import CodeExecutor
+from ..inference.execution_UI import CodeExecutor, find_matching_instance
 from ..inference.retriever_finetune_inference import ToolRetriever
 from ..prompt.parameters import prepare_parameters_prompt
 from ..prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
@@ -94,7 +94,6 @@ class Model:
             #self.load_composite_code(lib_name)
             t1 = time.time()
             self.logger.info('==>Start loading model!')
-            self.logger.info('loaded llm model!')
             retrieval_model_path = self.args_retrieval_model_path
             parts = retrieval_model_path.split('/')
             if len(parts)>=3: # only work for path containing LIB, otherwise, please reenter the path in script
@@ -160,15 +159,19 @@ class Model:
         self.callback_func('installation', "Finished API_composite.json ...", "39")
         self.callback_func('installation', "Preparing instruction generation API_inquiry.json ...", "52")
         command = [
-            "python", "dataloader/preprocess_retriever_data.py",
-            "--LIB", self.LIB
+            "python", "-m", "src.dataloader.preprocess_retriever_data",
+            "--LIB", self.LIB, "--GPT_model", "got3.5"
         ]
-        #print("Running command:", command)
         subprocess.Popen(command)
         ###########
         self.callback_func('installation', "Copying chitchat model from multicorpus pretrained chitchat model ...", "65")
-        shutil.copy(f'./data/standard_process/multicorpus/centroids.pkl', f'./data/standard_process/{self.LIB}/centroids.pkl')
-        shutil.copy(f'./data/standard_process/multicorpus/vectorizer.pkl', f'./data/standard_process/{self.LIB}/vectorizer.pkl')
+        command = [
+            "python", "-m", "src.models.chitchat_classification",
+            "--LIB", self.LIB, "--ratio_1_to_3", 1.0, "--ratio_2_to_3", 1.0, "--embed_method", "st_untrained"
+        ]
+        subprocess.Popen(command)
+        #shutil.copy(f'./data/standard_process/multicorpus/centroids.pkl', f'./data/standard_process/{self.LIB}/centroids.pkl')
+        #shutil.copy(f'./data/standard_process/multicorpus/vectorizer.pkl', f'./data/standard_process/{self.LIB}/vectorizer.pkl')
         self.callback_func('installation', "Done preparing chitchat model ...", "65")
         ###########
         self.callback_func('installation', "Copying retriever from multicorpus pretrained retriever model...", "78")
@@ -609,13 +612,17 @@ class Model:
         user_input = str(user_input)
         if user_input in ['y', 'n']:
             if user_input == 'n':
+                self.logger.info("user input is n")
                 self.update_user_state("run_pipeline")
+                self.logger.info("user state updated to run_pipeline")
                 self.initialize_tool()
+                self.logger.info("user tool initialized")
                 self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
                 self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
                 self.save_state()
                 return
             else:
+                self.logger.info("user input is y")
                 pass
         else:
             self.logger.info('input is not y or n')
@@ -625,15 +632,27 @@ class Model:
             self.save_state()
             # user_states didn't change
             return
-        # self.logger.info("==>Need to collect all parameters for a composite API")
+        self.logger.info("==>Need to collect all parameters for a composite API")
         combined_params = {}
+        self.logger.info('self.api_name_json: {}', self.api_name_json)
         # if the class API has already been initialized, then skip it
         for api in self.api_name_json:
             maybe_class_name = api.split('.')[-1]
             maybe_instance_name = maybe_class_name.lower() + "_instance"
-            if (maybe_instance_name in self.executor.variables) and (self.API_composite[api]['api_type'] in ['class', 'unknown']):
-                # self.logger.info('skip parameters for {}',maybe_instance_name)
-                continue
+            # 240520: modified, support for variable with none xx_instance name
+            if self.API_composite[api]['api_type'] in ['class', 'unknown']:
+                executor_variables = {}
+                for var_name, var_info in self.executor.variables.items():
+                    var_value = var_info["value"]
+                    executor_variables[var_name] = var_value
+                self.logger.info('executor_variables: {}', executor_variables)
+                self.logger.info("api: {}", api)
+                matching_instance, is_match = find_matching_instance(api, executor_variables)
+                self.logger.info('matching_instance: {}', matching_instance)
+                self.logger.info('is_match: {}', is_match)
+                if is_match:
+                    maybe_instance_name = matching_instance
+                    continue
             else:
                 pass
             combined_params.update(self.API_composite[api]['Parameters'])
@@ -673,6 +692,7 @@ class Model:
         if len(parameters_name_list)==0:
             # if there is no required parameters, skip using gpt
             response = "[]"
+            predicted_parameters = {}
         else:
             success = False
             for _ in range(self.param_gpt_retry):
@@ -698,22 +718,39 @@ class Model:
         self.logger.info('after filtering, predicted_parameters: {}', predicted_parameters)
         # generate api_calling
         self.predicted_api_name, api_calling, self.parameters_info_list = generate_api_calling(self.predicted_api_name, self.API_composite[self.predicted_api_name], predicted_parameters)
-        self.logger.info('parameters_info_list:', self.parameters_info_list)
+        self.logger.info('parameters_info_list: {}', self.parameters_info_list)
         self.logger.info('finished generate api calling')
         if len(self.api_name_json)> len(self.relevant_api_list):
+            self.logger.info('len(self.api_name_json)> len(self.relevant_api_list)')
             #assume_class_API = list(set(list(self.api_name_json.keys()))-set(self.relevant_api_list))[0]
             assume_class_API = '.'.join(self.predicted_api_name.split('.')[:-1])
-            tmp_class_predicted_api_name, tmp_class_api_calling, tmp_class_parameters_info_list = generate_api_calling(assume_class_API, self.API_composite[assume_class_API], response)
+            tmp_class_predicted_api_name, tmp_class_api_calling, tmp_class_parameters_info_list = generate_api_calling(assume_class_API, self.API_composite[assume_class_API], predicted_parameters)
+            self.logger.info('assume_class_API: {}', assume_class_API)
+            self.logger.info('tmp_class_predicted_api_name: {}', tmp_class_predicted_api_name)
+            self.logger.info('tmp_class_api_calling: {}', tmp_class_api_calling)
+            self.logger.info('tmp_class_parameters_info_list: {}', tmp_class_parameters_info_list)
             fix_update = True
             for api in self.api_name_json:
                 maybe_class_name = api.split('.')[-1]
                 maybe_instance_name = maybe_class_name.lower() + "_instance"
-                if (maybe_instance_name in self.executor.variables) and (self.API_composite[api]['api_type'] in ['class', 'unknown']):
-                    fix_update = False
+                # 240520: modified, 
+                if self.API_composite[api]['api_type'] in ['class', 'unknown']:
+                    executor_variables = {}
+                    for var_name, var_info in self.executor.variables.items():
+                        var_value = var_info["value"]
+                        executor_variables[var_name] = var_value
+                    matching_instance, is_match = find_matching_instance(api, executor_variables)
+                    self.logger.info('matching_instance: {}', matching_instance)
+                    self.logger.info('is_match: {}', is_match)
+                    if is_match:
+                        maybe_instance_name = matching_instance
+                        fix_update = False
                 else:
                     pass
             if fix_update:
+                self.logger.info('fix_update')
                 self.parameters_info_list['parameters'].update(tmp_class_parameters_info_list['parameters'])
+        self.logger.info('start inferring parameters')
         ####### infer parameters
         # $ param
         self.selected_params = self.executor.select_parameters(self.parameters_info_list['parameters'])

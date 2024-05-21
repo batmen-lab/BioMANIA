@@ -176,7 +176,10 @@ def generate_api_calling(api_name, api_details, predicted_parameters):
                 'optional': param_optional
             })
     parameters_str = ", ".join(f"{k}={v}" for k, v in parameters_dict.items())
-    api_calling = f"{api_name}({parameters_str})"
+    if api_details['api_type'] not in ['property', 'constant']:
+        api_calling = f"{api_name}({parameters_str})"
+    else:
+        api_calling = f"{api_name}"
     output = {
         "api_name": api_name,
         "parameters": {

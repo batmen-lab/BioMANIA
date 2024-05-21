@@ -2,6 +2,28 @@ import pickle, importlib, json, inspect, os, io, sys, re
 from anndata import AnnData
 from ..gpt.utils import save_json, load_json
 
+import importlib
+def find_matching_instance(api_string, executor_variables):
+    if api_string.startswith('anndata.'):
+        for instance_name, var_value in executor_variables.items():
+            if isinstance(var_value, str) and var_value.strip().startswith("AnnData object"):
+                return instance_name, True
+    try:
+        # Split the API string to get the module and class name
+        module_name, class_name = '.'.join(api_string.split('.')[:-1]), api_string.split('.')[-1]
+        # Import the module dynamically
+        module = importlib.import_module(module_name)
+        # Get the class from the module
+        cls = getattr(module, class_name)
+        # Iterate over all instances in executor_variables and check their types
+        for instance_name, instance in executor_variables.items():
+            if isinstance(instance, cls):
+                return instance_name, True
+        return None, False
+    except (ImportError, AttributeError) as e:
+        print(f"Error: {e}")
+        return None, False
+
 class FakeLogger:
     def info(self, *messages):
         combined_message = " ".join(str(message) for message in messages)
@@ -292,15 +314,15 @@ class CodeExecutor:
             self.logger.info(f'==>check individual apis now, api_name {api_name}, selected_params {selected_params}, class_selected_params {class_selected_params}')
             if len(api_params_list)==1:
                 if api_type=='class':
-                    code_for_one_api = self.generate_execution_code_for_one_api(api_name, selected_params, return_type, class_selected_params, single_class_API=True)
+                    code_for_one_api = self.generate_execution_code_for_one_api(api_name, selected_params, return_type, class_selected_params, single_class_API=True,api_type=api_type)
                 else:
-                    code_for_one_api = self.generate_execution_code_for_one_api(api_name, selected_params, return_type, class_selected_params, single_class_API=False)
+                    code_for_one_api = self.generate_execution_code_for_one_api(api_name, selected_params, return_type, class_selected_params, single_class_API=False,api_type=api_type)
             else: # assume > 1
-                code_for_one_api = self.generate_execution_code_for_one_api(api_name, selected_params, return_type, class_selected_params, single_class_API=False)
+                code_for_one_api = self.generate_execution_code_for_one_api(api_name, selected_params, return_type, class_selected_params, single_class_API=False,api_type=api_type)
             generated_code.append(code_for_one_api)
         return '\n'.join(generated_code)
     
-    def generate_execution_code_for_one_api(self, api_name, selected_params, return_type, class_selected_params={}, single_class_API=False):
+    def generate_execution_code_for_one_api(self, api_name, selected_params, return_type, class_selected_params={}, single_class_API=False,api_type='function'):
         self.logger.info('api_name', api_name)
         import_code, type_api = self.get_import_code(api_name)
         self.logger.info(f'==>import_code, type_api, {import_code, type_api}')
@@ -327,22 +349,54 @@ class CodeExecutor:
             if single_class_API:
                 final_api_name = ''
                 maybe_class_name = api_parts[-1]
+                maybe_api_trial = '.'.join(api_parts)
             else:
                 final_api_name = api_parts[-1]
                 maybe_class_name = api_parts[-2]
-            self.logger.info('final_api_name', final_api_name)
-            maybe_instance_name = maybe_class_name.lower() + "_instance"
+                maybe_api_trial = '.'.join(api_parts[:-1])
+            self.logger.info('final_api_name: {}', final_api_name)
+            # 240520: modified, support for variable with none xx_instance name
+            if type_api in ['class', 'unknown']:
+                self.logger.info('type_api in class or unknown')
+                executor_variables = {}
+                for var_name, var_info in self.variables.items():
+                    var_value = var_info["value"]
+                    executor_variables[var_name] = var_value
+                self.logger.info('executor_variables: {}', executor_variables)
+                self.logger.info('==>try to find matching instance: {}', maybe_api_trial)
+                matching_instance, is_match = find_matching_instance(maybe_api_trial, executor_variables)
+                if is_match:
+                    self.logger.info('==>matching_instance: {}', matching_instance)
+                    maybe_instance_name = matching_instance
+                else:
+                    self.logger.info('==>no matching_instance: {}', maybe_api_trial)
+                    maybe_instance_name = maybe_class_name.lower() + "_instance"
+            else:
+                maybe_instance_name = maybe_class_name.lower() + "_instance"
+                pass
             if single_class_API:
-                api_call = f"{maybe_instance_name} = {maybe_class_name}({class_params_formatted})"
+                if api_type in ['property', 'constant']:
+                    api_call = f"{maybe_instance_name} = {maybe_class_name}"
+                else:
+                    api_call = f"{maybe_instance_name} = {maybe_class_name}({class_params_formatted})"
             else:
                 if maybe_instance_name not in self.variables: # not initialized
-                    api_call = f"{maybe_instance_name} = {maybe_class_name}({class_params_formatted})"
-                api_call = f"{maybe_instance_name}.{final_api_name}({params_formatted})"
+                    if api_type in ['property', 'constant']:
+                        api_call = f"{maybe_instance_name} = {maybe_class_name}"
+                    else:
+                        api_call = f"{maybe_instance_name} = {maybe_class_name}({class_params_formatted})"
+                if api_type in ['property', 'constant']:
+                    api_call = f"{maybe_instance_name}.{final_api_name}"
+                else:
+                    api_call = f"{maybe_instance_name}.{final_api_name}({params_formatted})"
             class_API = maybe_instance_name
         else:
             self.logger.info('==>no Class type API')
             final_api_name = api_parts[-1]
-            api_call = f"{final_api_name}({params_formatted})"
+            if api_type in ['property', 'constant']:
+                api_call = f"{final_api_name}"
+            else:
+                api_call = f"{final_api_name}({params_formatted})"
         self.logger.info('generate return information')
         if (return_type not in ["NoneType", None, "None"]): #  and (not return_type.startswith('Optional'))
             #self.counter += 1
