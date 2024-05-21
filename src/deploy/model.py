@@ -14,11 +14,12 @@ from ..inference.retriever_finetune_inference import ToolRetriever
 from ..prompt.parameters import prepare_parameters_prompt
 from ..prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
 from ..configs.Lib_cheatsheet import CHEATSHEET as LIB_CHEATSHEET
-from ..deploy.utils import change_format, basic_types, generate_api_calling, download_file_from_google_drive, download_data, save_decoded_file, correct_bool_values, convert_bool_values, infer, dataframe_to_markdown, convert_image_to_base64, change_format, parse_json_safely, post_process_parsed_params, special_types, io_types, io_param_names
+from ..deploy.utils import basic_types, generate_api_calling, download_file_from_google_drive, download_data, save_decoded_file, correct_bool_values, convert_bool_values, infer, dataframe_to_markdown, convert_image_to_base64, change_format, parse_json_safely, post_process_parsed_params, special_types, io_types, io_param_names
 
 class Model:
     def __init__(self, logger, device, model_llm_type="gpt-3.5-turbo-0125"): # llama3
         print('start initialization!')
+        self.path_info_list = ['path','Path','PathLike']
         self.model_llm_type = model_llm_type
         self.logger = logger
         self.logger.debug("Initializing...")
@@ -644,7 +645,8 @@ class Model:
                 executor_variables = {}
                 for var_name, var_info in self.executor.variables.items():
                     var_value = var_info["value"]
-                    executor_variables[var_name] = var_value
+                    if str(var_value) not in ["None"]:
+                        executor_variables[var_name] = var_value
                 self.logger.info('executor_variables: {}', executor_variables)
                 self.logger.info("api: {}", api)
                 matching_instance, is_match = find_matching_instance(api, executor_variables)
@@ -656,7 +658,7 @@ class Model:
             else:
                 pass
             combined_params.update(self.API_composite[api]['Parameters'])
-        parameters_name_list = [key for key, value in combined_params.items() if (key not in ['path', "Path"])] # if (not value['optional'])
+        parameters_name_list = [key for key, value in combined_params.items() if (key not in self.path_info_list)] # if (not value['optional'])
         api_parameters_information = change_format(combined_params, parameters_name_list)
         # turn None to All
         api_parameters_information = [
@@ -738,8 +740,13 @@ class Model:
                     executor_variables = {}
                     for var_name, var_info in self.executor.variables.items():
                         var_value = var_info["value"]
-                        executor_variables[var_name] = var_value
-                    matching_instance, is_match = find_matching_instance(api, executor_variables)
+                        if str(var_value) not in ["None"]:
+                            executor_variables[var_name] = var_value
+                    self.logger.info('executor_variables: {}', executor_variables)
+                    try:
+                        matching_instance, is_match = find_matching_instance(api, executor_variables)
+                    except Exception as e:
+                        self.logger.error('error during matching_instance: {}', e)
                     self.logger.info('matching_instance: {}', matching_instance)
                     self.logger.info('is_match: {}', is_match)
                     if is_match:
@@ -833,10 +840,10 @@ class Model:
             self.selected_params = self.executor.makeup_for_missing_single_parameter_type_special(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         # @ param
         self.logger.info('starting entering basic params')
-        none_at_value_params = [param_name for param_name, param_info in self.selected_params.items() if (param_info["value"] in ['@']) and (param_name not in ['path','Path'])]
-        self.filtered_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (value["value"] in ['@']) and (key not in ['path','Path'])}
+        none_at_value_params = [param_name for param_name, param_info in self.selected_params.items() if (param_info["value"] in ['@']) and (param_name not in self.path_info_list)]
+        self.filtered_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (value["value"] in ['@']) and (key not in self.path_info_list)}
         self.filtered_pathlike_params = {}
-        self.filtered_pathlike_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (value["value"] in ['@']) and (key in ['path','Path'])}
+        self.filtered_pathlike_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (value["value"] in ['@']) and (key in self.path_info_list)}
         # TODO: add condition later: if uploading data files, 
         # avoid asking Path params, assign it as './tmp'
         if none_at_value_params: # TODO: add type PathLike

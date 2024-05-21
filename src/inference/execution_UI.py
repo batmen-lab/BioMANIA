@@ -263,7 +263,7 @@ class CodeExecutor:
         type_str = remove_outer_optional(type_str)
         s = remove_outer_union(type_str)
         top_level_types = split_top_level_types(s)
-        return ('str' in top_level_types)
+        return any(item in top_level_types for item in ['str', 'PathLike', 'Path']) # 240520 update
 
     def format_value(self, value, value_type):
         try:
@@ -272,7 +272,7 @@ class CodeExecutor:
         except:
             pass
         #if "str" in value_type:
-        if self.is_str_at_first_level(value_type):
+        if self.is_str_at_first_level(value_type) or (str(value_type) not in ["None"] and 'Literal' in str(value_type)):
             value = str(value).strip()
             if value.startswith("("): # if user input tuple parameters, return directly
                 return value # (('tuple' in value) or ('Tuple' in value)) and 
