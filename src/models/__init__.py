@@ -5,3 +5,4 @@ from . import model
 #from . import train_classification
 from . import train_retriever
 #from . import lit_llama
+from . import dialog_classifier

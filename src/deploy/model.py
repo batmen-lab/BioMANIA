@@ -15,10 +15,22 @@ from ..prompt.parameters import prepare_parameters_prompt
 from ..prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
 from ..configs.Lib_cheatsheet import CHEATSHEET as LIB_CHEATSHEET
 from ..deploy.utils import basic_types, generate_api_calling, download_file_from_google_drive, download_data, save_decoded_file, correct_bool_values, convert_bool_values, infer, dataframe_to_markdown, convert_image_to_base64, change_format, parse_json_safely, post_process_parsed_params, special_types, io_types, io_param_names
+from ..models.dialog_classifier import Dialog_Gaussian_classificaiton
 
+def make_execution_correction_prompt(user_input, history_record, error_code, error_message, variables, LIB):
+    prompt = f"Your task is to correct a Python code snippet based on the provided information. The user's inquiry is represented by '{user_input}'. The history of successful executions is provided in '{history_record}', and variables in the namespace are supplied in a dictionary '{variables}'. Execute the error code snippet '{error_code}' and capture the error message '{error_message}'. Analyze the error to determine its root cause. Then, using the entire API name instead of abbreviation in the format '{LIB}.xx.yy'. Ensure any new variables created are named with the prefix 'result_' followed by digits, without reusing existing variable names. If you feel necessary to perform attribute operations similar to 'result_1.var_names.intersection(result_2.var_names)' or subset an AnnData object by columns like 'adata_ref = adata_ref[:, var_names]', go ahead. If you feel importing some libraries are necessary, go ahead. Maintain consistency with the style of previously executed code. Ensure that the corrected code, given the variables in the namespace, can be executed directly without errors. Return the corrected code snippet in the format: '\"\"\"your_corrected_code\"\"\"'. Do not include additional descriptions."
+    # please return minimum line of codes that you think is necessary to execute for the task related inquiry
+    return prompt
+
+def make_GPT_prompt(user_input, history_record, variables, LIB):
+    prompt = f"Your task is to generate a Python code snippet based on the provided information. The user's inquiry is represented by '{user_input}'. The history of successful executions is provided in '{history_record}', and variables in the namespace are supplied in a dictionary '{variables}'. Analyze the user intent about the task to generate code. Then, using the entire API name instead of abbreviation in the format '{LIB}.xx.yy'. Ensure any new variables created are named with the prefix 'result_' followed by digits, without reusing existing variable names. If you feel necessary to perform attribute operations similar to 'result_1.var_names.intersection(result_2.var_names)' or subset an AnnData object by columns like 'adata_ref = adata_ref[:, var_names]', go ahead. If you feel importing some libraries are necessary, go ahead. Maintain consistency with the style of previously executed code. Ensure that the generated code, given the variables in the namespace, can be executed directly without errors. Return the corrected code snippet in the format: '\"\"\"your_corrected_code\"\"\"'. Do not include additional descriptions."
+    # please return minimum line of codes that you think is necessary to execute for the task related inquiry
+    return prompt
 class Model:
     def __init__(self, logger, device, model_llm_type="gpt-3.5-turbo-0125"): # llama3
         print('start initialization!')
+        self.retry_execution_limit = 3
+        self.retry_execution_count = 0
         self.path_info_list = ['path','Path','PathLike']
         self.model_llm_type = model_llm_type
         self.logger = logger
@@ -33,8 +45,8 @@ class Model:
         self.LIB = "scanpy"
         self.args_retrieval_model_path = f'./hugging_models/retriever_model_finetuned/{self.LIB}/assigned'
         self.args_top_k = 3
-        self.param_gpt_retry = 1
-        self.predict_api_gpt_retry = 3
+        self.param_llm_retry = 1
+        self.predict_api_llm_retry = 3
         self.session_id = ""
         #load_dotenv()
         OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
@@ -62,7 +74,7 @@ class Model:
         #    self.vectorizer = pickle.load(f)
         with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
             self.centroids = pickle.load(f)
-        self.retrieve_query_mode = "similar"
+        self.retrieve_query_mode = "random"
         self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
         print("Server ready")
     def load_multiple_corpus_in_namespace(self, ):
@@ -77,6 +89,16 @@ class Model:
         self.executor.execute_api_call(f"warnings.filterwarnings('ignore')", "import")
     def load_bert_model(self, load_mode='unfinetuned_bert'):
         self.bert_model = SentenceTransformer('all-MiniLM-L6-v2', device=self.device) if load_mode=='unfinetuned_bert' else SentenceTransformer(f"./hugging_models/retriever_model_finetuned/{self.LIB}/assigned", device=self.device)
+    def compute_dialog_metrics(self,):
+        annotate_path = f'data/standard_process/{self.LIB}/API_inquiry_annotate.json'
+        annotate_data = load_json(annotate_path)
+        info_json = get_all_variable_from_cheatsheet(self.LIB)
+        LIB_ALIAS = info_json['LIB_ALIAS']
+        self.dialog_p_threshold = 0.05
+        data_source = "single_query_train"
+        self.dialog_classifer = Dialog_Gaussian_classificaiton(threshold=self.dialog_p_threshold)
+        scores_train, outliers = self.dialog_classifer.compute_accuracy_filter_compositeAPI(self.LIB, self.retriever, annotate_data, self.args_top_k, name=data_source, LIB_ALIAS=LIB_ALIAS)
+        self.dialog_mean, self.dialog_std = self.dialog_classifer.fit_gaussian(scores_train['rank_1'])
     def reset_lib(self, lib_name):
         #lib_name = lib_name.strip()
         self.logger.debug("================")
@@ -115,6 +137,8 @@ class Model:
             self.logger.info("loading model cost: {} s", str(time.time()-t1))
             reset_result = "Success"
             self.LIB = lib_name
+            # compute the dialog metrics
+            self.compute_dialog_metrics()
         except Exception as e:
             self.logger.error("at least one data or model is not ready, please install lib first!")
             self.logger.error("Error: {}", e)
@@ -161,7 +185,7 @@ class Model:
         self.callback_func('installation', "Preparing instruction generation API_inquiry.json ...", "52")
         command = [
             "python", "-m", "src.dataloader.preprocess_retriever_data",
-            "--LIB", self.LIB, "--GPT_model", "got3.5"
+            "--LIB", self.LIB, "--GPT_model", "gpt3.5"
         ]
         subprocess.Popen(command)
         ###########
@@ -291,7 +315,9 @@ class Model:
         #cheatsheet_data.update(new_lib_details)
         # save_json(cheatsheet_path, cheatsheet_data)
         # TODO: need to save tutorial_github and tutorial_html_path to cheatsheet
-
+    def save_state_enviro(self):
+        self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
+        self.save_state()
     def update_image_file_list(self):
         return [f for f in os.listdir(self.image_folder) if f.endswith(".webp")]
     def load_composite_code(self, lib_name):
@@ -306,10 +332,6 @@ class Model:
                 function_name = node.name
                 function_body = ast.unparse(node)
                 self.functions_json[function_name] = function_body
-    def retrieve_names(self,query):
-        retrieved_names = self.retriever.retrieving(query, top_k=self.args_top_k)
-        self.logger.info("retrieved_names: {}", retrieved_names)
-        return retrieved_names
     def initialize_executor(self):
         self.executor = CodeExecutor(self.logger)
         self.executor.callbacks = self.callbacks
@@ -406,7 +428,7 @@ class Model:
                 self.initialize_executor()
                 pass
         # only reset lib when changing lib
-        if lib!=self.LIB:
+        if lib!=self.LIB and lib!='GPT':
             reset_result = self.reset_lib(lib)
             if reset_result=='Fail':
                 self.logger.error('Reset lib fail! Exit the dialog!')
@@ -414,6 +436,8 @@ class Model:
                 return 
             self.args_retrieval_model_path = f'./hugging_models/retriever_model_finetuned/{lib}/assigned'
             self.LIB = lib
+        elif lib=='GPT':
+            self.update_user_state("run_pipeline_asking_GPT")
         # only clear namespace when starting new conversations
         if conversation_started in ["True", True]:
             self.logger.info('==>new conversation_started!')
@@ -434,6 +458,7 @@ class Model:
             self.loading_data(files)
             self.query_id += 1
             self.user_query = user_input
+            # chitchat prediction
             predicted_source = infer(self.user_query, self.bert_model, self.centroids, ['chitchat-data', 'topical-chat', 'api-query'])
             self.logger.info('----query inferred as {}----', predicted_source)
             if predicted_source!='api-query':
@@ -443,7 +468,16 @@ class Model:
                 return
             else:
                 pass
-            retrieved_names = self.retrieve_names(user_input)
+            # dialog prediction
+            self.logger.info('start predicting whether inquiry is a complex task description or simple one!')
+            pred_class = self.dialog_classifer.single_prediction(user_input, self.retriever, self.args_top_k)
+            self.logger.info('----query inferred as {}----', pred_class)
+            if pred_class not in ['single']:
+                # TODO: retrieve multiple APIs
+                
+                pass
+            # start retrieving names
+            retrieved_names = self.retriever.retrieving(user_input, top_k=self.args_top_k)
             # produce prompt
             if self.retrieve_query_mode=='similar':
                 instruction_shot_example = self.retriever.retrieve_similar_queries(user_input, shot_k=5)
@@ -473,27 +507,27 @@ class Model:
                 retrieved_apis_prepare+=f"{idx}:" + api+", description: "+self.all_apis_json[api].replace('\n',' ')+"\n"
             api_predict_prompt = api_predict_init_prompt.format(query=user_input, retrieved_apis=retrieved_apis_prepare, similar_queries=instruction_shot_example)
             success = False
-            for _ in range(self.predict_api_gpt_retry):
+            for _ in range(self.predict_api_llm_retry):
                 try:
                     response, _ = LLM_response(api_predict_prompt, self.model_llm_type, history=[], kwargs={})  # llm
-                    self.logger.info('==>Ask GPT: {}\n==>GPT response: {}', api_predict_prompt, response)
-                    # hack for if GPT answers this or that
+                    self.logger.info('==>Ask LLM: {}\n==>LLM response: {}', api_predict_prompt, response)
+                    # hack for if LLM answers this or that
                     """response = response.split(',')[0].split("(")[0].split(' or ')[0]
                     response = response.replace('{','').replace('}','').replace('"','').replace("'",'')
-                    response = response.split(':')[0]# for robustness, sometimes gpt will return api:description"""
+                    response = response.split(':')[0]# for robustness, sometimes llm will return api:description"""
                     response = correct_pred(response, self.LIB)
                     response = response.strip()
                     #self.logger.info('self.all_apis_json keys: {}', self.all_apis_json.keys())
                     self.logger.info('response in self.all_apis_json: {}', response in self.all_apis_json)
                     self.all_apis_json[response]
-                    self.predicted_api_name = response 
+                    self.predicted_api_name = response
                     success = True
                     break
                 except Exception as e:
                     self.logger.error('error during api prediction: {}', e)
             if not success:
                 self.initialize_tool()
-                self.callback_func('log', "GPT can not return valid API name prediction, please redesign your prompt.", "GPT predict Error")
+                self.callback_func('log', "LLM can not return valid API name prediction, please redesign your prompt.", "LLM predict Error")
                 return
             self.logger.info('length of ambiguous api list: {}',len(self.ambiguous_api))
             # if the predicted API is in ambiguous API list, then show those API and select one from them
@@ -511,21 +545,50 @@ class Model:
                     next_str+='\n'+description_1
                     self.update_user_state("run_pipeline_after_ambiguous")
                     idx_api+=1
+                next_str+="\n"+f"Candidate [-1]: No appropriate candidate, restart another inquiry by input -1"
+                self.update_user_state("run_pipeline_after_ambiguous")
                 self.callback_func('log', next_str, f"Can you confirm which of the following {len(self.filtered_api)} candidates")
-                self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-                self.save_state()
+                self.save_state_enviro()
             else:
                 self.update_user_state("run_pipeline_after_fixing_API_selection")
                 self.run_pipeline_after_fixing_API_selection(user_input)
         elif self.user_states == "run_pipeline_after_ambiguous":
             ans = self.run_pipeline_after_ambiguous(user_input)
             if ans in ['break']:
+                self.logger.info('break the loop! Restart the inquiry')
                 return
             self.run_pipeline_after_fixing_API_selection(user_input)
-        elif self.user_states in ["run_pipeline_after_doublechecking_execution_code", "run_pipeline_after_entering_params", "run_select_basic_params", "run_pipeline_after_select_special_params", "run_select_special_params", "run_pipeline_after_doublechecking_API_selection"]:
+        elif self.user_states in ["run_pipeline_after_doublechecking_execution_code", "run_pipeline_after_entering_params", "run_select_basic_params", "run_pipeline_after_select_special_params", "run_select_special_params", "run_pipeline_after_doublechecking_API_selection", "run_pipeline_asking_GPT"]:
             self.handle_state_transition(user_input)
         else:
+            self.logger.error('Unknown user state: {}', self.user_states)
             raise ValueError
+    def run_pipeline_asking_GPT(self,user_input):
+        self.logger.info('==>run_pipeline_asking_GPT')
+        self.retry_execution_count +=1
+        if self.retry_execution_count>self.retry_execution_limit:
+            self.logger.error('retry_execution_count exceed the limit! Exit the dialog!')
+            self.initialize_tool()
+            self.callback_func('log', 'code generation using GPT has exceed the limit! Please choose other lib and re-enter the inquiry! You can use GPT again once you have executed code successfully through our tool!', 'Error')
+            self.update_user_state('run_pipeline')
+            self.save_state_enviro()
+            return
+        self.initialize_tool()
+        self.logger.info('==>start asking GPT for code generation!')
+        prompt = make_GPT_prompt(self.user_query, str(self.executor.execute_code), str(self.executor.variables), self.LIB)
+        response, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})
+        newer_code = response.replace('\"\"\"', '')
+        self.execution_code = newer_code
+        self.callback_func('code', self.execution_code, "Executed code")
+        # LLM response
+        summary_prompt = prepare_summary_prompt_full(self.user_query, self.predicted_api_name, self.API_composite[self.predicted_api_name]['description'], self.API_composite[self.predicted_api_name]['Parameters'],self.API_composite[self.predicted_api_name]['Returns'], self.execution_code)
+        response, _ = LLM_response(summary_prompt, self.model_llm_type, history=[], kwargs={})
+        self.callback_func('log', response, "Task summary before execution")
+        self.callback_func('log', "Could you confirm whether this task is what you aimed for, and the code should be executed? Please enter y/n.\nIf you press n, then we will re-direct to the parameter input step", "Double Check")
+        self.update_user_state("run_pipeline_after_doublechecking_execution_code")
+        self.save_state_enviro()
+        return 
+        
     def handle_unknown_state(self, user_input):
         self.logger.info("Unknown state: {}", self.user_states)
 
@@ -544,15 +607,21 @@ class Model:
             self.update_user_state("run_pipeline_after_ambiguous")
             return 'break'
         try:
-            self.filtered_api[int(user_input)-1]
+            if int(user_input)==-1:
+                self.update_user_state("run_pipeline")
+                self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
+                self.logger.info("user state updated to run_pipeline")
+                self.save_state_enviro()
+                return 'break'
+            else:
+                self.filtered_api[int(user_input)-1]
         except:
             self.callback_func('log', "Error: the input index exceed the maximum length of ambiguous API list\nPlease re-enter the index", "Index Error")
             self.update_user_state("run_pipeline_after_ambiguous")
             return 'break'
         self.update_user_state("run_pipeline_after_fixing_API_selection")
         self.predicted_api_name = self.filtered_api[int(user_input)-1]
-        self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-        self.save_state()
+        self.save_state_enviro()
     def process_api_info(self, api_info, single_api_name):
         relevant_apis = api_info.get(single_api_name, {}).get("relevant APIs")
         if not relevant_apis:
@@ -605,8 +674,7 @@ class Model:
         self.callback_func('log', response, f"Predicted API: {self.predicted_api_name}")
         self.callback_func('log', "Could you confirm whether this API should be called? Please enter y/n.", "Double Check")
         self.update_user_state("run_pipeline_after_doublechecking_API_selection")
-        self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-        self.save_state()
+        self.save_state_enviro()
     
     def run_pipeline_after_doublechecking_API_selection(self, user_input):
         self.logger.info('==>run_pipeline_after_doublechecking_API_selection')
@@ -619,8 +687,7 @@ class Model:
                 self.initialize_tool()
                 self.logger.info("user tool initialized")
                 self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
-                self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-                self.save_state()
+                self.save_state_enviro()
                 return
             else:
                 self.logger.info("user input is y")
@@ -629,8 +696,7 @@ class Model:
             self.logger.info('input is not y or n')
             self.initialize_tool()
             self.callback_func('log', "The input was not y or n, please enter the correct value.", "Index Error")
-            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-            self.save_state()
+            self.save_state_enviro()
             # user_states didn't change
             return
         self.logger.info("==>Need to collect all parameters for a composite API")
@@ -670,7 +736,7 @@ class Model:
             }
             for param in api_parameters_information
         ]
-        #filter out special type parameters, do not infer them using gpt
+        #filter out special type parameters, do not infer them using LLM
         api_parameters_information = [param for param in api_parameters_information if any(basic_type in param['type'] for basic_type in basic_types)]
         parameters_name_list = [param_info['name'] for param_info in api_parameters_information]
         apis_description = ""
@@ -692,15 +758,15 @@ class Model:
         except Exception as e:
             self.logger.error('error for parameters: {}', e)
         if len(parameters_name_list)==0:
-            # if there is no required parameters, skip using gpt
+            # if there is no required parameters, skip using LLM
             response = "[]"
             predicted_parameters = {}
         else:
             success = False
-            for _ in range(self.param_gpt_retry):
+            for _ in range(self.param_llm_retry):
                 try:
                     response, _ = LLM_response(parameters_prompt, self.model_llm_type, history=[], kwargs={})
-                    self.logger.info('==>Asking GPT: {}, ==>GPT response: {}', parameters_prompt, response)
+                    self.logger.info('==>Asking LLM: {}, ==>LLM response: {}', parameters_prompt, response)
                     returned_content_str_new = response.replace('null', 'None').replace('None', '"None"')
                     # 240519 fix
                     pred_params, success = parse_json_safely(returned_content_str_new)
@@ -710,7 +776,7 @@ class Model:
                     pass
             self.logger.info('success or not: {}', success)
             if not success:
-                self.callback_func('log', "GPT can not return valid parameters prediction, please redesign prompt in backend if you want to predict parameters. We will skip parameters prediction currently", "GPT predict Error")
+                self.callback_func('log', "LLM can not return valid parameters prediction, please redesign prompt in backend if you want to predict parameters. We will skip parameters prediction currently", "LLM predict Error")
                 response = "{}"
                 predicted_parameters = {}
         self.logger.info('predicted_parameters: {}', predicted_parameters)
@@ -770,8 +836,7 @@ class Model:
             self.initialize_tool()
             self.callback_func('log', "However, there are still some parameters with special type undefined. Please start from uploading data, or check your parameter type in json files.", "Missing Parameters: special type")
             self.update_user_state("run_pipeline")
-            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-            self.save_state()
+            self.save_state_enviro()
             return
         # $ param if multiple choice
         multiple_dollar_value_params = [param_name for param_name, param_info in self.selected_params.items() if ('list' in str(type(param_info["value"]))) and (len(param_info["value"])>1)]
@@ -788,8 +853,7 @@ class Model:
             self.callback_func('log', f"The predicted API takes {tmp_input_para} as input. However, there are still some parameters undefined in the query.", "Enter Parameters: special type", "red")
             self.update_user_state("run_select_special_params")
             self.run_select_special_params(user_input)
-            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-            self.save_state()
+            self.save_state_enviro()
             return
         self.run_pipeline_after_select_special_params(user_input)
 
@@ -814,8 +878,7 @@ class Model:
             self.update_user_state("run_select_special_params")
             del self.filtered_params[self.last_param_name]
             #print('self.filtered_params: {}', json.dumps(self.filtered_params))
-            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-            self.save_state()
+            self.save_state_enviro()
             return
         elif len(self.filtered_params)==1:
             self.last_param_name = list(self.filtered_params.keys())[0]
@@ -827,12 +890,10 @@ class Model:
             self.update_user_state("run_pipeline_after_select_special_params")
             del self.filtered_params[self.last_param_name]
             #print('self.filtered_params: {}', json.dumps(self.filtered_params))
-            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-            self.save_state()
+            self.save_state_enviro()
         else:
             self.callback_func('log', "The parameters candidate list is empty", "Error Enter Parameters: basic type", "red")
-            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-            self.save_state()
+            self.save_state_enviro()
             raise ValueError
 
     def run_pipeline_after_select_special_params(self,user_input):
@@ -857,8 +918,7 @@ class Model:
             self.callback_func('log', f"The predicted API takes {tmp_input_para} as input. However, there are still some parameters undefined in the query.", "Enter Parameters: basic type", "red")
             self.user_states = "run_select_basic_params"
             self.run_select_basic_params(user_input)
-            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-            self.save_state()
+            self.save_state_enviro()
             return
         self.run_pipeline_after_entering_params(user_input)
     
@@ -873,21 +933,18 @@ class Model:
             self.callback_func('log', "Which value do you think is appropriate for the parameters '" + self.last_param_name + "'?", "Enter Parameters: basic type","red")
             self.update_user_state("run_select_basic_params")
             del self.filtered_params[self.last_param_name]
-            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-            self.save_state()
+            self.save_state_enviro()
             return
         elif len(self.filtered_params)==1:
             self.last_param_name = list(self.filtered_params.keys())[0]
             self.callback_func('log', "Which value do you think is appropriate for the parameters '" + self.last_param_name + "'?", "Enter Parameters: basic type", "red")
             self.update_user_state("run_pipeline_after_entering_params")
             del self.filtered_params[self.last_param_name]
-            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-            self.save_state()
+            self.save_state_enviro()
         else:
             # break out the pipeline
             self.callback_func('log', "The parameters candidate list is empty", "Error Enter Parameters: basic type","red")
-            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-            self.save_state()
+            self.save_state_enviro()
             raise ValueError
     def split_params(self, selected_params, parameters_list):
         extracted_params = []
@@ -1026,8 +1083,7 @@ class Model:
         self.callback_func('log', response, "Task summary before execution")
         self.callback_func('log', "Could you confirm whether this task is what you aimed for, and the code should be executed? Please enter y/n.\nIf you press n, then we will re-direct to the parameter input step", "Double Check")
         self.update_user_state("run_pipeline_after_doublechecking_execution_code")
-        self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-        self.save_state()
+        self.save_state_enviro()
         
     def run_pipeline_after_doublechecking_execution_code(self, user_input):
         self.initialize_tool()
@@ -1038,8 +1094,7 @@ class Model:
                 #self.user_states = "run_pipeline"
                 self.update_user_state("run_pipeline_after_doublechecking_API_selection")#TODO: check if exist issue
                 self.callback_func('log', "We will redirect to the parameters input", "Re-enter the parameters")
-                self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-                self.save_state()
+                self.save_state_enviro()
                 self.run_pipeline_after_doublechecking_API_selection('y')
                 return
             else:
@@ -1047,8 +1102,7 @@ class Model:
         else:
             self.logger.info('input not y or n')
             self.callback_func('log', "The input was not y or n, please enter the correct value.", "Index Error")
-            self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-            self.save_state()
+            self.save_state_enviro()
             # user_states didn't change
             return
         # else, continue
@@ -1087,7 +1141,12 @@ class Model:
         try:
             content = '\n'.join(output_list)
         except:
-            content = ""
+            try:
+                content = self.last_execute_code['error']
+            except:
+                content = ""
+        self.logger.info('content: {}', content)
+        self.logger.info('self.last_execute_code: {}',str(self.last_execute_code))
         # show the new variable 
         if self.last_execute_code['success']=='True':
             # if execute, visualize value
@@ -1149,11 +1208,35 @@ class Model:
             self.image_file_list = new_img_list
             if tips_for_execution_success: # if no output, no new variable, present the log
                 self.callback_func('log', str(content), "Executed results [Success]")
+            self.retry_execution_count = 0
         else:
             self.logger.info('Execution Error: {}', content)
-            self.callback_func('log', "\n".join(list(set(output_list))), "Executed results [Fail]")
-        self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-        self.save_state()
+            self.callback_func('log', content, "Executed results [Fail]")
+            if self.retry_execution_count<self.retry_execution_limit:
+                self.retry_execution_count +=1
+                self.callback_func('log', "retry count: "+str(self.retry_execution_count), "Retry Execution by LLM")
+                # 240521: automatically regenerated code by LLM
+                prompt = make_execution_correction_prompt(self.user_query, str(self.executor.execute_code), self.last_execute_code['code'], content, str(self.executor.variables), self.LIB)
+                response, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})  # llm
+                newer_code = response.replace('\"\"\"', '')
+                self.execution_code = newer_code
+                self.callback_func('code', self.execution_code, "Executed code")
+                # LLM response
+                summary_prompt = prepare_summary_prompt_full(user_input, self.predicted_api_name, self.API_composite[self.predicted_api_name]['description'], self.API_composite[self.predicted_api_name]['Parameters'],self.API_composite[self.predicted_api_name]['Returns'], self.execution_code)
+                response, _ = LLM_response(summary_prompt, self.model_llm_type, history=[], kwargs={})
+                self.callback_func('log', response, "Task summary before execution")
+                self.callback_func('log', "Could you confirm whether this task is what you aimed for, and the code should be executed? Please enter y/n.\nIf you press n, then we will re-direct to the parameter input step", "Double Check")
+                self.update_user_state("run_pipeline_after_doublechecking_execution_code")
+                self.save_state_enviro()
+                return 
+            else:
+                self.callback_func('log', "The execution failed multiple times. Please re-enter the inquiry and start a new turn.", "Executed results [Fail]")
+                self.retry_execution_count = 0
+                self.update_user_state("run_pipeline")
+                self.save_state_enviro()
+                return
+            
+        self.save_state_enviro()
         if self.last_execute_code['success']=='True':
             # split tuple variable into individual variables
             ans, new_code = self.executor.split_tuple_variable(self.last_execute_code) # This function verifies whether the new variable is a tuple.
@@ -1171,8 +1254,7 @@ class Model:
             new_str.append({"code":i['code'],"execution_results":i['success']})
         self.logger.info("Currently all executed code: {}", json.dumps(new_str))
         self.update_user_state("run_pipeline")
-        self.executor.save_environment(f"./tmp/sessions/{str(self.session_id)}_environment.pkl")
-        self.save_state()
+        self.save_state_enviro()
     def modify_code_add_tmp(self, code, add_tmp = "tmp"):
         """
         sometimes author make 'return' information wrong

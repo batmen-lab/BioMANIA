@@ -4,6 +4,16 @@ from collections import defaultdict
 from ..gpt.utils import get_all_api_json, find_similar_api_pairs, is_pair_in_merged_pairs, find_similar_two_pairs, get_ambiguous_pairs, save_json, load_json
 import numpy as np
 from PIL import Image
+from collections import Counter
+
+def find_differences(annotate_data, api_data):
+    diff_data = [item for item in annotate_data if item['query_id'] >= len(api_data)]
+    api_names = [item['api_calling'][0].split('(')[0] for item in diff_data]
+    api_counts = Counter(api_names)
+    print(f"Total differences found: {len(diff_data)}")
+    print(f"Unique API functions: {len(api_counts)}")
+    assert max(api_counts.values()) - min(api_counts.values()) <= 0, "API function distribution is not even"
+    return diff_data
 
 def json_to_docstring(api_name, description, parameters):
     params_list = ', '.join([

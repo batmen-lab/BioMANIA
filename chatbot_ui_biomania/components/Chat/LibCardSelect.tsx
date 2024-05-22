@@ -20,6 +20,7 @@ export const libImages: { [key: string]: string } = {
   'snapatac2': '/apps/snapatac2.webp',
   'anndata': '/apps/anndata.webp',
   //'custom': '/apps/customize.webp',
+  'GPT': '/apps/GPT.webp',
 };
 
 export const LibCardSelect = () => {
@@ -57,6 +58,7 @@ export const LibCardSelect = () => {
       { id: 'snapatac2',name: 'snapatac2' },
       { id: 'anndata', name: 'anndata' },
       //{ id: 'custom', name: 'custom' },
+      { id: 'GPT', name: 'GPT' },
     ];
   
     const existingLibIds = methods.map(lib => lib.id);
