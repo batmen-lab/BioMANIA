@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 from src.gpt.utils import load_json, save_json
 
-class Dialog_Gaussian_classificaiton:
+class Dialog_Gaussian_classification:
     def __init__(self, threshold=0.05):
         self.threshold = threshold
         

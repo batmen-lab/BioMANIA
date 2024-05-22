@@ -1,6 +1,8 @@
 import pickle, importlib, json, inspect, os, io, sys, re
 from anndata import AnnData
 from ..gpt.utils import save_json, load_json
+import traceback
+from functools import lru_cache
 
 import importlib
 def find_matching_instance(api_string, executor_variables):
@@ -88,10 +90,11 @@ class CodeExecutor:
                 return_var[k] = v
         print('return_var save :', list(return_var.keys()))
         return return_var, special_objects'''
-
+    def get_newest_counter_from_namespace(self,):
+        return max([int(k.split('_')[1]) for k in self.variables if k.startswith('result_')], default=0)
     def save_environment(self, file_name):
         """Save environment, with special handling for AnnData objects."""
-        self.logger.info('current variables are: ', self.variables.keys())
+        self.logger.info('current variables are: {}', self.variables.keys())
         serializable_vars = self.filter_picklable_variables()
         # Handle AnnData objects separately
         ann_data_vars = {k: v for k, v in self.variables.items() if isinstance(v, AnnData)}
@@ -104,7 +107,7 @@ class CodeExecutor:
         }
         with open(file_name, "wb") as file:
             pickle.dump(data_to_save, file)
-
+    #@lru_cache(maxsize=10)
     def load_environment(self, file_name):
         """Load environment, with special handling for AnnData objects."""
         with open(file_name, "rb") as file:
@@ -409,6 +412,7 @@ class CodeExecutor:
                 return import_code+'\n'+f"{api_call}"
             else:
                 self.logger.info('debugging2 for return class API:', api_name, return_type, api_call, '--end')
+                self.counter = max(self.counter, self.get_newest_counter_from_namespace())
                 self.counter += 1
                 return_var = f"result_{self.counter} = "
                 new_code = f"{return_var}{tmp_api_call}"
@@ -438,6 +442,7 @@ class CodeExecutor:
                 if ('tuple' in str(type(result_variable['value']))) and ('None' not in str(result_variable['value'])):
                     #self.logger.info('==>start split tuple variables!')
                     length = len(result_variable['value'])
+                    self.counter = max(self.counter, self.get_newest_counter_from_namespace())
                     new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
                     #self.counter+=1
                     new_code = ', '.join(new_variables) + f" = {result_name_tuple}"
@@ -519,13 +524,15 @@ class CodeExecutor:
             #self.logger.info('self.execute_code', self.execute_code)
             return captured_output_value
         except Exception as e:
-            error = f"{e}"
+            error_info = traceback.format_exc()
+            error = f"{error_info}"
             self.logger.info('==?error in execute api call:', error)
             self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'False', 'error': error})
             return error
     def save_variables_to_json(self, ):
         save_data = {name: details["type"] for name, details in self.variables.items()}
         save_json(os.path.join(self.save_directory,f"{self.session_id}_variables.json"), save_data)
+    @lru_cache(maxsize=10)
     def load_variables_to_json(self):
         saved_vars = load_json(os.path.join(self.save_directory,f"{self.session_id}_variables.json"))
         variables = {}

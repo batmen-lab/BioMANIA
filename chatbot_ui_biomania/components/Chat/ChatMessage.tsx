@@ -18,6 +18,8 @@ import rehypeMathjax from 'rehype-mathjax';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import ProgressCardController from "@/components/Chat/ProgressCards/ProgressCardController";
+import { libImages } from '@/components/Chat/LibCardSelect';
+
 export interface Props {
   message: Message;
   messageIndex: number;
@@ -100,6 +102,13 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit}) =>
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [isEditing]);
+  // const libIconSrc = selectedConversation && selectedConversation.Lib && libImages[selectedConversation.Lib] ? libImages[selectedConversation.Lib] : IconRobot;
+  const [libIconSrc, setLibIconSrc] = useState(IconRobot);
+  useEffect(() => {
+    if (selectedConversation && selectedConversation.Lib && libImages[selectedConversation.Lib]) {
+      setLibIconSrc(libImages[selectedConversation.Lib]);
+    }
+  }, []);
   return (
     <>
       <div
@@ -113,7 +122,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit}) =>
       <div className="relative m-auto flex px-4 text-xs md:max-w-2xl md:gap-6 md:py-2 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
         <div className="min-w-[40px] text-right">
           {message.role === 'assistant' ? (
-            <IconRobot size={22} />
+          <img src={libIconSrc} alt={selectedConversation?.Lib || 'Default'} style={{ width: 22, height: 22 }} />
           ) : (
             <IconUser size={22} />
           )}
