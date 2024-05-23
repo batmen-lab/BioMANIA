@@ -122,7 +122,7 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit}) =>
       <div className="relative m-auto flex px-4 text-xs md:max-w-2xl md:gap-6 md:py-2 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
         <div className="min-w-[40px] text-right">
           {message.role === 'assistant' ? (
-          <img src={libIconSrc} alt={selectedConversation?.Lib || 'Default'} style={{ width: 22, height: 22 }} />
+          <img src={libIconSrc} alt={selectedConversation?.Lib || 'GPT'} style={{ width: 22, height: 22 }} />
           ) : (
             <IconUser size={22} />
           )}

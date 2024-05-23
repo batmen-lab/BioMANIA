@@ -57,21 +57,11 @@ Function:
     return prompt
 
 def get_retrieved_prompt():
-    prompt = """Task: Select the candidate that conveys the most information from the given instruction, and return it as a list in the format [function1]. """
-    prompt += """Learn from the examples provided on how to choose candidates with maximum informative content. \nIncontext example: {similar_queries}"""
-    prompt += """\n---\n"""
-    prompt += """Now finish the selection task for the below instruction. Never mess up with the examples above. """
-    prompt += """\nfunction candidates:\n{retrieved_apis}\nInstruction: {query}
-Function: """
+    prompt = """Task: Select the candidate that conveys the most information from the given instruction, and return it as a list in the format [function1]. Learn from the examples provided on how to choose candidates with maximum informative content. \nIncontext example: {similar_queries}\n---\nNow finish the selection task for the below instruction. Never mess up with the examples above. \nfunction candidates:\n{retrieved_apis}\nInstruction: {query}\nFunction: """
     return prompt
 
 def get_nonretrieved_prompt():
-    prompt = """Task: Select the candidate that conveys the most information from the given instruction, and return it as a list in the format [function1]. """
-    prompt += """Learn from the examples provided on how to choose candidates with maximum informative content. \nIncontext example: {similar_queries}"""
-    prompt += """\n---\n"""
-    prompt += """Now finish the selection task for the below instruction. Never mess up with the examples above. """
-    prompt += """\nInstruction: {query}
-Function: """
+    prompt = """Task: Select the candidate that conveys the most information from the given instruction, and return it as a list in the format [function1]. Learn from the examples provided on how to choose candidates with maximum informative content. \nIncontext example: {similar_queries}\n---\nNow finish the selection task for the below instruction. Never mess up with the examples above. \nInstruction: {query}\nFunction: """
     return prompt
 
 def get_first_sentence(text):

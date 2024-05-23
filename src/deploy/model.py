@@ -1,10 +1,11 @@
 from queue import Queue
-import json, signal, time, base64, requests, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess
+import json, time, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess
 from sentence_transformers import SentenceTransformer
 import multiprocessing
 import numpy as np, matplotlib.pyplot as plt
 from functools import lru_cache
 import asyncio, aiofiles
+import traceback
 
 from ..deploy.ServerEventCallback import ServerEventCallback
 from ..gpt.utils import get_all_api_json, correct_pred, load_json, save_json, get_retrieved_prompt
@@ -13,27 +14,15 @@ from ..models.model import LLM_response
 from ..configs.model_config import *
 from ..inference.execution_UI import CodeExecutor, find_matching_instance
 from ..inference.retriever_finetune_inference import ToolRetriever
-from ..prompt.parameters import prepare_parameters_prompt
-from ..prompt.summary import prepare_summary_prompt, prepare_summary_prompt_full
+from ..prompt.promptgenerator import PromptFactory
 from ..configs.Lib_cheatsheet import CHEATSHEET as LIB_CHEATSHEET
 from ..deploy.utils import basic_types, generate_api_calling, download_file_from_google_drive, download_data, save_decoded_file, correct_bool_values, convert_bool_values, infer, dataframe_to_markdown, convert_image_to_base64, change_format, parse_json_safely, post_process_parsed_params, special_types, io_types, io_param_names
 from ..models.dialog_classifier import Dialog_Gaussian_classification
 
-def make_execution_correction_prompt(user_input, history_record, error_code, error_message, variables, LIB):
-    prompt = f"Your task is to correct a Python code snippet based on the provided information. The user's inquiry is represented by '{user_input}'. The history of successful executions is provided in '{history_record}', and variables in the namespace are supplied in a dictionary '{variables}'. Execute the error code snippet '{error_code}' and capture the error message '{error_message}'. Analyze the error to determine its root cause. Then, using the entire API name instead of abbreviation in the format '{LIB}.xx.yy'. Ensure any new variables created are named with the prefix 'result_' followed by digits, without reusing existing variable names. If you feel necessary to perform attribute operations similar to 'result_1.var_names.intersection(result_2.var_names)' or subset an AnnData object by columns like 'adata_ref = adata_ref[:, var_names]', go ahead. If you feel importing some libraries are necessary, go ahead. Maintain consistency with the style of previously executed code. Ensure that the corrected code, given the variables in the namespace, can be executed directly without errors. Return the corrected code snippet in the format: '\"\"\"your_corrected_code\"\"\"'. Do not include additional descriptions."
-    # please return minimum line of codes that you think is necessary to execute for the task related inquiry
-    return prompt
-
-def make_GPT_prompt(user_input, history_record, variables, LIB):
-    prompt = f"Your task is to generate a Python code snippet based on the provided information. The user's inquiry is represented by '{user_input}'. The history of successful executions is provided in '{history_record}', and variables in the namespace are supplied in a dictionary '{variables}'. Analyze the user intent about the task to generate code. Then, using the entire API name instead of abbreviation in the format '{LIB}.xx.yy'. Ensure any new variables created are named with the prefix 'result_' followed by digits, without reusing existing variable names. If you feel necessary to perform attribute operations similar to 'result_1.var_names.intersection(result_2.var_names)' or subset an AnnData object by columns like 'adata_ref = adata_ref[:, var_names]', go ahead. If you feel importing some libraries are necessary, go ahead. Maintain consistency with the style of previously executed code. Ensure that the generated code, given the variables in the namespace, can be executed directly without errors. Return the corrected code snippet in the format: '\"\"\"your_corrected_code\"\"\"'. Do not include additional descriptions."
-    # please return minimum line of codes that you think is necessary to execute for the task related inquiry
-    return prompt
 class Model:
     def __init__(self, logger, device, model_llm_type="gpt-3.5-turbo-0125"): # llama3
         print('start initialization!')
-        self.retry_execution_limit = 2
-        self.retry_execution_count = 0
-        self.path_info_list = ['path','Path','PathLike']
+        self.prompt_factory = PromptFactory()
         self.model_llm_type = model_llm_type
         self.logger = logger
         self.device=device
@@ -45,9 +34,14 @@ class Model:
         self.occupied = False
         self.LIB = "scanpy"
         self.args_retrieval_model_path = f'./hugging_models/retriever_model_finetuned/{self.LIB}/assigned'
+        self.shot_k = 5 # 5 seed examples for api prediction
+        self.retry_execution_limit = 2
+        self.retry_execution_count = 0
+        self.path_info_list = ['path','Path','PathLike']
         self.args_top_k = 3
         self.param_llm_retry = 1
         self.predict_api_llm_retry = 3
+        self.enable_multi_task = False
         self.session_id = ""
         #load_dotenv()
         OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
@@ -75,9 +69,9 @@ class Model:
         self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
         print("Server ready")
     @lru_cache(maxsize=10)
-    def get_all_api_json_cache(self,path,mode):
+    async def get_all_api_json_cache(self,path,mode):
         self.all_apis, self.all_apis_json = get_all_api_json(path, mode)
-    def load_multiple_corpus_in_namespace(self, ):
+    async def load_multiple_corpus_in_namespace(self, ):
         #self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
         # pyteomics tutorial needs these import libs
         self.executor.execute_api_call(f"import os, gzip, numpy as np, matplotlib.pyplot as plt", "import")
@@ -88,9 +82,9 @@ class Model:
         self.executor.execute_api_call(f"import warnings", "import")
         self.executor.execute_api_call(f"warnings.filterwarnings('ignore')", "import")
     @lru_cache(maxsize=10)
-    def load_bert_model_cache(self, load_mode='unfinetuned_bert'):
+    async def load_bert_model_cache(self, load_mode='unfinetuned_bert'):
         self.bert_model = SentenceTransformer('all-MiniLM-L6-v2', device=self.device) if load_mode=='unfinetuned_bert' else SentenceTransformer(f"./hugging_models/retriever_model_finetuned/{self.LIB}/assigned", device=self.device)
-    def compute_dialog_metrics(self,):
+    async def compute_dialog_metrics(self,):
         annotate_path = f'data/standard_process/{self.LIB}/API_inquiry_annotate.json'
         annotate_data = load_json(annotate_path)
         info_json = get_all_variable_from_cheatsheet(self.LIB)
@@ -101,8 +95,10 @@ class Model:
         scores_train, outliers = self.dialog_classifer.compute_accuracy_filter_compositeAPI(self.LIB, self.retriever, annotate_data, self.args_top_k, name=data_source, LIB_ALIAS=LIB_ALIAS)
         self.dialog_mean, self.dialog_std = self.dialog_classifer.fit_gaussian(scores_train['rank_1'])
     def reset_lib(self, lib_name):
+        return asyncio.run(self.async_reset_lib(lib_name))
+    async def async_reset_lib(self, lib_name):
         self.initialize_tool()
-        #lib_name = lib_name.strip()
+        lib_name = lib_name.strip()
         self.logger.info("==>Start reset the Lib {}!", lib_name)
         # reset and reload all the LIB-related data/models
         # suppose that all data&model are prepared already in their path
@@ -111,8 +107,6 @@ class Model:
             self.args_retrieval_model_path = f'./hugging_models/retriever_model_finetuned/{lib_name}/assigned'
             self.ambiguous_pair = find_similar_two_pairs(f"./data/standard_process/{lib_name}/API_init.json")
             self.ambiguous_api = list(set(api for api_pair in self.ambiguous_pair for api in api_pair))
-            self.load_data(f"./data/standard_process/{lib_name}/API_composite.json")
-            self.load_bert_model_cache()
             #self.load_composite_code_cache(lib_name)
             t1 = time.time()
             retrieval_model_path = self.args_retrieval_model_path
@@ -123,22 +117,31 @@ class Model:
             parts[-2]= lib_name
             new_path = '/'.join(parts)
             retrieval_model_path = new_path
-            self.retriever = ToolRetriever(LIB=lib_name,corpus_tsv_path=f"./data/standard_process/{lib_name}/retriever_train_data/corpus.tsv", model_path=retrieval_model_path, add_base=False)
-            self.load_multiple_corpus_in_namespace()
-            self.executor.execute_api_call(f"import {lib_name}", "import")
-            self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
+            tasks = [
+                self.load_data(f"./data/standard_process/{lib_name}/API_composite.json"),
+                self.load_bert_model_cache(),
+                self.load_retriever(lib_name, retrieval_model_path),
+                self.load_multiple_corpus_in_namespace(),
+                self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
+            ]
+            await asyncio.gather(*tasks)
             with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
                 self.centroids = pickle.load(f)
+            self.executor.execute_api_call(f"import {lib_name}", "import"),
             self.logger.info("==>Successfully loading model! loading model cost: {} s", str(time.time()-t1))
             reset_result = "Success"
             self.LIB = lib_name
             # compute the dialog metrics
-            self.compute_dialog_metrics()
+            await self.compute_dialog_metrics()
         except Exception as e:
+            e = traceback.format_exc()
             self.logger.error("Error: {}", e)
             reset_result = "Fail"
             self.callback_func('log', f"Something wrong with loading data and model! \n{e}", "Setting error")
         return reset_result
+    async def load_retriever(self, lib_name, retrieval_model_path):
+        self.retriever = ToolRetriever(LIB=lib_name,corpus_tsv_path=f"./data/standard_process/{lib_name}/retriever_train_data/corpus.tsv", model_path=retrieval_model_path, add_base=False)
+
     def install_lib(self,lib_name, lib_alias, api_html=None, github_url=None, doc_url=None):
         self.install_lib_simple(lib_name, lib_alias, github_url, doc_url, api_html)
         #self.install_lib_full(lib_name, lib_alias, github_url, doc_url, api_html)
@@ -171,10 +174,8 @@ class Model:
         else:
             api_path = None
         main_get_API_init(self.LIB,lib_alias,ANALYSIS_PATH,api_path)
-        self.callback_func('installation', "Finished API_init.json ...", "26")
         self.callback_func('installation', "Preparing API_composite.json ...", "39")
         shutil.copy(f'./data/standard_process/{self.LIB}/API_init.json', f'./data/standard_process/{self.LIB}/API_composite.json')
-        self.callback_func('installation', "Finished API_composite.json ...", "39")
         self.callback_func('installation', "Preparing instruction generation API_inquiry.json ...", "52")
         command = [
             "python", "-m", "src.dataloader.preprocess_retriever_data",
@@ -188,9 +189,6 @@ class Model:
             "--LIB", self.LIB, "--ratio_1_to_3", 1.0, "--ratio_2_to_3", 1.0, "--embed_method", "st_untrained"
         ]
         subprocess.Popen(command)
-        #shutil.copy(f'./data/standard_process/multicorpus/centroids.pkl', f'./data/standard_process/{self.LIB}/centroids.pkl')
-        #shutil.copy(f'./data/standard_process/multicorpus/vectorizer.pkl', f'./data/standard_process/{self.LIB}/vectorizer.pkl')
-        self.callback_func('installation', "Done preparing chitchat model ...", "65")
         ###########
         self.callback_func('installation', "Copying retriever from multicorpus pretrained retriever model...", "78")
         subprocess.run(["mkdir", f"./hugging_models/retriever_model_finetuned/{self.LIB}"])
@@ -198,102 +196,6 @@ class Model:
         self.callback_func('installation', "Process done! Please restart the program for usage", "100")
         # TODO: need to add tutorial_github and tutorial_html_path        
         cheatsheet_data = LIB_CHEATSHEET
-        new_lib_details = {self.LIB: 
-            {
-                "LIB": self.LIB, 
-                "LIB_ALIAS":lib_alias,
-                "API_HTML_PATH": api_html,
-                "GITHUB_LINK": github_url,
-                "READTHEDOC_LINK": doc_url,
-                "TUTORIAL_HTML_PATH":None,
-                "TUTORIAL_GITHUB":None
-            }
-        }
-        #cheatsheet_data.update(new_lib_details)
-        # save_json(cheatsheet_path, cheatsheet_data)
-        # TODO: need to save tutorial_github and tutorial_html_path to cheatsheet
-
-    def install_lib_full(self,lib_name, lib_alias, api_html=None, github_url=None, doc_url=None):
-        #from configs.model_config import get_all_variable_from_cheatsheet
-        #info_json = get_all_variable_from_cheatsheet(lib_name)
-        #API_HTML, TUTORIAL_GITHUB = [info_json[key] for key in ['API_HTML', 'TUTORIAL_GITHUB']]
-        self.LIB = lib_name
-        self.args_retrieval_model_path = f'./hugging_models/retriever_model_finetuned/{lib_name}/assigned'
-        from ..configs.model_config import GITHUB_PATH, ANALYSIS_PATH, READTHEDOC_PATH
-        #from configs.model_config import LIB, LIB_ALIAS, GITHUB_LINK, API_HTML
-        from ..dataloader.utils.code_download_strategy import download_lib
-        from ..dataloader.utils.other_download import download_readthedoc
-        from ..dataloader.get_API_init_from_sourcecode import main_get_API_init
-        from ..dataloader.get_API_full_from_unittest import merge_unittest_examples_into_API_init
-        
-        self.callback_func('installation', "Downloading lib...", "0")
-        os.makedirs(f"./data/standard_process/{self.LIB}/", exist_ok=True)
-        self.callback_func('installation', "downloading materials...", "13")
-        if github_url: # use git install
-            download_lib('git', self.LIB, github_url, lib_alias, GITHUB_PATH)
-        else: # use pip install
-            subprocess.run(['pip', 'install', f'{lib_alias}'])
-        self.callback_func('installation', "Lib downloaded...", "0")
-        if doc_url and api_html:
-            download_readthedoc(doc_url, api_html)
-        self.callback_func('installation', "Preparing API_init.json ...", "26")
-        if api_html:
-            api_path = os.path.normpath(os.path.join(READTHEDOC_PATH, api_html))
-        else:
-            api_path = None
-        main_get_API_init(self.LIB,lib_alias,ANALYSIS_PATH,api_path)
-        self.callback_func('installation', "Finished API_init.json ...", "26")
-        self.callback_func('installation', "Preparing API_composite.json ...", "39")
-        # TODO: add API_composite
-        #merge_unittest_examples_into_API_init(self.LIB, ANALYSIS_PATH, GITHUB_PATH)
-        #from dataloader.get_API_composite_from_tutorial import main_get_API_composite
-        #main_get_API_composite(ANALYSIS_PATH, self.LIB)
-        shutil.copy(f'./data/standard_process/{self.LIB}/API_init.json', f'./data/standard_process/{self.LIB}/API_composite.json')
-        self.callback_func('installation', "Finished API_composite.json ...", "39")
-        
-        ###########
-        self.callback_func('installation', "Preparing instruction generation API_inquiry.json ...", "52")
-        command = [
-            "python", "dataloader/preprocess_retriever_data.py",
-            "--LIB", self.LIB
-        ]
-        subprocess.run(command)
-        ###########
-        self.callback_func('installation', "Preparing chitchat model ...", "65")
-        command = [
-            "python",
-            "models/chitchat_classification.py",
-            "--LIB", self.LIB,
-        ]
-        subprocess.run(command)
-        base64_image = convert_image_to_base64(f"./plot/{self.LIB}/chitchat_test_tsne_modified.png")
-        self.callback_func('transfer_' + str(self.indexxxx), base64_image, "chitchat_train_tsne_modified.png")
-        self.callback_func('installation', "Done chitchat model ...", "65")
-        ###########
-        self.callback_func('installation', "Preparing retriever...", "78")
-        subprocess.run(["mkdir", f"./hugging_models/retriever_model_finetuned/{self.LIB}"])
-        command = [
-            "python",
-            "models/train_retriever.py",
-            "--data_path", f"./data/standard_process/{self.LIB}/retriever_train_data/",
-            "--model_name", "all-MiniLM-L6-v2",
-            "--output_path", f"./hugging_models/retriever_model_finetuned/{self.LIB}",
-            "--num_epochs", "20",
-            "--train_batch_size", "32",
-            "--learning_rate", "1e-5",
-            "--warmup_steps", "500",
-            "--max_seq_length", "256",
-            "--optimize_top_k", "3",
-            "--plot_dir", f"./plot/{self.LIB}/retriever/"
-            "--gpu '0'"
-        ]
-        subprocess.run(command)
-        base64_image = convert_image_to_base64(f"./plot/{self.LIB}/retriever/ndcg_plot.png")
-        self.callback_func('transfer_' + str(self.indexxxx), base64_image, "ndcg_plot.png")
-        self.callback_func('installation', "Process done! Please restart the program for usage", "100")
-        # TODO: need to add tutorial_github and tutorial_html_path
-        from ..configs.Lib_cheatsheet import CHEATSHEET
-        cheatsheet_data = CHEATSHEET
         new_lib_details = {self.LIB: 
             {
                 "LIB": self.LIB, 
@@ -329,8 +231,6 @@ class Model:
     def initialize_executor(self):
         self.executor = CodeExecutor(self.logger)
         self.executor.callbacks = self.callbacks
-        #self.executor.variables={}
-        #self.executor.execute_code=[]
         self.clear_globals_with_prefix('result_')
     def clear_globals_with_prefix(self, prefix):
         global_vars = list(globals().keys())
@@ -338,11 +238,9 @@ class Model:
             if var.startswith(prefix):
                 del globals()[var]
     @lru_cache(maxsize=10)
-    def load_data(self, API_file):
-        data = load_json(API_file)
-        base_data = load_json("./data/standard_process/base/API_composite.json")
-        self.API_composite = data
-        self.API_composite.update(base_data)
+    async def load_data(self, API_file):
+        self.API_composite = load_json(API_file)
+        self.API_composite.update(load_json("./data/standard_process/base/API_composite.json"))
     def generate_file_loading_code(self, file_path, file_type):
         # Define the loading code for each file type
         file_loading_templates = {
@@ -392,7 +290,6 @@ class Model:
             self.callback_func('installation', "uploading files finished!", "100")
     def loading_data(self, files, verbose=False):
         asyncio.run(self.loading_data_async(files, verbose))
-    
     def save_state(self):
         a = str(self.session_id)
         file_name = f"./tmp/states/{a}_state.pkl"
@@ -409,8 +306,8 @@ class Model:
         self.__dict__.update(state)
         self.logger.info("State loaded from {}", file_name)
     def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True,session_id=""):
+        self.initialize_tool()
         self.indexxxx = 2
-        #if session_id != self.session_id:
         if True:
             self.session_id = session_id
             try:
@@ -418,6 +315,7 @@ class Model:
                 a = str(self.session_id)
                 self.executor.load_environment(f"./tmp/sessions/{a}_environment.pkl")
             except Exception as e:
+                e = traceback.format_exc()
                 self.logger.error(e)
                 self.initialize_executor()
                 pass
@@ -456,7 +354,6 @@ class Model:
             predicted_source = infer(self.user_query, self.bert_model, self.centroids, ['chitchat-data', 'topical-chat', 'api-query'])
             self.logger.info('----query inferred as {}----', predicted_source)
             if predicted_source!='api-query':
-                self.initialize_tool()
                 response, _ = LLM_response(user_input, self.model_llm_type, history=[], kwargs={})  # llm
                 self.callback_func('log', response, "Non API chitchat")
                 return
@@ -465,20 +362,38 @@ class Model:
             # dialog prediction
             pred_class = self.dialog_classifer.single_prediction(user_input, self.retriever, self.args_top_k)
             self.logger.info('----query inferred as {}----', pred_class)
-            if pred_class not in ['single']:
-                # TODO: retrieve multiple APIs
-                
-                pass
+            if self.enable_multi_task:
+                if pred_class not in ['single']:
+                    self.logger.info('start multi-task!')
+                    prompt = self.prompt_factory.create_prompt("multi_task", user_input, files)
+                    #TODO: try with max_trials times
+                    response, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})
+                    try:
+                        steps_list = ast.literal_eval(response)
+                    except:
+                        try:
+                            steps_list = json.loads(response)
+                        except:
+                            try:
+                                steps_list = re.findall(r'\"(.*?)\"', response)
+                            except:
+                                steps_list = []
+                    if not steps_list:
+                        self.callback_func('log', "LLM can not return valid steps list, please redesign your prompt.", "LLM predict Error")
+                        return
+                    # TODO: retrieve API for each task, return a tuple of (task, retrieved_apis) and run the remain pipeline
+                    for tmp_input in steps_list:
+                        retrieved_names = self.retriever.retrieving(tmp_input, top_k=self.args_top_k)
+                    pass
             # start retrieving names
             retrieved_names = self.retriever.retrieving(user_input, top_k=self.args_top_k)
             # produce prompt
             if self.retrieve_query_mode=='similar':
-                instruction_shot_example = self.retriever.retrieve_similar_queries(user_input, shot_k=5)
+                instruction_shot_example = self.retriever.retrieve_similar_queries(user_input, shot_k=self.shot_k)
             else:
                 sampled_shuffled = random.sample(self.retriever.shuffled_data, 5)
                 instruction_shot_example = "".join(["\nInstruction: " + ex['query'] + "\nFunction: " + ex['gold'] for ex in sampled_shuffled])
                 similar_queries = ""
-                shot_k = 5 # 5 seed examples
                 idx = 0
                 for iii in sampled_shuffled:
                     instruction = iii['query']
@@ -487,7 +402,7 @@ class Model:
                     tmp_retrieved_api_list = random.sample(tmp_retrieved_api_list, len(tmp_retrieved_api_list))
                     # ensure the example is correct
                     if iii['gold'] in tmp_retrieved_api_list:
-                        if idx<shot_k:
+                        if idx<self.shot_k:
                             idx+=1
                             # only retain shot_k number of sampled_shuffled
                             tmp_str = "Instruction: " + instruction + "\nFunction: [" + iii['gold'] + "]"
@@ -518,16 +433,15 @@ class Model:
                     success = True
                     break
                 except Exception as e:
+                    e = traceback.format_exc()
                     self.logger.error('error during api prediction: {}', e)
             if not success:
-                self.initialize_tool()
                 self.callback_func('log', "LLM can not return valid API name prediction, please redesign your prompt.", "LLM predict Error")
                 return
             # if the predicted API is in ambiguous API list, then show those API and select one from them
             if self.predicted_api_name in self.ambiguous_api:
                 filtered_pairs = [api_pair for api_pair in self.ambiguous_pair if self.predicted_api_name in api_pair]
                 self.filtered_api = list(set(api for api_pair in filtered_pairs for api in api_pair))
-                self.initialize_tool()
                 next_str = ""
                 idx_api = 1
                 for api in self.filtered_api:
@@ -536,9 +450,9 @@ class Model:
                     next_str+=f"Candidate [{idx_api}]: {api}"
                     description_1 = self.API_composite[api]['Docstring'].split("\n")[0]
                     next_str+='\n'+description_1
-                    self.update_user_state("run_pipeline_after_ambiguous")
                     idx_api+=1
                 next_str+="\n"+f"Candidate [-1]: No appropriate candidate, restart another inquiry by input -1"
+                
                 self.update_user_state("run_pipeline_after_ambiguous")
                 self.callback_func('log', next_str, f"Can you confirm which of the following {len(self.filtered_api)} candidates")
                 self.save_state_enviro()
@@ -565,7 +479,13 @@ class Model:
             self.update_user_state('run_pipeline')
             self.save_state_enviro()
             return
-        prompt = make_GPT_prompt(self.user_query, str(self.executor.execute_code), str(self.executor.variables), self.LIB)
+        prompt = self.prompt_factory.create_prompt(
+            'LLM_code_generation',
+            self.user_query,
+            str(self.executor.execute_code),
+            str(self.executor.variables),
+            self.LIB
+        )
         response, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})
         if '```python' in response and response.endswith('```'):
             response = response.split('```python')[1].split('```')[0]
@@ -575,7 +495,7 @@ class Model:
         self.execution_code = newer_code
         self.callback_func('code', self.execution_code, "Executed code")
         # LLM response
-        summary_prompt = prepare_summary_prompt_full(self.user_query, self.predicted_api_name, self.API_composite[self.predicted_api_name]['description'], self.API_composite[self.predicted_api_name]['Parameters'],self.API_composite[self.predicted_api_name]['Returns'], self.execution_code)
+        summary_prompt = self.prompt_factory.create_prompt('summary_full', self.user_query, self.predicted_api_name, self.API_composite[self.predicted_api_name]['description'], self.API_composite[self.predicted_api_name]['Parameters'],self.API_composite[self.predicted_api_name]['Returns'], self.execution_code)
         response, _ = LLM_response(summary_prompt, self.model_llm_type, history=[], kwargs={})
         self.callback_func('log', response, "Task summary before execution")
         self.callback_func('log', "Could you confirm whether this task is what you aimed for, and the code should be executed? Please enter y/n.\nIf you press n, we will re-direct to the parameter input step\nIf you press r, we will restart another turn", "Double Check")
@@ -657,7 +577,7 @@ class Model:
         self.update_user_state("run_pipeline")
         api_description = self.API_composite[self.predicted_api_name]['description']
         # summary task
-        summary_prompt = prepare_summary_prompt(user_input, self.predicted_api_name, api_description, self.API_composite[self.predicted_api_name]['Parameters'],self.API_composite[self.predicted_api_name]['Returns'])
+        summary_prompt = self.prompt_factory.create_prompt('summary', user_input, self.predicted_api_name, api_description, self.API_composite[self.predicted_api_name]['Parameters'],self.API_composite[self.predicted_api_name]['Returns'])
         response, _ = LLM_response(summary_prompt, self.model_llm_type, history=[], kwargs={})
         self.logger.info(f'summary_prompt: {summary_prompt}, summary_prompt response: {response}')
         self.callback_func('log', response, f"Predicted API: {self.predicted_api_name}")
@@ -728,8 +648,9 @@ class Model:
         try:
             tmp_api_parameters_information = self.API_composite[apis_name]['Parameters']
             api_docstring = json_to_docstring(apis_name, apis_description, tmp_api_parameters_information)###TODO: here only works for one api, if we add compositeAPI or classAPI in the future, we need to buildup a parameters selection for multiple API!!!
-            parameters_prompt = prepare_parameters_prompt(self.user_query, api_docstring, parameters_name_list)
+            parameters_prompt = self.prompt_factory.create_prompt('parameters',self.user_query, api_docstring, parameters_name_list)
         except Exception as e:
+            e = traceback.format_exc()
             self.logger.error('error for parameters: {}', e)
         if len(parameters_name_list)==0:
             # if there is no required parameters, skip using LLM
@@ -746,6 +667,7 @@ class Model:
                     pred_params, success = parse_json_safely(returned_content_str_new)
                     predicted_parameters = post_process_parsed_params(pred_params, apis_name, self.API_composite)
                 except Exception as e:
+                    e = traceback.format_exc()
                     self.logger.error('error during parameters prediction: {}', e)
                     pass
             if not success:
@@ -779,6 +701,7 @@ class Model:
                     try:
                         matching_instance, is_match = find_matching_instance(api, executor_variables)
                     except Exception as e:
+                        e = traceback.format_exc()
                         self.logger.error('error during matching_instance: {}', e)
                     self.logger.info(f'matching_instance: {matching_instance}, is_match: {is_match}')
                     if is_match:
@@ -1036,7 +959,7 @@ class Model:
         self.callback_func('code', self.execution_code, "Executed code")
         # LLM response
         api_data_single = self.API_composite[self.predicted_api_name]
-        summary_prompt = prepare_summary_prompt_full(user_input, self.predicted_api_name, api_data_single['description'], api_data_single['Parameters'],api_data_single['Returns'], self.execution_code)
+        summary_prompt = self.prompt_factory.create_prompt('summary_full', user_input, self.predicted_api_name, api_data_single['description'], api_data_single['Parameters'],api_data_single['Returns'], self.execution_code)        
         response, _ = LLM_response(summary_prompt, self.model_llm_type, history=[], kwargs={})
         self.callback_func('log', response, "Task summary before execution")
         self.callback_func('log', "Could you confirm whether this task is what you aimed for, and the code should be executed? Please enter y/n.\nIf you press n, we will re-direct to the parameter input step\nIf you press r, we will restart another turn", "Double Check")
@@ -1172,13 +1095,13 @@ class Model:
                 self.retry_execution_count +=1
                 self.callback_func('log', "retry count: "+str(self.retry_execution_count), "Retry Execution by LLM")
                 # 240521: automatically regenerated code by LLM
-                prompt = make_execution_correction_prompt(self.user_query, str(self.executor.execute_code), self.last_execute_code['code'], content, str(self.executor.variables), self.LIB)
+                prompt = self.prompt_factory.create_prompt('execution_correction', self.user_query, str(self.executor.execute_code), self.last_execute_code['code'], content, str(self.executor.variables), self.LIB)
                 response, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})  # llm
                 newer_code = response.replace('\"\"\"', '')
                 self.execution_code = newer_code
                 self.callback_func('code', self.execution_code, "Executed code")
                 # LLM response
-                summary_prompt = prepare_summary_prompt_full(user_input, self.predicted_api_name, self.API_composite[self.predicted_api_name]['description'], self.API_composite[self.predicted_api_name]['Parameters'],self.API_composite[self.predicted_api_name]['Returns'], self.execution_code)
+                summary_prompt = self.prompt_factory.create_prompt('summary_full', user_input, self.predicted_api_name, self.API_composite[self.predicted_api_name]['description'], self.API_composite[self.predicted_api_name]['Parameters'],self.API_composite[self.predicted_api_name]['Returns'], self.execution_code)
                 response, _ = LLM_response(summary_prompt, self.model_llm_type, history=[], kwargs={})
                 self.callback_func('log', response, "Task summary before execution")
                 self.callback_func('log', "Could you confirm whether this task is what you aimed for, and the code should be executed? Please enter y/n.\nIf you press n, we will re-direct to the parameter input step\nIf you press r, we will restart another turn", "Double Check")

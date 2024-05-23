@@ -10,7 +10,7 @@ from ..configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatshe
 from ..dataloader.utils.tutorial_loader_strategy import main_convert_tutorial_to_py
 #from dataloader.utils.code_analyzer import extract_io_variables
 from ..models.model import LLM_response
-from ..prompt.composite import build_prompt_for_composite_docstring, build_prompt_for_composite_name
+from ..prompt.promptgenerator import PromptFactory
 from typing import Optional, Any, Tuple
 from ..gpt.utils import load_json, save_json
 
@@ -603,7 +603,7 @@ def extract_api_calls(code_block: str, imports: dict, lib_alias: str) -> list:
     except SyntaxError:
         return []
 
-def process_docstring_with_LLM(API_description: str, func_inputs: list, func_outputs: list, description_text: str = "") -> str:
+def process_docstring_with_LLM(prompt_factory, API_description: str, func_inputs: list, func_outputs: list, description_text: str = "") -> str:
     """
     Processes a docstring using a language model to modify or enhance it based on the provided API description and inputs/outputs.
 
@@ -624,7 +624,7 @@ def process_docstring_with_LLM(API_description: str, func_inputs: list, func_out
         The modified or generated docstring.
     """
     # LLM for modifying docstring
-    prompt = build_prompt_for_composite_docstring(API_description, func_inputs, func_outputs, description_text)
+    prompt = prompt_factory.create_prompt('composite_docstring', API_description, func_inputs, func_outputs, description_text)
     response, history = LLM_response(prompt,history=[],kwargs={})
     print(f'==>GPT docstring response: {response}')
     if 'def' in response.split('\n')[0]:
@@ -632,7 +632,7 @@ def process_docstring_with_LLM(API_description: str, func_inputs: list, func_out
     else:
         return response
 
-def process_name_with_LLM(sub_API_names: str, llm_docstring: str) -> str:
+def process_name_with_LLM(prompt_factory, sub_API_names: str, llm_docstring: str) -> str:
     """
     Processes API names using a language model to generate a function name based on the docstring and API details.
 
@@ -648,7 +648,7 @@ def process_name_with_LLM(sub_API_names: str, llm_docstring: str) -> str:
     str
         The generated function name.
     """
-    prompt = build_prompt_for_composite_name(sub_API_names, llm_docstring)
+    prompt = prompt_factory.create_prompt('composite_name', sub_API_names, llm_docstring)
     response, history = LLM_response(prompt,history=[],kwargs={})
     print(f'==>GPT name response: {response}')
     MAX_trial = 5
@@ -709,7 +709,7 @@ def main_get_API_composite(lib_analysis_path: str, output_folder_json: str, lib_
     print('get unique_code_blocks from tutorials:', unique_code_blocks)
     return unique_code_blocks
     
-def main_get_LLM_docstring(lib_data_path:str, unique_code_blocks: list, LIB: str) -> None:
+def main_get_LLM_docstring(prompt_factory, lib_data_path:str, unique_code_blocks: list, LIB: str) -> None:
     """
     Processes unique code blocks to generate enhanced docstrings using a language model.
 
@@ -747,8 +747,8 @@ def main_get_LLM_docstring(lib_data_path:str, unique_code_blocks: list, LIB: str
         # drop duplicate
         func_inputs = list(set(func_inputs))
         # prompt
-        llm_docstring = process_docstring_with_LLM('\n'.join(API_description), json.dumps(func_inputs),json.dumps(func_outputs), description_text=code_blocks['text'])
-        new_name = process_name_with_LLM(','.join(sub_API_names),llm_docstring)
+        llm_docstring = process_docstring_with_LLM(prompt_factory,'\n'.join(API_description), json.dumps(func_inputs),json.dumps(func_outputs), description_text=code_blocks['text'])
+        new_name = process_name_with_LLM(prompt_factory,','.join(sub_API_names),llm_docstring)
         if new_name=='function':
             new_name = f'function_{idxxxxx}'
             idxxxxx+=1
@@ -862,5 +862,7 @@ if __name__=='__main__':
     all_files = [i for i in all_files if not i.endswith('_tmp.py') and not i.endswith('_remain.py')]
     print(all_files)
     
+    prompt_factory = PromptFactory()
+    
     unique_code_blocks = main_get_API_composite(os.path.join(ANALYSIS_PATH,args.LIB), output_folder_json, LIB_ALIAS)
-    main_get_LLM_docstring(LIB_DATA_PATH, unique_code_blocks, args.LIB)
+    main_get_LLM_docstring(prompt_factory, LIB_DATA_PATH, unique_code_blocks, args.LIB)

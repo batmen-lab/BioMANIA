@@ -2,7 +2,7 @@
 Author: Zhengyuan Dong
 Date Created: May 06, 2024
 Last Modified: May 21, 2024
-Description: compare the tutorial summary query and single query retrieval results
+Description: Dialog classifier based on Gaussian distribution
 """
 
 import numpy as np
@@ -15,7 +15,7 @@ import os
 from sentence_transformers import util
 from tqdm import tqdm
 
-from src.gpt.utils import load_json, save_json
+from ..gpt.utils import load_json, save_json
 
 class Dialog_Gaussian_classification:
     def __init__(self, threshold=0.05):

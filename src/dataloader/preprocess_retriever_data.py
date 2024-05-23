@@ -6,12 +6,12 @@ from tqdm.asyncio import tqdm_asyncio
 import pandas as pd
 from sklearn.utils import shuffle
 from typing import Any, Tuple, Optional
+
 from ..models.model import LLM_response
-from ..prompt.instruction import make_instruction_generation_prompt
-from ..inference.utils import json_to_docstring, process_retrieval_desc
+from ..prompt.promptgenerator import PromptFactory
+from ..inference.utils import json_to_docstring, process_retrieval_desc, is_pair_in_merged_pairs, get_ambiguous_pairs
 from ..dataloader.get_API_init_from_sourcecode import parse_content_list
 from ..inference.retriever_finetune_inference import ToolRetriever
-from ..inference.utils import is_pair_in_merged_pairs, get_ambiguous_pairs
 from ..gpt.utils import load_json, save_json
 
 def unify_response_format(response: str) -> list:
@@ -160,7 +160,7 @@ async def async_LLM_response(prompt: str, GPT_model: str, history: list = [], kw
     response, history = await loop.run_in_executor(None, LLM_response, prompt, model_version, history, kwargs)
     return response, history
 
-async def process_prompt_async(desc_retriever: Any, API_init: dict, api_name: str, api: dict, tmp_docstring: str, progress: tqdm_normal, similar_api_same_desc: dict, similar_api_same_funcname: dict, GPT_model: str) -> list:
+async def process_prompt_async(desc_retriever: Any, API_init: dict, api_name: str, api: dict, tmp_docstring: str, progress: tqdm_normal, similar_api_same_desc: dict, similar_api_same_funcname: dict, GPT_model: str, prompt_factory) -> list:
     """
     Processes a prompt asynchronously by preparing the prompt, sending it to a language model, and processing the response.
 
@@ -190,7 +190,8 @@ async def process_prompt_async(desc_retriever: Any, API_init: dict, api_name: st
     list
         A list of dictionaries containing the processed results from the language model.
     """
-    prompt1, prompt2 = make_instruction_generation_prompt(api_name, tmp_docstring)
+    prompt1, prompt2 = prompt_factory.create_prompt('instruction_generation', api_name, tmp_docstring)
+    
     retrieved_apis = desc_retriever.retrieving(query=API_init[api_name]['description'].split('\n')[0],top_k=20)
     assert len(retrieved_apis) == len(set(retrieved_apis)), 'repeated apis in retrieved_apis'+retrieved_apis
     # remove target api
@@ -657,7 +658,7 @@ def create_corpus_from_json(API_init_json: dict, corpus_tsv_path: str) -> None:
     documents_df = pd.DataFrame(documents, columns=["docid", "document_content"])
     documents_df.to_csv(corpus_tsv_path, sep='\t', index=False)
 
-async def preprocess_instruction_d(lib_data_path, desc_retriever: Any, API_init: dict, QUERY_FILE: str, LIB: str, GPT_model: str) -> None:
+async def preprocess_instruction_d(lib_data_path, desc_retriever: Any, API_init: dict, QUERY_FILE: str, LIB: str, GPT_model: str, prompt_factory) -> None:
     """
     Asynchronously processes instruction data using a descriptor retriever and a language model.
 
@@ -693,7 +694,7 @@ async def preprocess_instruction_d(lib_data_path, desc_retriever: Any, API_init:
         async with semaphore:
             if True:
                 tmp_doc = json_to_docstring(api_name, API_init[api_name]['description'].replace('\n',' '), process_parameters(API_init[api_name]['Parameters']))
-                all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model)) # .split('\n')[0]
+                all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model, prompt_factory)) # .split('\n')[0]
             else:
                 pass
     # Run the tasks and collect results
@@ -705,7 +706,7 @@ async def preprocess_instruction_d(lib_data_path, desc_retriever: Any, API_init:
     async def process_api_async(api_name, api_data, api_ori_data, max_retries = 3):
         for _ in range(max_retries):
             tmp_doc = json_to_docstring(api_name, api_data['description'].replace('\n', ' '), process_parameters(api_data['Parameters']))
-            task_results = await process_prompt_async(desc_retriever, API_init, api_name, api_ori_data, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model)
+            task_results = await process_prompt_async(desc_retriever, API_init, api_name, api_ori_data, tmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model, prompt_factory)
             if len(task_results) == 10:
                 return task_results
         return task_results
@@ -728,7 +729,7 @@ async def preprocess_instruction_d(lib_data_path, desc_retriever: Any, API_init:
             async with semaphore:
                 if api_name in insufficient_apis:
                     tmp_doc = json_to_docstring(api_name, API_init[api_name]['description'].replace('\n',' '), process_parameters(API_init[api_name]['Parameters']))
-                    all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], ltmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model)) # .split('\n')[0]
+                    all_tasks.append(process_prompt_async(desc_retriever, API_init, api_name, ori_data[api_name], ltmp_doc, progress, similar_api_same_desc, similar_api_same_funcname, GPT_model,prompt_factory)) # .split('\n')[0]
                 else:
                     pass"""
         retry_tasks = [process_api_async(api_name, API_init[api_name], ori_data[api_name], max_retries=3) for api_name in insufficient_apis]
@@ -769,6 +770,8 @@ if __name__=='__main__':
     load_dotenv()
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
     
+    prompt_factory = PromptFactory()
+    
     from ..configs.model_config import get_all_variable_from_cheatsheet
     info_json = get_all_variable_from_cheatsheet(args.LIB)
     LIB_DATA_PATH = info_json['LIB_DATA_PATH']
@@ -782,7 +785,7 @@ if __name__=='__main__':
     # load pretrained bert model, prepare corpus
     desc_retriever = ToolRetriever(LIB = args.LIB, corpus_tsv_path=os.path.join(LIB_DATA_PATH, 'prompt_desc',"corpus.tsv"), model_path="all-MiniLM-L6-v2", add_base=False,shuffle_data=False, process_func=process_retrieval_desc)
     t1 = time.time()
-    asyncio.run(preprocess_instruction_d(LIB_DATA_PATH, desc_retriever, API_init_json, QUERY_FILE, args.LIB, args.GPT_model))
+    asyncio.run(preprocess_instruction_d(LIB_DATA_PATH, desc_retriever, API_init_json, QUERY_FILE, args.LIB, args.GPT_model, prompt_factory))
     print('step1 cost:', time.time()-t1)
     t1 = time.time()
     preprocess_fake_test_data(QUERY_FILE, QUERY_ANNOTATE_FILE)

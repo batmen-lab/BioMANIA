@@ -2,10 +2,7 @@ import os, re
 from base_graph_ast import *
 from ...configs.model_config import *
 from ...models.model import *
-from ...prompt.parameters import *
-from ...prompt.composite import *
-from ...prompt.summary import *
-from ...prompt.instruction import *
+from ...prompt.promptgenerator import *
 from ...gpt.utils import load_json, save_json
 
 
