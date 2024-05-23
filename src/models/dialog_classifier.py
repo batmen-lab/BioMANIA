@@ -15,15 +15,21 @@ import os
 from sentence_transformers import util
 from tqdm import tqdm
 
+from ..configs.model_config import get_all_variable_from_cheatsheet
+
 from ..gpt.utils import load_json, save_json
 
 class Dialog_Gaussian_classification:
-    def __init__(self, threshold=0.05):
+    def __init__(self, LIB='scanpy', threshold=0.05):
         self.threshold = threshold
+        self.LIB = LIB
+        info_json = get_all_variable_from_cheatsheet(self.LIB)
+        self.LIB_ALIAS = info_json['LIB_ALIAS']
         
     def fit_gaussian(self, data):
         self.mean = np.mean(data)
         self.std = np.std(data)
+        self.save_mean_std()
         return self.mean, self.std
 
     def calculate_p_values(self, scores, mean, std):
@@ -40,17 +46,17 @@ class Dialog_Gaussian_classification:
     def compute_acc(self, labels, predictions):
         return accuracy_score(labels, predictions)
         
-    def plot_boxplot(self, data, title, LIB):
+    def plot_boxplot(self, data, title):
         plt.figure(figsize=(10, 6))
         sns.boxplot(data=data)
         plt.title(title)
         plt.xticks(ticks=range(5), labels=[f'Rank {i+1}' for i in range(5)])
         plt.ylabel('Score')
-        plt.savefig(f'./plot/{LIB}/avg_retriever_{title}.pdf')
+        plt.savefig(f'./plot/{self.LIB}/avg_retriever_{title}.pdf')
     
-    def compute_accuracy_filter_compositeAPI(self, LIB, retriever, data, retrieved_api_nums, name='train', LIB_ALIAS='scanpy', verbose=False, filter_composite=True):
+    def compute_accuracy_filter_compositeAPI(self, retriever, data, retrieved_api_nums, name='train', verbose=False, filter_composite=True):
         # remove class type API, and composite API from the data
-        API_composite = load_json(os.path.join(f"data/standard_process/{LIB}","API_composite.json"))
+        API_composite = load_json(os.path.join(f"data/standard_process/{self.LIB}","API_composite.json"))
         data_to_save = []
         scores_rank_1 = []
         scores_rank_2 = []
@@ -66,7 +72,7 @@ class Dialog_Gaussian_classification:
         for query_data in tqdm(data):
             retrieved_apis = retriever.retrieving(query_data['query'], top_k=retrieved_api_nums+20)
             if filter_composite:
-                retrieved_apis = [i for i in retrieved_apis if i.startswith(LIB_ALIAS) and API_composite[i]['api_type']!='class' and API_composite[i]['api_type']!='unknown']
+                retrieved_apis = [i for i in retrieved_apis if i.startswith(self.LIB_ALIAS) and API_composite[i]['api_type']!='class' and API_composite[i]['api_type']!='unknown']
             retrieved_apis = retrieved_apis[:retrieved_api_nums]
             assert len(retrieved_apis)==retrieved_api_nums
             query_to_retrieved_api[query_data['query']] = retrieved_apis
@@ -110,6 +116,7 @@ class Dialog_Gaussian_classification:
                     pass
         return scores, outliers
     def single_prediction(self, query, retriever, top_k):
+        #self.load_mean_std()
         query_embedding = retriever.embedder.encode(query, convert_to_tensor=True)
         hits = util.semantic_search(query_embedding, retriever.corpus_embeddings, top_k=top_k, score_function=util.cos_sim)
         if len(hits[0]) > 0:
@@ -121,6 +128,22 @@ class Dialog_Gaussian_classification:
         else:
             pred_class = 'single'
         return pred_class
+    def save_mean_std(self,):
+        data = {
+            "mean": self.mean,
+            "std": self.std,
+        }
+        directory = os.path.join(f"data/standard_process/{self.LIB}")
+        os.makedirs(directory, exist_ok=True)
+        file_path = os.path.join(directory, "dialog_classifier_data.json")
+        save_json(data, file_path)
+        print(f"Data saved to {file_path}")
+    def load_mean_std(self, ):
+        file_path = os.path.join(f"data/standard_process/{self.LIB}", "dialog_classifier_data.json")
+        data = load_json(file_path)
+        self.mean = data["mean"]
+        self.std = data["std"]
+        print(f"Data loaded from {file_path}")
 
 import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))

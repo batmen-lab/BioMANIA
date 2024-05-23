@@ -1,5 +1,5 @@
 from queue import Queue
-import json, time, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess
+import json, time, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess, re
 from sentence_transformers import SentenceTransformer
 import multiprocessing
 import numpy as np, matplotlib.pyplot as plt
@@ -65,13 +65,13 @@ class Model:
         #    self.vectorizer = pickle.load(f)
         with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
             self.centroids = pickle.load(f)
-        self.retrieve_query_mode = "random"
+        self.retrieve_query_mode = "similar"
         self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
         print("Server ready")
     @lru_cache(maxsize=10)
-    async def get_all_api_json_cache(self,path,mode):
+    def get_all_api_json_cache(self,path,mode):
         self.all_apis, self.all_apis_json = get_all_api_json(path, mode)
-    async def load_multiple_corpus_in_namespace(self, ):
+    def load_multiple_corpus_in_namespace(self, ):
         #self.executor.execute_api_call(f"from data.standard_process.{self.LIB}.Composite_API import *", "import")
         # pyteomics tutorial needs these import libs
         self.executor.execute_api_call(f"import os, gzip, numpy as np, matplotlib.pyplot as plt", "import")
@@ -81,22 +81,17 @@ class Model:
         self.executor.execute_api_call(f"np.seterr(under='ignore')", "import")
         self.executor.execute_api_call(f"import warnings", "import")
         self.executor.execute_api_call(f"warnings.filterwarnings('ignore')", "import")
-    @lru_cache(maxsize=10)
-    async def load_bert_model_cache(self, load_mode='unfinetuned_bert'):
+    #@lru_cache(maxsize=10)
+    def load_bert_model_cache(self, load_mode='unfinetuned_bert'):
         self.bert_model = SentenceTransformer('all-MiniLM-L6-v2', device=self.device) if load_mode=='unfinetuned_bert' else SentenceTransformer(f"./hugging_models/retriever_model_finetuned/{self.LIB}/assigned", device=self.device)
-    async def compute_dialog_metrics(self,):
-        annotate_path = f'data/standard_process/{self.LIB}/API_inquiry_annotate.json'
-        annotate_data = load_json(annotate_path)
-        info_json = get_all_variable_from_cheatsheet(self.LIB)
-        LIB_ALIAS = info_json['LIB_ALIAS']
+    def load_dialog_metrics(self,):
         self.dialog_p_threshold = 0.05
-        data_source = "single_query_train"
-        self.dialog_classifer = Dialog_Gaussian_classification(threshold=self.dialog_p_threshold)
-        scores_train, outliers = self.dialog_classifer.compute_accuracy_filter_compositeAPI(self.LIB, self.retriever, annotate_data, self.args_top_k, name=data_source, LIB_ALIAS=LIB_ALIAS)
-        self.dialog_mean, self.dialog_std = self.dialog_classifer.fit_gaussian(scores_train['rank_1'])
+        self.dialog_classifer = Dialog_Gaussian_classification(LIB=self.LIB, threshold=self.dialog_p_threshold)
+        self.dialog_classifer.load_mean_std()
+        self.dialog_mean, self.dialog_std = self.dialog_classifer.mean, self.dialog_classifer.std
     def reset_lib(self, lib_name):
         return asyncio.run(self.async_reset_lib(lib_name))
-    async def async_reset_lib(self, lib_name):
+    def async_reset_lib(self, lib_name):
         self.initialize_tool()
         lib_name = lib_name.strip()
         self.logger.info("==>Start reset the Lib {}!", lib_name)
@@ -117,29 +112,36 @@ class Model:
             parts[-2]= lib_name
             new_path = '/'.join(parts)
             retrieval_model_path = new_path
-            tasks = [
-                self.load_data(f"./data/standard_process/{lib_name}/API_composite.json"),
-                self.load_bert_model_cache(),
-                self.load_retriever(lib_name, retrieval_model_path),
-                self.load_multiple_corpus_in_namespace(),
-                self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
+            """tasks = [
+                lambda: self.load_data(f"./data/standard_process/{lib_name}/API_composite.json"),
+                lambda: self.load_bert_model_cache(),
+                lambda: self.load_retriever(lib_name, retrieval_model_path),
+                lambda: self.load_multiple_corpus_in_namespace(),
+                lambda: self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
             ]
-            await asyncio.gather(*tasks)
+            await asyncio.gather(*[task() for task in tasks])"""
+            self.load_data(f"./data/standard_process/{lib_name}/API_composite.json")
+            self.load_bert_model_cache()
+            self.load_retriever(lib_name, retrieval_model_path)
+            self.load_multiple_corpus_in_namespace()
+            self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
+
             with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
                 self.centroids = pickle.load(f)
             self.executor.execute_api_call(f"import {lib_name}", "import"),
             self.logger.info("==>Successfully loading model! loading model cost: {} s", str(time.time()-t1))
             reset_result = "Success"
             self.LIB = lib_name
-            # compute the dialog metrics
-            await self.compute_dialog_metrics()
+            # load the dialog metrics
+            if self.enable_multi_task:
+                self.load_dialog_metrics()
         except Exception as e:
             e = traceback.format_exc()
             self.logger.error("Error: {}", e)
             reset_result = "Fail"
             self.callback_func('log', f"Something wrong with loading data and model! \n{e}", "Setting error")
         return reset_result
-    async def load_retriever(self, lib_name, retrieval_model_path):
+    def load_retriever(self, lib_name, retrieval_model_path):
         self.retriever = ToolRetriever(LIB=lib_name,corpus_tsv_path=f"./data/standard_process/{lib_name}/retriever_train_data/corpus.tsv", model_path=retrieval_model_path, add_base=False)
 
     def install_lib(self,lib_name, lib_alias, api_html=None, github_url=None, doc_url=None):
@@ -215,7 +217,7 @@ class Model:
         self.save_state()
     def update_image_file_list(self):
         return [f for f in os.listdir(self.image_folder) if f.endswith(".webp")]
-    @lru_cache(maxsize=10)
+    #@lru_cache(maxsize=10)
     def load_composite_code_cache(self, lib_name):
         # deprecated
         module_name = f"data.standard_process.{lib_name}.Composite_API"
@@ -238,7 +240,7 @@ class Model:
             if var.startswith(prefix):
                 del globals()[var]
     @lru_cache(maxsize=10)
-    async def load_data(self, API_file):
+    def load_data(self, API_file):
         self.API_composite = load_json(API_file)
         self.API_composite.update(load_json("./data/standard_process/base/API_composite.json"))
     def generate_file_loading_code(self, file_path, file_type):
@@ -297,7 +299,7 @@ class Model:
         with open(file_name, 'wb') as file:
             pickle.dump(state, file)
         self.logger.info("State saved to {}", file_name)
-    @lru_cache(maxsize=10)
+    #@lru_cache(maxsize=10)
     def load_state(self, session_id):
         a = str(session_id)
         file_name = f"./tmp/states/{a}_state.pkl"
@@ -347,6 +349,7 @@ class Model:
             self.logger.info('start initial!')
             while not self.queue.empty():
                 self.queue.get()
+            self.initialize_tool()
             self.loading_data(files)
             self.query_id += 1
             self.user_query = user_input
@@ -385,8 +388,10 @@ class Model:
                     for tmp_input in steps_list:
                         retrieved_names = self.retriever.retrieving(tmp_input, top_k=self.args_top_k)
                     pass
+            self.logger.info("start retrieving names!")
             # start retrieving names
             retrieved_names = self.retriever.retrieving(user_input, top_k=self.args_top_k)
+            self.logger.info("retrieved names: {}!", retrieved_names)
             # produce prompt
             if self.retrieve_query_mode=='similar':
                 instruction_shot_example = self.retriever.retrieve_similar_queries(user_input, shot_k=self.shot_k)
@@ -409,6 +414,7 @@ class Model:
                             new_function_candidates = [f"{i}:{api}, description: "+self.all_apis_json[api].replace('\n',' ') for i, api in enumerate(tmp_retrieved_api_list)]
                             similar_queries += "function candidates:\n" + "\n".join(new_function_candidates) + '\n' + tmp_str + "\n---\n"
                 instruction_shot_example = similar_queries
+            self.logger.info('start predicting API!')
             api_predict_init_prompt = get_retrieved_prompt()
             retrieved_apis_prepare = ""
             for idx, api in enumerate(retrieved_names):
@@ -424,10 +430,12 @@ class Model:
                     response = response.replace('{','').replace('}','').replace('"','').replace("'",'')
                     response = response.split(':')[0]# for robustness, sometimes llm will return api:description"""
                     response = correct_pred(response, self.LIB)
+                    self.logger.info('correct prediction')
                     response = response.strip()
                     #self.logger.info('self.all_apis_json keys: {}', self.all_apis_json.keys())
                     if len(response.split(','))>1:
-                        response = response.split(',')[0]
+                        response = response.split(',')[0].strip()
+                    self.logger.info('==>Predicted API: {}', response)
                     self.all_apis_json[response]
                     self.predicted_api_name = response
                     success = True
@@ -436,6 +444,7 @@ class Model:
                     e = traceback.format_exc()
                     self.logger.error('error during api prediction: {}', e)
             if not success:
+                self.initialize_tool()
                 self.callback_func('log', "LLM can not return valid API name prediction, please redesign your prompt.", "LLM predict Error")
                 return
             # if the predicted API is in ambiguous API list, then show those API and select one from them
@@ -454,19 +463,23 @@ class Model:
                 next_str+="\n"+f"Candidate [-1]: No appropriate candidate, restart another inquiry by input -1"
                 
                 self.update_user_state("run_pipeline_after_ambiguous")
+                self.initialize_tool()
                 self.callback_func('log', next_str, f"Can you confirm which of the following {len(self.filtered_api)} candidates")
                 self.save_state_enviro()
             else:
                 self.update_user_state("run_pipeline_after_fixing_API_selection")
                 self.run_pipeline_after_fixing_API_selection(user_input)
         elif self.user_states == "run_pipeline_after_ambiguous":
+            self.initialize_tool()
             ans = self.run_pipeline_after_ambiguous(user_input)
             if ans in ['break']:
                 return
             self.run_pipeline_after_fixing_API_selection(user_input)
         elif self.user_states in ["run_pipeline_after_doublechecking_execution_code", "run_pipeline_after_entering_params", "run_select_basic_params", "run_pipeline_after_select_special_params", "run_select_special_params", "run_pipeline_after_doublechecking_API_selection", "run_pipeline_asking_GPT"]:
+            self.initialize_tool()
             self.handle_state_transition(user_input)
         else:
+            self.initialize_tool()
             self.logger.error('Unknown user state: {}', self.user_states)
             raise ValueError
     def run_pipeline_asking_GPT(self,user_input):
@@ -867,11 +880,10 @@ class Model:
             # TODO: add which have been predicted in selected_params
             api_params.update({})
             combined_params = {}
-            for param_name, param_info in api_params.items():
-                if param_name not in combined_params:
-                    combined_params[param_name] = param_info
+            #for param_name, param_info in api_params.items():
+            #    if param_name not in combined_params:
+            #        combined_params[param_name] = param_info
             combined_params = {param_name: param_info for param_name, param_info in api_params.items() if param_name not in combined_params}
-
             parameters_combined.append(combined_params)
         return parameters_combined
 
@@ -884,18 +896,19 @@ class Model:
         self.image_file_list = self.update_image_file_list()
         if self.filtered_pathlike_params:
             # add 'tmp' 
-            self.selected_params.update({
-                key: {
+            for key in self.filtered_pathlike_params:
+                param_info = self.filtered_pathlike_params[key]
+                self.selected_params[key] = {
                     "type": param_info["type"],
                     "value": "./tmp",
                     "valuefrom": 'userinput',
                     "optional": param_info["optional"]
                 }
-                for key, param_info in self.filtered_pathlike_params.items()
-            })
         self.logger.info('self.selected_params: {}', json.dumps(self.selected_params))
         # split parameters according to multiple API, or class/method API
-        parameters_list = self.extract_parameters(self.api_name_json, self.API_composite, self.selected_params)
+        tmp_api_info = {api: details for api, details in self.API_composite.items() if api in self.api_name_json}
+        self.logger.info('==>tmp_api_info: {}', json.dumps(tmp_api_info))
+        parameters_list = self.extract_parameters(self.api_name_json, tmp_api_info, self.selected_params)
         self.logger.info('==>parameters_list: {}', json.dumps(parameters_list))
         extracted_params = self.split_params(self.selected_params, parameters_list)
         extracted_params_dict = {api_name: extracted_param for api_name, extracted_param in zip(self.api_name_json, extracted_params)}

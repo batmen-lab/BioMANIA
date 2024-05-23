@@ -207,4 +207,10 @@ python -m src.models.inference_classification \
     --LIB ${LIB}
 ```
 
+11. (Optional) Distinguish complex task API/single task API by
+```bash
+python -m src.models.gaussian_classification \
+    --LIB ${LIB}
+```
+
 Next you may want to check the performance by generating reports in [Report_Generation](./Report_Generation.md)
