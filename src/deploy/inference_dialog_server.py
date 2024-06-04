@@ -7,6 +7,7 @@ cors = CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 # standard lib
 import json, signal, time, base64, requests, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess
+import traceback
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 from datetime import datetime
 # Computational
@@ -146,10 +147,14 @@ def stream():
                 try:
                     yield json.dumps(obj) + "\n"
                 except Exception as e:
+                    e = traceback.format_exc()
+                    print('Error:', e)
                     model.inuse = False
             try:
                 future.result()
             except Exception as e:
+                e = traceback.format_exc()
+                print('Error:', e)
                 model.inuse = False
         model.inuse = False
         return

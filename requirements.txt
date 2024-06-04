@@ -5,12 +5,12 @@ bionty==0.36.0
 #biotite==0.38.0
 #biopython==1.81
 bitsandbytes==0.41.1
-#cellrank==2.0.2
+cellrank==2.0.4
 colorama
 #deap==1.4.1
 #deepspeed==0.12.0
 docstring_parser==0.15
-ehrapy==0.6.0
+ehrapy==0.8.0
 Flask==3.0.0
 flask_cors==4.0.0
 flask_socketio==5.3.6
@@ -36,6 +36,7 @@ pandas
 protobuf==3.20.0
 pydantic==1.10.7
 pydot==1.4.2
+PyGithub==2.3.0
 #pyopenms==3.1.0
 #PyQt5
 #pyteomics==4.6.3
@@ -51,7 +52,7 @@ scipy==1.9.2
 seaborn==0.13.0
 sentence_transformers==2.2.2
 sentencepiece==0.1.99
-scanpy==1.9.5
+scanpy==1.9.6
 #scikit-learn-intelex
 scvelo==0.3.1
 sphinx_rtd_theme

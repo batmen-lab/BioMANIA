@@ -326,8 +326,12 @@ class CodeExecutor:
         return '\n'.join(generated_code)
     
     def generate_execution_code_for_one_api(self, api_name, selected_params, return_type, class_selected_params={}, single_class_API=False,api_type='function'):
-        self.logger.info('api_name', api_name)
-        import_code, type_api = self.get_import_code(api_name)
+        self.logger.info('api_name {}', api_name)
+        try:
+            import_code, type_api = self.get_import_code(api_name)
+        except:
+            error = traceback.format_exc()
+            print('generate_execution_code_for_one_api: {}', error)
         self.logger.info(f'==>import_code, type_api, {import_code, type_api}')
         if import_code in [i['code'] for i in self.execute_code if i['success']=='True']:
             self.logger.info('==>api already imported!')
@@ -442,7 +446,8 @@ class CodeExecutor:
                 if ('tuple' in str(type(result_variable['value']))) and ('None' not in str(result_variable['value'])):
                     #self.logger.info('==>start split tuple variables!')
                     length = len(result_variable['value'])
-                    self.counter = max(self.counter, self.get_newest_counter_from_namespace())
+                    #self.counter = max(self.counter, self.get_newest_counter_from_namespace())
+                    self.self.counter = self.get_newest_counter_from_namespace()
                     new_variables = [f"result_{self.counter + i + 1}" for i in range(length)]
                     #self.counter+=1
                     new_code = ', '.join(new_variables) + f" = {result_name_tuple}"

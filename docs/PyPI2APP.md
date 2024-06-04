@@ -51,10 +51,19 @@ python -m src.dataloader.utils.other_download --LIB ${LIB}
 python -m src.dataloader.utils.tutorial_loader_strategy --LIB ${LIB} --file_type 'html'
 ```
 
+(Optional) We collect and prepare github issue corpus for later execution error correction. Notice one need `Personal Access Token` to access to the Github.
+```bash
+python -m src.dataloader.download_issues --LIB ${LIB} --token {GITHUB_TOKEN}
+# TODO: download prepared corpus `data/github_issues/{LIB}/*` from google drive
+python -m src.dataloader.prepare_issue_corpus --LIB ${LIB}
+# query the corpus with command:
+python -m src.models.query_issue_corpus --LIB scanpy --example_query "KeyError: 'No "neighbors" in .uns'" --method sentencebert --field issue_description --top_k 3
+```
+
 NOTE it requires API_HTML_PATH, READTHEDOC_PATH and TUTORIAL_GITHUB to run the above script!
 
 ```bash
-pip install {LIB} # install your target PyPI lib, or other installation methods
+pip install ${LIB} # install your target PyPI lib, or other installation methods
 ```
 
 To use web UI smoothly, don't forget to add the new lib information to `BioMANIA/chatbot_ui_biomania/components/Chat/LibCardSelect.tsx`. Also add the new lib logo to `BioMANIA/chatbot_ui_biomania/public/apps/`.
@@ -209,8 +218,14 @@ python -m src.models.inference_classification \
 
 11. (Optional) Distinguish complex task API/single task API by
 ```bash
-python -m src.models.gaussian_classification \
-    --LIB ${LIB}
+python -m src.models.gaussian_classification --LIB ${LIB}
+```
+
+12. (Optional) If you want to repeat the Parameters Prediction experiment, try 
+```bash
+# TODO: download annotated data `api_parameters_scanpy_class3_final_modified_v3.json` from google drive
+python -m src.inference.param_count_acc --LIB scanpy
+python -m src.inference.param_count_acc_just_test --LIB scanpy
 ```
 
 Next you may want to check the performance by generating reports in [Report_Generation](./Report_Generation.md)

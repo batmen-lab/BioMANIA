@@ -133,10 +133,11 @@ class Dialog_Gaussian_classification:
             "mean": self.mean,
             "std": self.std,
         }
-        directory = os.path.join(f"data/standard_process/{self.LIB}")
+        directory = os.path.join("data", "standard_process", self.LIB)
         os.makedirs(directory, exist_ok=True)
         file_path = os.path.join(directory, "dialog_classifier_data.json")
-        save_json(data, file_path)
+        print(f'file_path: {file_path}')
+        save_json(file_path, data)
         print(f"Data saved to {file_path}")
     def load_mean_std(self, ):
         file_path = os.path.join(f"data/standard_process/{self.LIB}", "dialog_classifier_data.json")

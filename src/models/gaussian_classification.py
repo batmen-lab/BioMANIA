@@ -40,7 +40,7 @@ def main():
     
     # Load and process tutorial summary data, and autoba and ours plan answer
     json_path = f"examples_llama2_promptv5/{args.LIB}/analysis_results.json"
-    tutorial_summary_query = load_and_process_data(json_path)
+    #tutorial_summary_query = load_and_process_data(json_path)
     # Initialize retriever
     corpus_tsv_path = f"./data/standard_process/{args.LIB}/retriever_train_data/corpus.tsv"
     retrieval_model_path = f"./hugging_models/retriever_model_finetuned/{args.LIB}/assigned"
@@ -60,8 +60,6 @@ def main():
     val_data = [data for data in api_data if data['query_id'] in val_ids]
     print(len(train_data), len(val_data))
     
-    
-    
     classifer = Dialog_Gaussian_classification(LIB=args.LIB, threshold=threshold)
     
     data_source = "single_query_train"
@@ -74,23 +72,23 @@ def main():
     scores_test, outliers = classifer.compute_accuracy_filter_compositeAPI(retriever, diff_data, args.retrieved_api_nums, name=data_source)
 
     # Retrieve and calculate scores for each query
-    data_source = "tutorial_summary_query"
-    scores_tutorial, outliers = classifer.compute_accuracy_filter_compositeAPI(retriever, tutorial_summary_query, args.retrieved_api_nums, name=data_source)
+    #data_source = "tutorial_summary_query"
+    #scores_tutorial, outliers = classifer.compute_accuracy_filter_compositeAPI(retriever, tutorial_summary_query, args.retrieved_api_nums, name=data_source)
     
     mean, std = classifer.fit_gaussian(scores_train['rank_1'])
-    predictions_tutorial = classifer.classify(scores_tutorial['rank_1'])
+    #predictions_tutorial = classifer.classify(scores_tutorial['rank_1'])
     predictions_val = classifer.classify(scores_val['rank_1'])
     predictions_test = classifer.classify(scores_test['rank_1'])
     predictions_train = classifer.classify(scores_train['rank_1'])
     
-    accuracy = classifer.compute_acc([0 for _ in predictions_val]+[0 for _ in predictions_test]+[1 for _ in predictions_tutorial], predictions_val+predictions_test+predictions_tutorial)
-    print(f'{args.LIB} total accuracy is {accuracy}')
+    #accuracy = classifer.compute_acc([0 for _ in predictions_val]+[0 for _ in predictions_test]+[1 for _ in predictions_tutorial], predictions_val+predictions_test+predictions_tutorial)
+    #print(f'{args.LIB} total accuracy is {accuracy}')
     val_accuracy = classifer.compute_acc([0 for _ in predictions_val], predictions_val)
     print(f'{args.LIB} val accuracy is {val_accuracy}')
     test_accuracy = classifer.compute_acc([0 for _ in predictions_test], predictions_test)
     print(f'{args.LIB} test accuracy is {test_accuracy}')
-    tutorial_accuracy = classifer.compute_acc([1 for _ in predictions_tutorial], predictions_tutorial)
-    print(f'{args.LIB} tutorial accuracy is {tutorial_accuracy}')
+    #tutorial_accuracy = classifer.compute_acc([1 for _ in predictions_tutorial], predictions_tutorial)
+    #print(f'{args.LIB} tutorial accuracy is {tutorial_accuracy}')
     train_accuracy = classifer.compute_acc([0 for _ in predictions_train], predictions_train)
     print(f'{args.LIB} train accuracy is {train_accuracy}')
 

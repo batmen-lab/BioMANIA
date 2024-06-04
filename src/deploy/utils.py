@@ -12,104 +12,7 @@ special_types = {'AnnData', 'ndarray', 'spmatrix', 'DataFrame', 'recarray', 'Axe
 io_types = {'PathLike', 'Path'}
 io_param_names = {'filename'}
 
-def post_process_parsed_params(predicted_params, api_name, api_data):
-    if predicted_params:
-        pass
-    else:
-        predicted_params = {}
-    if len(predicted_params)>0 and 'param_name' in predicted_params[0] and 'value' in predicted_params[0]:
-        pred_params = {tmp_item['param_name']: None if tmp_item['value']=='None' else str(tmp_item['value']) for tmp_item in predicted_params}
-    elif len(predicted_params)>0 and 'name' in predicted_params[0] and 'value' in predicted_params[0]:
-        pred_params = {tmp_item['name']: None if tmp_item['value']=='None' else str(tmp_item['value']) for tmp_item in predicted_params}
-    else:
-        try:
-            pred_params = {list(tmp_item.keys())[0]: None if list(tmp_item.values())[0]=='None' else str(list(tmp_item.values())[0]) for tmp_item in predicted_params}
-        except:
-            pred_params = predicted_params
-    corrected_pred_params = {}
-    for param_name, value in pred_params.items():
-        if value in [None, "None"]:
-            corrected_pred_params[param_name]=None
-            continue
-        value = correct_param_type(param_name, value, api_data, api_name)
-        corrected_pred_params[param_name] = None if value == 'None' else str(value)
-        if value != 'None' or value is not None:
-            value = str(value)
-        try:
-            if value is not None and '"' in value:
-                corrected_pred_params[param_name] = value.replace('"', '')
-            if value is not None and "'" in value:
-                corrected_pred_params[param_name] = value.replace("'", '')
-        except Exception as e:
-            print('error:', e)
-            pass
-    return corrected_pred_params
-
-def parse_json_safely(json_str):
-    # Clean up the JSON string by removing unnecessary escape characters and handling mixed quotes
-    json_str = json_str.replace('\\"', '"').replace("\\'", "'").replace('\'\'', '"').replace('\n', '')
-    # Handle special cases with embedded quotes
-    json_str = re.sub(r'""(None)""', r'"None"', json_str)
-    json_str = re.sub(r'"\(([^)]*)\)"', r'[\1]', json_str)  # Convert tuple-like strings to list-like
-    json_str = re.sub(r'"\'([^"]*)\'"', r'"\1"', json_str)  # Replace single quotes within double quotes
-    # Normalize potential JSON format issues
-    json_str = json_str.replace('}{', '},{').replace('}\n{', '},{')
-    # Remove leading non-JSON characters such as dashes or whitespace
-    json_str = re.sub(r'^\s*-\s*', '', json_str)
-    # Ensure JSON-like structure by adding brackets if missing
-    if not (json_str.startswith('[') and json_str.endswith(']')):
-        json_str = '[' + json_str + ']'
-    # Attempt to parse as JSON directly
-    try:
-        parsed_data = json.loads(json_str)
-        if isinstance(parsed_data, list):
-            return parsed_data, True
-        elif isinstance(parsed_data, dict):
-            return [parsed_data], True
-    except json.JSONDecodeError:
-        pass
-    # Attempt to parse using ast.literal_eval
-    try:
-        parsed_data = ast.literal_eval(json_str)
-        if isinstance(parsed_data, list):
-            for item in parsed_data:
-                if isinstance(item, dict):
-                    continue
-                else:
-                    return [], False
-            return parsed_data, True
-        elif isinstance(parsed_data, dict):
-            return [parsed_data], True
-    except (ValueError, SyntaxError):
-        pass
-    # Handle single-line and multi-line key-value pairs
-    parsed_data = []
-    for line in json_str.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        match = re.match(r'^\s*"([^"]+)"\s*:\s*"([^"]*)"\s*$', line)
-        if match:
-            key, value = match.groups()
-            parsed_data.append({key: value})
-        else:
-            parts = line.split(':', 1)
-            if len(parts) == 2:
-                key = parts[0].strip().strip('"')
-                value = parts[1].strip().strip('"')
-                if key and value:
-                    parsed_data.append({key: value})
-            else:
-                try:
-                    parsed_line = ast.literal_eval(line)
-                    if isinstance(parsed_line, dict):
-                        parsed_data.append(parsed_line)
-                except (ValueError, SyntaxError):
-                    continue
-    if isinstance(parsed_data, dict):
-        parsed_data = list(parsed_data.keys())
-    return parsed_data, bool(parsed_data)
-
+# post_process_parsed_params, parse_json_safely are saved in param_count_acc_just_test.py
 def correct_param_type(param_name, param_value, api_data, api_name):
     if param_name not in api_data[api_name]['Parameters']:
         return param_value
@@ -186,7 +89,7 @@ def generate_api_calling(api_name, api_details, predicted_parameters):
             param['name']: {
                 "type": param['type'],
                 "description": param['description'],
-                "value": format_string_list(param['value'], "[", "]") if '[' in param['value'] else format_string_list(param['value'], "(", ")") if '(' in param['value'] else param['value'], # TODO: 240519, add patches if gpt response is not formatted correctly
+                "value": format_string_list(str(param['value']), "[", "]") if '[' in str(param['value']) else format_string_list(str(param['value']), "(", ")") if '(' in str(param['value']) else str(param['value']), # TODO: 240519, add patches if gpt response is not formatted correctly
                 "optional": param['optional']
             } for param in parameters_info_list
         },

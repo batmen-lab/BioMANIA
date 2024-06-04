@@ -6,3 +6,4 @@ from . import model
 from . import train_retriever
 #from . import lit_llama
 from . import dialog_classifier
+from . import query_issue_corpus
