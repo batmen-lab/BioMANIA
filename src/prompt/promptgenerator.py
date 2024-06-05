@@ -206,6 +206,15 @@ Tips: Notice that solutions and suggestions above not guarantee solving the issu
 """
         # Response format: {{"info": "Summary and suggestion."}}
         return prompt
+    
+class ModifySubtaskPromptBuilder(PromptBuilder):
+    def build_prompt(self, question, content, totaltask):
+        query_prompt = '''
+Given the pre-planned subtask for the task planning stage and the retrieval of relevant local API documentation based on this subtask, please adjust the subtask functionality to align it with the PyPI API's capabilities. Ensure clarity and consistency with the original overall task and subtask functionality, but with finer detail. It should be like user inquiry, either in tone of polite, neutral, or formal.
+**IMPORTANT**
+Just output the query directly. DO NOT add additional explanations or introducement in the answer unless you are asked to.
+'''
+        return f"##Subtask: {question}\n\n##Content: {content}\n\n##Totaltask:{totaltask}\n\n##Instruction: {query_prompt}"
 
 class SubtaskCodePromptBuilder(PromptBuilder):
     def build_prompt(self, data_list, goal_description, history_summary, execute_success=True, execute_info=None):
@@ -280,6 +289,8 @@ class PromptFactory:
             return ExecutorPromptBuilder().build_prompt(*args)
         elif prompt_type == 'subtask_code':
             return SubtaskCodePromptBuilder().build_prompt(*args)
+        elif prompt_type == 'modify_subtask':
+            return ModifySubtaskPromptBuilder().build_prompt(*args)
         else:
             raise ValueError("Unknown prompt type")
 

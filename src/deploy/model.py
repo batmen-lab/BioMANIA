@@ -34,6 +34,7 @@ basic_types.append('Any')
 class Model:
     def __init__(self, logger, device, model_llm_type="gpt-3.5-turbo-0125"): # llama3
         print('start initialization!')
+        self.user_query_list = []
         self.prompt_factory = PromptFactory()
         self.model_llm_type = model_llm_type
         self.logger = logger
@@ -67,6 +68,7 @@ class Model:
         self.user_states = "run_pipeline"
         self.parameters_info_list = None
         self.image_folder = "./tmp/images/"
+        self.initial_goal_description = ""
         os.makedirs(self.image_folder, exist_ok=True)
         os.makedirs("./tmp", exist_ok=True)
         os.makedirs("./tmp/states/", exist_ok=True)
@@ -80,7 +82,36 @@ class Model:
         self.retrieve_query_mode = "similar"
         #self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
         self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
+        self.new_task_planning = True # decide whether re-plan the task
+        self.retry_modify_count=0
         print("Server ready")
+    async def predict_all_params(self, api_name_tmp, boolean_params, literal_params, int_params, boolean_document, literal_document, int_document):
+        predicted_params = {}
+        if boolean_params:
+            boolean_predicted, response1 = await predict_parameters(boolean_document, self.user_query, list(boolean_params.keys()), api_name_tmp, self.API_composite[api_name_tmp], 'boolean')
+            try:
+                boolean_predicted = json.loads(response1)
+                predicted_params.update(boolean_predicted)
+            except:
+                boolean_predicted = {}
+                self.logger.error('error for predicting boolean parameters: {}', response1)
+        if int_params:
+            int_predicted, response2 = await predict_parameters(int_document, self.user_query, list(int_params.keys()), api_name_tmp, self.API_composite[api_name_tmp], 'int')
+            try:
+                int_predicted = json.loads(response2)
+                predicted_params.update(int_predicted)
+            except:
+                int_predicted = {}
+                self.logger.error('error for predicting int parameters: {}', response2)
+        if literal_params:
+            literal_predicted, response3 = await predict_parameters(literal_document, self.user_query, list(literal_params.keys()), api_name_tmp, self.API_composite[api_name_tmp], 'literal')
+            try:
+                literal_predicted = json.loads(response3)
+                predicted_params.update(literal_predicted)
+            except:
+                literal_predicted = {}
+                self.logger.error('error for predicting literal parameters: {}', response3)
+        return predicted_params
     #@lru_cache(maxsize=10)
     def get_all_api_json_cache(self,path,mode):
         self.all_apis, self.all_apis_json = get_all_api_json(path, mode)
@@ -367,9 +398,11 @@ class Model:
             self.initialize_tool()
             self.loading_data(files)
             self.query_id += 1
+            if self.new_task_planning:
+                self.initial_goal_description = user_input
             self.user_query = user_input
             # chitchat prediction
-            predicted_source = infer(self.user_query, self.bert_model, self.centroids, ['chitchat-data', 'topical-chat', 'api-query'])
+            predicted_source = infer(user_input, self.bert_model, self.centroids, ['chitchat-data', 'topical-chat', 'api-query'])
             self.logger.info('----query inferred as {}----', predicted_source)
             if predicted_source!='api-query':
                 response, _ = LLM_response(user_input, self.model_llm_type, history=[], kwargs={})  # llm
@@ -378,7 +411,7 @@ class Model:
             else:
                 pass
             # dialog prediction
-            if self.enable_multi_task:
+            if self.enable_multi_task and self.new_task_planning:
                 pred_class = self.dialog_classifer.single_prediction(user_input, self.retriever, self.args_top_k)
                 self.logger.info('----query inferred as {}----', pred_class)
                 if pred_class not in ['single']:
@@ -401,25 +434,28 @@ class Model:
                     if not steps_list:
                         self.callback_func('log', "LLM can not return valid steps list, please redesign your prompt.", "LLM predict Error")
                         return
-                    # TODO: retrieve API for each task, return a tuple of (task, retrieved_apis) and run the remain pipeline
-                    used_API_list = []
-                    for tmp_input in steps_list:
-                        retrieved_names = self.retriever.retrieving(tmp_input, top_k=self.args_top_k)
-                        used_API_list.append(retrieved_names[0])
-                    used_API_list = remove_duplicates(used_API_list)
-                    self.logger.info("used_API_list: {}!", used_API_list)
-                    self.predicted_api_name = used_API_list
-                    self.update_user_state("run_pipeline_after_fixing_API_selection")
-                    self.run_pipeline_after_fixing_API_selection(user_input)
-                    return 
+                    else:
+                        self.callback_func('log', "LLM return valid steps list, start executing...\n" + "\n".join(steps_list), "Multi step Task Planning")
+                    self.add_query(steps_list)
+                    sub_task = self.get_query()
+                    if not sub_task:
+                        raise ValueError("sub_task is empty!")
+                    self.new_task_planning = False
+                else:
+                    sub_task = user_input
+            else:
+                self.callback_func('log', "SubTask: "+user_input, "SubTask Planning")
+                sub_task = user_input
             self.logger.info("start retrieving names!")
-            retrieved_names = self.retriever.retrieving(user_input, top_k=self.args_top_k)
+            # get sub_task after dialog prediction
+            self.user_query = sub_task
+            retrieved_names = self.retriever.retrieving(self.user_query, top_k=self.args_top_k)
             self.logger.info("retrieved names: {}!", retrieved_names)
             # start retrieving names
             # produce prompt
             if self.retrieve_query_mode=='similar':
                 self.logger.info('start retrieving similar queries!')
-                instruction_shot_example = self.retriever.retrieve_similar_queries(user_input, shot_k=self.shot_k)
+                instruction_shot_example = self.retriever.retrieve_similar_queries(self.user_query, shot_k=self.shot_k)
             else:
                 self.logger.info('start retrieving shuffled queries!')
                 sampled_shuffled = random.sample(self.retriever.shuffled_data, 5)
@@ -448,7 +484,7 @@ class Model:
             for idx, api in enumerate(retrieved_names):
                 retrieved_apis_prepare+=f"{idx}:" + api+", description: "+self.all_apis_json[api].replace('\n',' ')+"\n"
             #print('retrieved_apis_prepare:', retrieved_apis_prepare)
-            api_predict_prompt = api_predict_init_prompt.format(query=user_input, retrieved_apis=retrieved_apis_prepare, similar_queries=instruction_shot_example)
+            api_predict_prompt = api_predict_init_prompt.format(query=self.user_query, retrieved_apis=retrieved_apis_prepare, similar_queries=instruction_shot_example)
             self.logger.info('==>Ask LLM: {}', api_predict_prompt)
             success = False
             for _ in range(self.predict_api_llm_retry):
@@ -498,7 +534,7 @@ class Model:
                 self.save_state_enviro()
             else:
                 self.update_user_state("run_pipeline_after_fixing_API_selection")
-                self.run_pipeline_after_fixing_API_selection(user_input)
+                self.run_pipeline_after_fixing_API_selection(self.user_query)
         elif self.user_states == "run_pipeline_after_ambiguous":
             self.initialize_tool()
             ans = self.run_pipeline_after_ambiguous(user_input)
@@ -626,6 +662,7 @@ class Model:
             parameters_tmp = self.API_composite[self.predicted_api_name[0]]['Parameters']
             returns_tmp = self.API_composite[self.predicted_api_name[0]]['Returns']
         elif isinstance(self.predicted_api_name, list) and len(self.predicted_api_name) > 1:
+            raise ValueError("Predicting Multiple APIs during one inference is not supported yet")
             api_description = []
             parameters_tmp = []
             returns_tmp = []
@@ -636,8 +673,6 @@ class Model:
                 parameters_tmp.append(self.API_composite[api_name]['Parameters'])
                 returns_tmp.append(self.API_composite[api_name]['Returns'])
             api_description = " ".join(api_description)
-            # parameters_tmp
-            # returns_tmp
         else:
             self.relevant_api_list = []
             self.logger.error('Invalid type or empty list for self.predicted_api_name: {}', type(self.predicted_api_name))
@@ -660,9 +695,23 @@ class Model:
         self.logger.info('==>run_pipeline_after_doublechecking_API_selection')
         user_input = str(user_input)
         if user_input == 'n':
-            self.update_user_state("run_pipeline")
-            self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
-            self.save_state_enviro()
+            if self.new_task_planning or self.retry_modify_count>=3: # if there is no task planning
+                self.update_user_state("run_pipeline")
+                self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
+                self.retry_modify_count = 0
+                self.save_state_enviro()
+            else: # if there is task planning, we just update this subtask
+                self.retry_modify_count += 1
+                self.callback_func('log', "As this subtask is not exactly what you want, we polish the subtask and re-run the code generation pipeline", "Continue to the same subtask")
+                #sub_task = self.get_query()
+                # polish and modify the sub_task
+                retrieved_apis = self.retriever.retrieving(self.initial_goal_description, top_k=3)
+                retrieved_docs = [f"{api}: "+ self.all_apis_json[api] for api in retrieved_apis]
+                prompt = self.prompt_factory.create_prompt("modify_subtask", self.user_query, "\n".join(retrieved_docs), self.initial_goal_description)
+                self.user_query, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})
+                self.update_user_state("run_pipeline")
+                self.save_state_enviro()
+                self.run_pipeline(self.user_query, self.LIB, top_k=3, files=[],conversation_started=False,session_id=self.session_id)
             return
         elif user_input == 'y':
             pass
@@ -692,7 +741,7 @@ class Model:
                     pass
                 combined_params.update(self.API_composite[api]['Parameters'])
         except Exception as e:
-            print(e)
+            self.logger.info('error in combining parametesr: {}', e)
         self.logger.info('combined_params: {}', combined_params)
         parameters_name_list = [key for key, value in combined_params.items() if (key not in self.path_info_list)] # if (not value['optional'])
         self.logger.info('parameters_name_list: {}', parameters_name_list)
@@ -710,65 +759,27 @@ class Model:
         #filter out special type parameters, do not infer them using LLM
         api_parameters_information = [param for param in api_parameters_information if any(basic_type in param['type'] for basic_type in basic_types)]
         parameters_name_list = [param_info['name'] for param_info in api_parameters_information]
-        apis_description = ""
-        apis_name = ""
-        for idx,api_name_tmp_list in enumerate(self.relevant_api_list):
-            if len(self.relevant_api_list)>1:
-                api_name_tmp = list(api_name_tmp_list.keys())[0]
-                apis_name+=f"{idx}:{api_name_tmp}"
-                apis_description+=f"{idx}:{self.API_composite[api_name_tmp]['description']}."
-            else:
-                api_name_tmp = list(api_name_tmp_list.keys())[0]
-                apis_name+=f"{api_name_tmp}"
-                apis_description+=f"{self.API_composite[api_name_tmp]['description']}."
+        #
+        # we only support one API for now
+        assert len(self.relevant_api_list)==1
+        api_name_tmp_list = self.relevant_api_list[0]
+        api_name_tmp = list(api_name_tmp_list.keys())[0]
+        apis_name = api_name_tmp
+        apis_description = self.API_composite[api_name_tmp]['description']
         self.logger.info('next we conduct parameters prediction')
+        # 240531 added, predict parameters in chunked setting
+        param_tmp = {i:self.API_composite[apis_name]['Parameters'][i] for i in self.API_composite[apis_name]['Parameters'] if (self.API_composite[apis_name]['Parameters'][i]['description'] is not None) and (not any(special_type in str(self.API_composite[apis_name]['Parameters'][i]['type']) for special_type in special_types)) and (str(self.API_composite[apis_name]['Parameters'][i]['type']) not in io_types) and (i not in io_param_names)}
+        
+        #self.logger.info('param_tmp finised!')
+        boolean_params = {k: v for k, v in param_tmp.items() if 'boolean' in str(v['type']) or 'bool' in str(v['type'])}
+        literal_params = {k: v for k, v in param_tmp.items() if 'literal' in str(v['type']) or 'Literal' in str(v['type'])}
+        int_params = {k: v for k, v in param_tmp.items() if k not in boolean_params and k not in literal_params}
+        #self.logger.info('int_params finised!')
+        boolean_document = json_to_docstring(apis_name, self.API_composite[apis_name]["description"], boolean_params)
+        literal_document = json_to_docstring(apis_name, self.API_composite[apis_name]["description"], literal_params)
+        int_document = json_to_docstring(apis_name, self.API_composite[apis_name]["description"], int_params)
         try:
-            # old, deprecated parameters prediction
-            #tmp_api_parameters_information = self.API_composite[apis_name]['Parameters']
-            #api_docstring = json_to_docstring(apis_name, #apis_description, tmp_api_parameters_information)###TODO: here only works for one api, if we add compositeAPI or classAPI in the future, we need to buildup a parameters selection for multiple API!!!
-            #parameters_prompt = self.prompt_factory.create_prompt('parameters',self.user_query, api_docstring, parameters_name_list)
-            # 240531 added, predict parameters in chunked setting
-            param_tmp = {i:self.API_composite[apis_name]['Parameters'][i] for i in self.API_composite[apis_name]['Parameters'] if (self.API_composite[apis_name]['Parameters'][i]['description'] is not None) and (not any(special_type in self.API_composite[apis_name]['Parameters'][i]['type'] for special_type in special_types)) and (self.API_composite[apis_name]['Parameters'][i]['type'] not in io_types) and (i not in io_param_names)}
-            
-            #self.logger.info('param_tmp finised!')
-            boolean_params = {k: v for k, v in param_tmp.items() if 'boolean' in str(v['type']) or 'bool' in str(v['type'])}
-            literal_params = {k: v for k, v in param_tmp.items() if 'literal' in str(v['type']) or 'Literal' in str(v['type'])}
-            int_params = {k: v for k, v in param_tmp.items() if k not in boolean_params and k not in literal_params}
-            #self.logger.info('int_params finised!')
-            boolean_document = json_to_docstring(apis_name, self.API_composite[apis_name]["description"], boolean_params)
-            literal_document = json_to_docstring(apis_name, self.API_composite[apis_name]["description"], literal_params)
-            int_document = json_to_docstring(apis_name, self.API_composite[apis_name]["description"], int_params)
-            #self.logger.info('int_document finised!')
-            async def predict_all_params():
-                predicted_params = {}
-                if boolean_params:
-                    boolean_predicted, response1 = await predict_parameters(boolean_document, self.user_query, list(boolean_params.keys()), apis_name, self.API_composite[apis_name], 'boolean')
-                    try:
-                        boolean_predicted = json.loads(response1)
-                        predicted_params.update(boolean_predicted)
-                    except:
-                        boolean_predicted = {}
-                        self.logger.error('error for predicting boolean parameters: {}', response1)
-                if int_params:
-                    int_predicted, response2 = await predict_parameters(int_document, self.user_query, list(int_params.keys()), apis_name, self.API_composite[apis_name], 'int')
-                    try:
-                        int_predicted = json.loads(response2)
-                        predicted_params.update(int_predicted)
-                    except:
-                        int_predicted = {}
-                        self.logger.error('error for predicting int parameters: {}', response2)
-                if literal_params:
-                    literal_predicted, response3 = await predict_parameters(literal_document, self.user_query, list(literal_params.keys()), apis_name, self.API_composite[apis_name], 'literal')
-                    try:
-                        literal_predicted = json.loads(response3)
-                        predicted_params.update(literal_predicted)
-                    except:
-                        literal_predicted = {}
-                        self.logger.error('error for predicting literal parameters: {}', response3)
-                return predicted_params
-            #self.logger.info('predict_all_params def finised!')
-            #predicted_params = await predict_all_params()
-            predicted_params = asyncio.run(predict_all_params())
+            predicted_params = asyncio.run(self.predict_all_params(api_name_tmp, boolean_params, literal_params, int_params, boolean_document, literal_document, int_document))
             self.logger.info('predicted_parameters async run finised! {}', predicted_params)
             param_success = True
         except Exception as e:
@@ -1218,7 +1229,7 @@ class Model:
                 self.callback_func('log', content, "Executed results [Fail]")
             if self.retry_execution_count<self.retry_execution_limit:
                 self.retry_execution_count +=1
-                self.callback_func('log', "retry count: "+str(self.retry_execution_count), "Retry Execution by LLM")
+                self.callback_func('log', "retry count: "+str(self.retry_execution_count) + "/"+str(self.retry_execution_limit), "Retry Execution by LLM")
                 # 240521: automatically regenerated code by LLM
                 #prompt = self.prompt_factory.create_prompt('execution_correction', self.user_query, str(self.executor.execute_code), self.last_execute_code['code'], content, str(self.executor.variables), self.LIB)
                 # 240531: add newer execution prompt, which combines information from docstring examples, api_callings, and github issue solutions, and traceback informations
@@ -1291,6 +1302,16 @@ class Model:
         for i in self.executor.execute_code:
             new_str.append({"code":i['code'],"execution_results":i['success']})
         self.logger.info("Currently all executed code: {}", json.dumps(new_str))
+        # 240604 add logic, if there exist sub task in self.user_query_list, then do not return, go ahead to the next sub task
+        if self.user_query_list:
+            self.callback_func('log', "As there exist subtask, go ahead to next subtask from the task planning list", "Continue to the next subtask")
+            sub_task = self.get_query()
+            self.update_user_state("run_pipeline")
+            self.save_state_enviro()
+            self.run_pipeline(sub_task, self.LIB, top_k=3, files=[],conversation_started=False,session_id=self.session_id)
+            return
+        else:
+            self.new_task_planning = True
         self.update_user_state("run_pipeline")
         self.save_state_enviro()
     def modify_code_add_tmp(self, code, add_tmp = "tmp"):
@@ -1357,4 +1378,15 @@ class Model:
                 pass
         self.logger.info('Something wrong with getting execution status by code! Enter wrong code {}', code)
         return None
+    def add_query(self, queries):
+        self.user_query_list.extend(queries)
+    def get_query(self):
+        if self.user_query_list:
+            return self.user_query_list.pop(0)
+        else:
+            self.initialize_tool()
+            self.callback_func('log', "There is no subtask for code generation, please re-enter your inquiry", "Start another round")
+            self.update_user_state("run_pipeline")
+            self.save_state_enviro()
+            return None
 
