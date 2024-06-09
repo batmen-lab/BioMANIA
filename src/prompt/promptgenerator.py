@@ -140,69 +140,65 @@ Your task is to generate a Python code snippet based on the provided information
 """# please return minimum line of codes that you think is necessary to execute for the task related inquiry
 
 class MultiTaskPromptBuilder(PromptBuilder):
-    def build_prompt(self, goal_description, data_list=[]):
+    def build_prompt(self, LIB, goal_description, data_list=[]):
         prompt = f"""
-You should Act as a biologist proficient in Python programming, the rules must be strictly followed!
-Rules:
-- Import all necessary libraries before writing codes.
-- Do not deviate from the role of a biologist proficient in Python programming.
-- Strictly adhere to all rules.
-- Utilize input information to craft a comprehensive plan for achieving the goal.
-- Never mess up the input and output directory. You can never plan to load data from output filepath.
-- Specify API and function names and avoid including non PyPI functions in your answered code.
-- Respond solely in JSON format according to the fixed format.
-- Limit response content strictly to JSON enclosed in double quotes.
-- Combine steps where possible; do not separate loading data as a distinct step.
-- Exclude any extraneous content from your response.
-- Provide detailed responses whenever possible.
-- You can import and use API from basic tools like pandas, numpy, and anndata. If necessary, you can incorporate some intermediate data preprocessing steps using these basic tools.
-- The tone of sub-tasks descriptions should vary among queries: polite, straightforward, casual.\n
+Based on the provided task description, create a task plan with subtasks. 
+The tone of Each subtask should vary among queries: polite, straightforward, casual. 
+Each subtask should correspond to the exact usage scope of one single API from library {LIB}.
+Avoid creating steps that are too coarse or too detailed. If you find that more than one API needs to be used, split the step into two or more subtasks. For example, if for the preprocessing data step, filtering and normalization are both required, then use two subtasks `preprocessing data by filtering` and `preprocessing data by normalization` to describe them separately.
+Only include keywords in the subtask, avoid including API name in subtask.
+Each subtask should consists of 15-20 words, should be clear and concise for one single API usage.
+The arrangement of tasks should take into account API dependencies (for example, some APIs need to calculate metrics before visualization) and the logical order of tasks (for example, an example flow is to load data first, then preprocess data, then apply methods, and finally visualize the results).
+If a file path is provided, use it to load the data. If no file path is provided, use the built-in dataset API to load the default dataset. Only specify the data loading API for the subtask; omit API details from other subtasks.
+Only respond in JSON format strictly enclosed in double quotes, adhering to the Response Format.
+Exclude any extraneous content from your response.
 Goal: {goal_description}\n
 Response Format:
-{{"plan": ["Your detailed step-by-step sub-tasks in a list to finish your goal, for example: ['step 1: content', 'step 2: content', 'step 3: content']."]}}
-"""
+{{"plan": ["List your detailed step-by-step tasks to achieve your goal, e.g., ['step 1: content', 'step 2: content', 'step 3: content']."]}}
+""" # Specify API and function names and avoid including non PyPI functions in your answered code.
         if data_list:
             prompt+=f"Input: You have the following information in a list with the format `file path: file description`. I provide those files to you, so you don't need to prepare the data. {data_list}"
         else:
-            prompt+="You don't have any local data provided. Please use API to load builtin dataset."
+            prompt+="You don't have any local data provided. Please only use API to load builtin dataset. Please avoid any API that need to load local data."
         return prompt
 
 class ExecutorPromptBuilder(PromptBuilder):
-    def build_prompt(self, executor_info, script, possible_solution="", api_examples="", api_calling=""):
+    def build_prompt(self, executor_info, namespace_variables, script, possible_solution="", api_examples="", api_calling="", history_code="", goal_description=""):
         if possible_solution:
             possible_solution_info = f"\nPossible solution from similar issues from Github Issue Discussion:\n{possible_solution}"
         else:
             possible_solution_info = ""
         if api_examples and api_examples != "{}":
-            api_examples_info = f"\nHere are some example usages for API included in script, you might want to refer them to correct the script:\n{api_examples}"
+            api_examples_info = f"\nUsage examples of this: {api_examples}."
         else:
             api_examples_info = ""
         if api_calling:
-            api_calling_info = f"\nHere are the API calling examples, if the script contains wrong API calling please correct it:\n{api_calling}"
+            api_calling_info = f"\nExample API calling: {api_calling}. You can use only few parameters"
         prompt = f"""
-Task: Assess the provided Python script based on the log output. The script encountered an error and needs modification. Use the provided information to correct and update the script to avoid these errors.
-
+Task: Review and correct the Python script based on the traceback information.
 Rules:
-- Import all necessary libraries before writing codes.
-- "No such file or directory" is an error.
-- Respond in JSON format.
-- Only include JSON in your response.
-- Provide detailed responses when possible.
-- If data preprocessing is needed beyond this subtask, please include it.
+- Conduct minimum correction.
+- Import all necessary libraries at the beginning of the script.
+- Respond only with the answer in JSON format.
+- Include any prerequisite steps required for the task if you feel necessary.
 
-Common Python Errors and Solutions:
-- FileNotFoundError: Provide the correct file path or use built-in datasets. Never use the output file path to load data!!!
-- ModuleNotFoundError: Use the correct module or check for typos.
-- AttributeError: Use the correct attribute from the module documentation.
-- NameError: If lack a module, import it. If lack a variable, find a correct one, or add prefix code to obtain it.
-- TypeError: Ensure variables and parameters match correctly.
-- ValueError: Ensure the input to int() is a valid integer string.
-- KeyError: Verify the key exists in the dictionary and check for typos.
-- NotImplementedError: Implement the functionality using other APIs or libraries.
+Success execution History: {history_code}
+Current Task: {goal_description}
+Generated Code Script which contain Bugs: {script}
+Traceback error information: {executor_info}
+Current Namespace variables: {namespace_variables}
+{possible_solution_info}{api_examples_info}{api_calling_info}
 
-Log output and possible variables: {executor_info}{possible_solution_info}{api_examples_info}{api_calling_info}\n
-Wrong Code Script:{script}\n
-Tips: Notice that solutions and suggestions above not guarantee solving the issue. Sometimes the error message is misleading and might not lead to solution directly, and you need to think carefully and logically both from the perspective of data format, obtained variable information from namespace, code script and traceback error message. If API Usage Examples are provided, you can check the co-occurrence of other APIs which might be required as previous running code. Now generate new correct script in JSON format which is different from previous wrong script to avoid the error.
+Follow these steps to debug and ensure the code is bug-free:
+Error Analysis: Check if the error is due to using the wrong API based on the goal description. Replace with the correct API if necessary; otherwise, continue with the same API.
+Parameter Check: Examine parameters in the code. Remove unnecessary optional parameters and keep only the essential ones and those explicitly mentioned in the subtasks.
+Attribute and Value Verification: Verify variable attributes and API parameters. Correct any incorrect parameter values. Especially consider those attributes saved in AnnData object, only fillin the exist attributes as parameters values.
+Import Verification: Ensure all necessary libraries are imported.
+API and Parameter Accuracy: Use the correct API names and parameters with appropriate values.
+Sometimes errors are indirect; deduce and locate the real cause based on these steps.
+
+Response Format:
+{{"analysis": "Provide a detailed error analysis explaining how to correct the bug in the code.", "code": "The corrected bug-free Python script in order to accomplish the task."}}
 """
         # Response format: {{"info": "Summary and suggestion."}}
         return prompt
@@ -217,7 +213,7 @@ Just output the query directly. DO NOT add additional explanations or introducem
         return f"##Subtask: {question}\n\n##Content: {content}\n\n##Totaltask:{totaltask}\n\n##Instruction: {query_prompt}"
 
 class SubtaskCodePromptBuilder(PromptBuilder):
-    def build_prompt(self, data_list, goal_description, history_summary, execute_success=True, execute_info=None):
+    def build_prompt(self, data_list, goal_description, history_summary, execute_success=False, execute_info=None):
         prompt = f"""You should Act as a biologist proficient in Python programming, the rules must be strictly followed!
 Rules:
 - Import all necessary libraries before writing codes.

@@ -12,7 +12,8 @@ from ..gpt.utils import get_all_api_json, correct_pred, load_json, save_json, ge
 from ..inference.utils import json_to_docstring, find_similar_two_pairs
 from ..models.model import LLM_response
 from ..configs.model_config import *
-from ..inference.execution_UI import CodeExecutor, find_matching_instance
+from ..inference.execution_UI import find_matching_instance
+from ..inference.execution_UI import CodeExecutor
 from ..inference.retriever_finetune_inference import ToolRetriever
 from ..prompt.promptgenerator import PromptFactory
 from ..configs.Lib_cheatsheet import CHEATSHEET as LIB_CHEATSHEET
@@ -54,7 +55,7 @@ class Model:
         self.args_top_k = 3
         self.param_llm_retry = 1
         self.predict_api_llm_retry = 3
-        self.enable_multi_task = False
+        self.enable_multi_task = True
         self.session_id = ""
         #load_dotenv()
         OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
@@ -366,6 +367,7 @@ class Model:
                 e = traceback.format_exc()
                 self.logger.error(e)
                 self.initialize_executor()
+                self.new_task_planning = True
                 pass
         # only reset lib when changing lib
         if lib!=self.LIB and lib!='GPT':
@@ -380,6 +382,7 @@ class Model:
             self.update_user_state("run_pipeline_asking_GPT")
         # only clear namespace when starting new conversations
         if conversation_started in ["True", True]:
+            self.new_task_planning = True
             self.logger.info('==>new conversation_started!')
             self.user_states="run_pipeline"
             self.initialize_executor()
@@ -414,12 +417,13 @@ class Model:
             if self.enable_multi_task and self.new_task_planning:
                 pred_class = self.dialog_classifer.single_prediction(user_input, self.retriever, self.args_top_k)
                 self.logger.info('----query inferred as {}----', pred_class)
-                if pred_class not in ['single']:
-                    #if True: # set as multiple for comparing
+                #if pred_class not in ['single']:
+                if True: # set as multiple for comparing
                     self.logger.info('start multi-task!')
-                    prompt = self.prompt_factory.create_prompt("multi_task", user_input, files)
+                    prompt = self.prompt_factory.create_prompt("multi_task", self.LIB, user_input, files)
                     #TODO: try with max_trials times
                     response, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})
+                    self.logger.info('multi task prompt: {}', prompt)
                     try:
                         steps_list = ast.literal_eval(response)['plan']
                     except:
@@ -435,7 +439,7 @@ class Model:
                         self.callback_func('log', "LLM can not return valid steps list, please redesign your prompt.", "LLM predict Error")
                         return
                     else:
-                        self.callback_func('log', "LLM return valid steps list, start executing...\n" + "\n".join(steps_list), "Multi step Task Planning")
+                        self.callback_func('log', "\n - " + "\n - ".join(steps_list), "Multi step Task Planning") # "LLM return valid steps list, start executing...\n" + 
                     self.add_query(steps_list)
                     sub_task = self.get_query()
                     if not sub_task:
@@ -473,7 +477,7 @@ class Model:
                             idx+=1
                             # only retain shot_k number of sampled_shuffled
                             tmp_str = "Instruction: " + instruction + "\nFunction: [" + iii['gold'] + "]"
-                            new_function_candidates = [f"{i}:{api}, description: "+self.all_apis_json[api].replace('\n',' ') for i, api in enumerate(tmp_retrieved_api_list)]
+                            new_function_candidates = [f"{api}, description: "+self.all_apis_json[api].replace('\n',' ') for i, api in enumerate(tmp_retrieved_api_list)] # {i}:
                             similar_queries += "function candidates:\n" + "\n".join(new_function_candidates) + '\n' + tmp_str + "\n---\n"
                 instruction_shot_example = similar_queries
             self.logger.info('start predicting API!')
@@ -732,6 +736,7 @@ class Model:
                 maybe_instance_name = maybe_class_name.lower() + "_instance"
                 # 240520: modified, support for variable with none xx_instance name
                 if self.API_composite[api]['api_type'] in ['class', 'unknown']:
+                    from ..inference.execution_UI import find_matching_instance
                     matching_instance, is_match = find_matching_instance(api, executor_variables)
                     self.logger.info(f'executor_variables: {executor_variables}, api: {api}, matching_instance: {matching_instance}, is_match: {is_match}')
                     if is_match:
@@ -828,6 +833,7 @@ class Model:
                             executor_variables[var_name] = var_value
                     self.logger.info('executor_variables: {}', executor_variables)
                     try:
+                        from ..inference.execution_UI import find_matching_instance
                         matching_instance, is_match = find_matching_instance(api, executor_variables)
                     except Exception as e:
                         e = traceback.format_exc()
@@ -1233,10 +1239,21 @@ class Model:
                 # 240521: automatically regenerated code by LLM
                 #prompt = self.prompt_factory.create_prompt('execution_correction', self.user_query, str(self.executor.execute_code), self.last_execute_code['code'], content, str(self.executor.variables), self.LIB)
                 # 240531: add newer execution prompt, which combines information from docstring examples, api_callings, and github issue solutions, and traceback informations
+                
+                # remove tracebackerror because the information is nonsense, only keep the line of 'ValueError: '
                 executor_info = "\n".join(list(set(output_list)))
+                """error_index = next((index for index, value in enumerate(output_list) if 'Error:' in value), None)
+                if error_index is not None:
+                    filtered_output_list = output_list[error_index:]
+                else:
+                    filtered_output_list = []
+                executor_info = "\n".join(filtered_output_list)"""
                 from ..models.query_issue_corpus import retrieved_issue_solution
                 from ..gpt.get_summarize_tutorial import extract_imports, get_sub_API
-                possible_solution = retrieved_issue_solution(self.LIB, 2, executor_info, "sentencebert", "issue_description")
+                # use github issue retriever
+                #possible_solution = retrieved_issue_solution(self.LIB, 2, executor_info, "sentencebert", "issue_description")
+                # do not use github issue retriever
+                possible_solution = ""
                 self.logger.info("possible_solution: {}", possible_solution)
                 example_json = {}
                 api_callings = {}
@@ -1249,13 +1266,14 @@ class Model:
                 for api in relevant_API:
                     if api in self.API_composite:
                         example = self.API_composite[api]['example']
-                        example_json[api] = example
+                        if example:
+                            example_json[api] = example
                         api_callings[api] = self.API_composite[api]['api_calling']
-                execution_prompt = self.prompt_factory.create_prompt('executor_correction', executor_info, error_code, possible_solution, json.dumps(example_json), json.dumps(api_callings))
+                execution_prompt = self.prompt_factory.create_prompt('executor_correction', executor_info, json.dumps({str(key): str(value) for key, value in self.executor.variables.items()}), error_code, possible_solution, json.dumps(example_json), json.dumps(list(api_callings.values())), whole_code, self.user_query)
                 self.logger.info('execution_prompt: {}', execution_prompt)
-                prompt = self.prompt_factory.create_prompt('subtask_code', [], self.user_query, whole_code, True, execution_prompt)
-                self.logger.info('prompt: {}', prompt)
-                response, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})  # llm
+                #prompt = self.prompt_factory.create_prompt('subtask_code', [], self.user_query, whole_code, True, execution_prompt)
+                #self.logger.info('prompt: {}', prompt)
+                response, _ = LLM_response(execution_prompt, self.model_llm_type, history=[], kwargs={})  # llm
                 self.logger.info('response: {}', response)
                 tmp_retry_count = 0
                 while tmp_retry_count<3:
@@ -1311,6 +1329,7 @@ class Model:
             self.run_pipeline(sub_task, self.LIB, top_k=3, files=[],conversation_started=False,session_id=self.session_id)
             return
         else:
+            self.callback_func('log', "All subtasks are predicted and executed.", "Start another round.")
             self.new_task_planning = True
         self.update_user_state("run_pipeline")
         self.save_state_enviro()

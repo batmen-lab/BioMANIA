@@ -531,6 +531,7 @@ class CodeExecutor:
         except Exception as e:
             error_info = traceback.format_exc()
             error = f"{error_info}"
+            #error = e
             self.logger.info('==?error in execute api call:', error)
             self.execute_code.append({'code':api_call_code,'code_type':code_type, 'success':'False', 'error': error})
             return error
