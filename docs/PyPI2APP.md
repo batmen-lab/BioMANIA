@@ -57,7 +57,12 @@ python -m src.dataloader.download_issues --LIB ${LIB} --token {GITHUB_TOKEN}
 # TODO: download prepared corpus `data/github_issues/{LIB}/*` from google drive
 python -m src.dataloader.prepare_issue_corpus --LIB ${LIB}
 # query the corpus with command:
-python -m src.models.query_issue_corpus --LIB scanpy --example_query "KeyError: 'No "neighbors" in .uns'" --method sentencebert --field issue_description --top_k 3
+python -m src.models.query_issue_corpus --LIB scanpy --example_query "KeyError: \"No \"neighbors\" in .uns\"" --top_k 3 --query_source local
+```
+
+(Optional) Or you can either choose query issue online
+```bash
+python -m src.models.query_issue_corpus --query_source online --LIB scanpy --example_query "KeyError: \"No \"neighbors\" in .uns\"" --top_k 10
 ```
 
 NOTE it requires API_HTML_PATH, READTHEDOC_PATH and TUTORIAL_GITHUB to run the above script!

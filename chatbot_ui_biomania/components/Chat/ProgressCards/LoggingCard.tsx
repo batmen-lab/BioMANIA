@@ -30,11 +30,20 @@ const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageDat
 
   const successMatch = /\[Success\]/;
   const failMatch = /\[Fail\]/;
+  const confirmationMatch = /Enter Parameters|Can you confirm|User Confirmation|Could you confirm whether this API should be called\? Please enter y\/n\./;
+  const planMatch = /Multi step Task Planning|SubTask Execution|Continue to the next subtask|Step \d+: .*/;
+  const erroranalysisMatch = /Error Analysis/;
 
   if (successMatch.test(title)) {
     titleColor = 'green';
   } else if (failMatch.test(title)) {
     titleColor = 'red';
+  } else if (confirmationMatch.test(title)) {
+    titleColor = 'orange';
+  } else if (planMatch.test(title)) {
+    titleColor = 'blue';
+  } else if (erroranalysisMatch.test(title)) {
+    titleColor = 'blue';
   }
 
   const theme = useTheme();

@@ -34,13 +34,17 @@ def fetch_issues(repo, threshold):
                 solutions.append((comment.body, reactions))
         if solutions:
             solutions = sorted(solutions, key=lambda x: x[1], reverse=True)
-            best_solution = solutions[0][0]
+            #best_solution = solutions[0][0]
+            top_k = 3
+            best_solutions = [sol[0] for sol in solutions[:top_k]]
+            best_solutions = '\n'.join([f'Rank {i+1}: {solution}' for i, solution in enumerate(best_solutions)])
         else:
-            best_solution = None
+            #best_solutions = [None, None, None]
+            best_solutions = "No solutions"
         pair = {
             'issue_title': issue_title,
             'issue_body': issue_body,
-            'solution': best_solution,
+            'solution': best_solutions,
             'count': count
         }
         issue_solution_pairs.append(pair)

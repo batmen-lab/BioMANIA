@@ -382,12 +382,15 @@ class CodeExecutor:
                 maybe_instance_name = maybe_class_name.lower() + "_instance"
                 pass
             if single_class_API:
+                self.logger.info('single_class_API: {}', single_class_API)
                 if api_type in ['property', 'constant']:
                     api_call = f"{maybe_instance_name} = {maybe_class_name}"
                 else:
                     api_call = f"{maybe_instance_name} = {maybe_class_name}({class_params_formatted})"
             else:
+                self.logger.info('no single_class_API')
                 if maybe_instance_name not in self.variables: # not initialized
+                    self.logger.info('==> maybe_instance_name not in self.variables')
                     if api_type in ['property', 'constant']:
                         api_call = f"{maybe_instance_name} = {maybe_class_name}"
                     else:
@@ -412,10 +415,10 @@ class CodeExecutor:
             index_parenthesis = tmp_api_call.find("(")
             comparison_result = index_equal < index_parenthesis
             if index_equal!=-1 and comparison_result:
-                self.logger.info('debugging1 for return class API:', api_name, return_type, api_call, '--end')
+                self.logger.info('debugging1 for return class API: {}, {}, {} --end', api_name, return_type, api_call)
                 return import_code+'\n'+f"{api_call}"
             else:
-                self.logger.info('debugging2 for return class API:', api_name, return_type, api_call, '--end')
+                self.logger.info('debugging2 for return class API: {}, {}, {} --end', api_name, return_type, api_call)
                 self.counter = max(self.counter, self.get_newest_counter_from_namespace())
                 self.counter += 1
                 return_var = f"result_{self.counter} = "
@@ -426,7 +429,7 @@ class CodeExecutor:
                 self.generate_code.append(new_code)
                 return import_code+'\n'+new_code
         else:
-            self.logger.info('debugging3 for return class API:', api_name, return_type, api_call, '--end')
+            self.logger.info('debugging3 for return class API: {}, {}, {} --end', api_name, return_type, api_call)
             self.generate_code.append(f"{api_call}")
             return import_code+'\n'+f"{api_call}"
     def split_tuple_variable(self, last_code_status):

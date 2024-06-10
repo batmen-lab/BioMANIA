@@ -56,6 +56,8 @@ We provide several ways to run the service: terminal CLI, Docker, railway, pytho
 pip install git+https://github.com/batmen-lab/BioMANIA.git  --index-url https://pypi.org/simple
 # setup OPENAI_API_KEY
 echo 'OPENAI_API_KEY="sk-proj-xxxx"' >> .env
+# (optional) setup github token
+echo "GITHUB_TOKEN=your_github_token" >> .env
 # download data, retriever, and resources from drive, and put them to the 
 # - data/standard_process/{LIB} and 
 # - hugging_models/retriever_model_finetuned/{LIB} and 

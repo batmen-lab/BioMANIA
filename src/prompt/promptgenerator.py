@@ -148,8 +148,8 @@ Each subtask should correspond to the exact usage scope of one single API from l
 Avoid creating steps that are too coarse or too detailed. If you find that more than one API needs to be used, split the step into two or more subtasks. For example, if for the preprocessing data step, filtering and normalization are both required, then use two subtasks `preprocessing data by filtering` and `preprocessing data by normalization` to describe them separately.
 Only include keywords in the subtask, avoid including API name in subtask.
 Each subtask should consists of 15-20 words, should be clear and concise for one single API usage.
-The arrangement of tasks should take into account API dependencies (for example, some APIs need to calculate metrics before visualization) and the logical order of tasks (for example, an example flow is to load data first, then preprocess data, then apply methods, and finally visualize the results).
-If a file path is provided, use it to load the data. If no file path is provided, use the built-in dataset API to load the default dataset. Only specify the data loading API for the subtask; omit API details from other subtasks.
+The arrangement of tasks should take into account API dependencies (for example, some APIs need to calculate metrics before visualization) and the logical order of tasks (for example, an example flow is to load data first, then preprocess data by logarimizing and then filtering, then apply methods, and finally visualize the results).
+If a file path is provided, use it to load the data. If no file path is provided, use the built-in dataset API to load the default dataset. Omit API name from all subtasks.
 Only respond in JSON format strictly enclosed in double quotes, adhering to the Response Format.
 Exclude any extraneous content from your response.
 Goal: {goal_description}\n
@@ -163,54 +163,61 @@ Response Format:
         return prompt
 
 class ExecutorPromptBuilder(PromptBuilder):
-    def build_prompt(self, executor_info, namespace_variables, script, possible_solution="", api_examples="", api_calling="", history_code="", goal_description=""):
+    def build_prompt(self, executor_info, parameters_info, namespace_variables, error_code, possible_solution="", api_examples="", api_calling="", success_history_code="", goal_description=""):
         if possible_solution:
             possible_solution_info = f"\nPossible solution from similar issues from Github Issue Discussion:\n{possible_solution}"
         else:
             possible_solution_info = ""
         if api_examples and api_examples != "{}":
-            api_examples_info = f"\nUsage examples of this: {api_examples}."
+            api_examples_info = f"\nAPI Usage examples: {api_examples}."
         else:
             api_examples_info = ""
-        if api_calling:
-            api_calling_info = f"\nExample API calling: {api_calling}. You can use only few parameters"
         prompt = f"""
-Task: Review and correct the Python script based on the traceback information.
+Task: Analyze and correct the Python script based on the traceback information. Here are some information to help you analyze the error in code:
+Success execution History: {success_history_code}
+Current goal for code generation: {goal_description}
+We try below codes for this task several times, but all fails: {error_code}
+traceback error information from the last trial: {executor_info}
+Current Namespace variables: {namespace_variables}
+{possible_solution_info}{api_examples_info}
+API calling template: {api_calling}. 
+Parameters information for this API calling: {parameters_info}
+You only need to keep required parameters from previous trial codes, only keep minimum optional parameters necessary for task. Remove optional parameters from error code which cause the problem. Please ensure that required parameters are passed in their proper positional order, as keyword arguments should only be used for optional parameters. You only need to include the task related correct code in your response, do not repeat other API from the success execution history in your response. For parameters starting with 'result_', use only those that exist in the namespace. Do not generate inexist variables.
+
+Below are some common reasons, debug based on error types:
+Import Verification: Ensure all necessary libraries are imported.
+API: No matter the API inexists or the external lib is uninstalled, replace with the correct or similar API if necessary; otherwise, continue with the same API.
+Parameter Names: Remove unnecessary optional parameters and keep only those essentials for successful execution. Remove fake parameters that not belong to target API.
+Attribute and Values: Correct any incorrect parameter values. For AnnData object attributes, only fillin existing attributes in namespace variables instead of using hallucinated attributes.
+Previous steps needed: Some pre-API are required for API executions due to the API design. If so, ensure these steps are included in the corrected code before target API call. E.g., before visualization, you might need to calculate metrics to store it in anndata object first. E.g., some API require to input logarimize data, you need to logarimize the data by another API first.
+If the data needs intermediate processing, address these by setting appropriate parameters or another API if possible. If not, use tools like AnnData, pandas related API to preprocess the data before calling the corresponding API from {api_calling}.
+Sometimes errors are indirect; deduce and locate the real cause based on these steps.
+
 Rules:
 - Conduct minimum correction.
 - Import all necessary libraries at the beginning of the script.
+- Include any prerequisite steps required for the task if you feel it is necessary for API dependency, e.g. in order to use API2, API1 must be executed ahead.
 - Respond only with the answer in JSON format.
-- Include any prerequisite steps required for the task if you feel necessary.
-
-Success execution History: {history_code}
-Current Task: {goal_description}
-Generated Code Script which contain Bugs: {script}
-Traceback error information: {executor_info}
-Current Namespace variables: {namespace_variables}
-{possible_solution_info}{api_examples_info}{api_calling_info}
-
-Follow these steps to debug and ensure the code is bug-free:
-Error Analysis: Check if the error is due to using the wrong API based on the goal description. Replace with the correct API if necessary; otherwise, continue with the same API.
-Parameter Check: Examine parameters in the code. Remove unnecessary optional parameters and keep only the essential ones and those explicitly mentioned in the subtasks.
-Attribute and Value Verification: Verify variable attributes and API parameters. Correct any incorrect parameter values. Especially consider those attributes saved in AnnData object, only fillin the exist attributes as parameters values.
-Import Verification: Ensure all necessary libraries are imported.
-API and Parameter Accuracy: Use the correct API names and parameters with appropriate values.
-Sometimes errors are indirect; deduce and locate the real cause based on these steps.
+- Only successful execution history is recorded. Each time, remember to import the targeted API again in correct code, remember to use the exists variable, do not use variable from error trials as they are not recognized as part of the execution history.
 
 Response Format:
-{{"analysis": "Provide a detailed error analysis explaining how to correct the bug in the code.", "code": "The corrected bug-free Python script in order to accomplish the task."}}
+{{"analysis": "Locate error, explain how to correct the bug.", "code": "Task oriented corrected bug-free Python code based on analysis."}}
 """
         # Response format: {{"info": "Summary and suggestion."}}
         return prompt
     
 class ModifySubtaskPromptBuilder(PromptBuilder):
-    def build_prompt(self, question, content, totaltask):
-        query_prompt = '''
-Given the pre-planned subtask for the task planning stage and the retrieval of relevant local API documentation based on this subtask, please adjust the subtask functionality to align it with the PyPI API's capabilities. Ensure clarity and consistency with the original overall task and subtask functionality, but with finer detail. It should be like user inquiry, either in tone of polite, neutral, or formal.
+    def build_prompt(self, current_subtask,  execution_history, namespace_variables, api_docs):
+        query_prompt = f'''
+Code Execution History: {execution_history}
+Namespace Variables: {namespace_variables}
+Current Subtask: {current_subtask}
+API documentation: {api_docs}
+Your Task: Based on the Total task planning, current subtask, execution history prior to the current subtasks, namespace variables, and relevant API documentation, please rewrite the subtask description. The rewritten description should correspond to the most specific API and include only the necessary parameters and their values to clearly describe the subtask. Maintain a tone that is polite, neutral, or formal, as if it were a user inquiry.
 **IMPORTANT**
-Just output the query directly. DO NOT add additional explanations or introducement in the answer unless you are asked to.
+Just response with the modified subtask description directly. DO NOT add additional explanations or introducement.
 '''
-        return f"##Subtask: {question}\n\n##Content: {content}\n\n##Totaltask:{totaltask}\n\n##Instruction: {query_prompt}"
+        return query_prompt
 
 class SubtaskCodePromptBuilder(PromptBuilder):
     def build_prompt(self, data_list, goal_description, history_summary, execute_success=False, execute_info=None):

@@ -4,19 +4,19 @@ Date Created: May 29, 2024
 Last Modified: May 29, 2024
 Description: Query the issue corpus for the specified library
 Usage: 
-python -m src.models.query_issue_corpus --LIB scanpy --example_query "Traceback (most recent call last): \n File "/home/z6dong/BioChat/refer/src/2024_biomania_phase2/./examples/case2.1/output/3.sh.execute.py", line 13, in <module>\n     sc.tl.louvain(adata)\nFile "/home/z6dong/anaconda3/envs/biomania2/lib/python3.10/site-packages/scanpy/tools/_louvain.py", line 115, in louvain\n    adjacency = _choose_graph(adata, obsp, neighbors_key)\n  File "/home/z6dong/anaconda3/envs/biomania2/lib/python3.10/site-packages/scanpy/_utils/__init__.py", line 767, in _choose_graph\n   neighbors = NeighborsView(adata, neighbors_key)\n  File "/home/z6dong/anaconda3/envs/biomania2/lib/python3.10/site-packages/scanpy/_utils/__init__.py", line 711, in __init__\n    raise KeyError('No "neighbors" in .uns')\nKeyError: 'No "neighbors" in .uns'" --method sentencebert --field issue_description --top_k 3
+python -m src.models.query_issue_corpus --LIB scanpy --example_query "ValueError: cannot specify integer bins when input data contains infinity" --method sentencebert --field issue_description --top_k 1
+Notice: if we input wrong example_query, the output will be empty.
 """
 
-import os
-import json
-import argparse
+import os, json, requests, argparse, ast
 from typing import Tuple, List, Dict, Any
 from rank_bm25 import BM25Okapi
+from sentence_transformers import SentenceTransformer, util
+from dotenv import load_dotenv
 from ..retrievers import BM25Retriever
 from ..gpt.utils import load_json
-import ast
-from sentence_transformers import SentenceTransformer, util
 from ..dataloader.prepare_issue_corpus import ERROR_KEYWORDS, get_error_type
+from ..configs.model_config import get_all_variable_from_cheatsheet
 
 def prepare_corpus(queries: List[Dict[str, Any]], field: str) -> Dict[str, Tuple[List[Dict[str, Any]], List[str]]]:
     """
@@ -38,7 +38,7 @@ def prepare_corpus(queries: List[Dict[str, Any]], field: str) -> Dict[str, Tuple
     """
     corpus_dict = {}
     for query in queries:
-        if query['solution'] is None:
+        if query['solution'] in [None, 'No solutions']:
             continue
         error_types = query.get('error_type', {'Other'})
         for error_type in error_types:
@@ -101,6 +101,57 @@ def sentencebert_retriever(corpus_texts: List[str], query: str, top_k: int) -> L
     hits = util.semantic_search(query_embedding, corpus_embeddings, top_k=top_k)[0]
     return [hit['corpus_id'] for hit in hits]
 
+def search_github_issues(lib, topk, question):
+    info_json = get_all_variable_from_cheatsheet(lib)
+    GITHUB_LINK = info_json['GITHUB_LINK']
+    repo_name = GITHUB_LINK.replace('https://github.com/','').replace('.git','')
+    if repo_name.endswith('/'):
+        repo_name = repo_name[:-1]
+    load_dotenv()
+    github_token = os.getenv('GITHUB_TOKEN', None)
+    if not github_token:
+        print("No GitHub token provided. Unable to retrieve issues from GitHub.")
+    search_url = 'https://api.github.com/search/issues'
+    params = {
+        'q': f'repo:{repo_name} "{question}" is:issue',
+        'sort': 'comments',
+        'order': 'desc',
+        'per_page': topk
+    }
+    print('params', params)
+    headers = {
+        'Authorization': f'token {github_token}'
+    }
+    def fetch_issues():
+        response = requests.get(search_url, headers=headers, params=params)
+        if response.status_code == 200:
+            issues = response.json()['items']
+            return issues if issues else ""
+        else:
+            return ""
+    def fetch_comments(comments_url):
+        comments_response = requests.get(comments_url, headers=headers)
+        if comments_response.status_code == 200:
+            return comments_response.json()
+        else:
+            return []
+    issues = fetch_issues()
+    if not issues:
+        return ""
+    results = []
+    for issue in issues:
+        issue_title = issue['title']
+        comments_url = issue['comments_url']
+        comments = fetch_comments(comments_url)
+        if comments:
+            sorted_comments = sorted(comments, key=lambda x: x['reactions']['total_count'], reverse=True)
+            solutions = [f"Solution {idx + 1}: {comment['body']} (Reactions: {comment['reactions']['total_count']})" for idx, comment in enumerate(sorted_comments)]
+            result = f"issue: {issue_title}, solutions: {'; '.join(solutions)}"
+        else:
+            result = f"issue: {issue_title}, solutions: No comments found"
+        results.append(result)
+    return "\n".join(results)
+
 def retrieved_issue_solution(LIB: str, top_k: int, example_query: str, method: str, field: str) -> None:
     """
     Main function to prepare data, create a retriever, and evaluate its performance.
@@ -149,17 +200,26 @@ def retrieved_issue_solution(LIB: str, top_k: int, example_query: str, method: s
     print(f"Retrieved titles: {retrieved_titles}")
     print(f"Retrieved issue descriptions: {retrieved_issue_description}")
     print(f"Retrieved solutions: {retrieved_solution}")
+    
+    return retrieved_solution
 
 def main():
     parser = argparse.ArgumentParser(description='Query the issue corpus for a library')
     parser.add_argument('--LIB', type=str, required=True, help='Library name')
     parser.add_argument('--example_query', type=str, required=True, help='Example query to test')
-    parser.add_argument('--method', type=str, required=True, choices=['bm25', 'sentencebert'], help='Retrieval method to use')
-    parser.add_argument('--field', type=str, required=True, choices=['issue_title', 'issue_description'], help='Field to compare')
-    parser.add_argument('--top_k', type=int, default=3, help='Number of top documents to retrieve')
+    parser.add_argument('--method', type=str, default="sentencebert", choices=['bm25', 'sentencebert'], help='Retrieval method to use')
+    parser.add_argument('--field', type=str, default="issue_title", choices=['issue_title', 'issue_description'], help='Field to compare')
+    parser.add_argument('--top_k', type=int, default=10, help='Number of top documents to retrieve')
+    parser.add_argument('--query_source', type=str, default="online", help='query issue with solutions online')
     args = parser.parse_args()
-
-    retrieved_issue_solution(args.LIB, args.top_k, args.example_query, args.method, args.field)
+    
+    if args.query_source=='local':
+        retrieved_issue_solution(args.LIB, args.top_k, args.example_query, args.method, args.field)
+    elif args.query_source=='online':
+        solutions = search_github_issues(args.LIB, args.top_k, args.example_query)
+        print('solutions: ', solutions)
+    else:
+        raise NotImplementedError("Unsupported query source. Use 'local' or 'online'.")
 
 if __name__ == "__main__":
     main()

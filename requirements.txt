@@ -49,7 +49,7 @@ Requests==2.31.0
 #scikit_learn
 scipy==1.9.2
 #scvi_tools==1.0.4
-seaborn==0.13.0
+seaborn
 sentence_transformers==2.2.2
 sentencepiece==0.1.99
 scanpy==1.9.6
@@ -62,6 +62,7 @@ tensorboard==2.15.1
 timm==0.9.12
 torch==2.1.0
 torchsummary==1.5.1
+trimap==1.1.4
 tqdm==4.66.1
 transformers==4.35.0
 typing_extensions==4.8.0
