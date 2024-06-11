@@ -453,19 +453,19 @@ class Model:
                         self.callback_func('log', "LLM can not return valid steps list, please redesign your prompt.", "LLM predict Error")
                         return
                     else:
-                        self.callback_func('log', "\n - " + "\n - ".join(steps_list), "Multi step Task Planning") # "LLM return valid steps list, start executing...\n" + 
+                        pass
+                        #self.callback_func('log', "\n - " + "\n - ".join(steps_list), "Multi step Task Planning") # "LLM return valid steps list, start executing...\n" + 
                     self.add_query(steps_list)
+                    self.callback_func('log', "Ongoing subtask and remaining subtasks: \n → "+ '\n - '.join(self.user_query_list), "Task Planning")
                     sub_task = self.get_query()
                     if not sub_task:
                         raise ValueError("sub_task is empty!")
-                    self.callback_func('log', ' → ' + sub_task, "SubTask Execution")
                     self.new_task_planning = False
                     self.first_task_start = True
                 else:
                     sub_task = user_input
             else:
                 sub_task = user_input
-                self.callback_func('log', ' → ' + sub_task, "SubTask Execution")
             if len([i['code'] for i in self.executor.execute_code if i['success']=='True'])>0: # for non-first subtasks
                 retrieved_apis = self.retriever.retrieving(self.initial_goal_description, top_k=3)
                 prompt = self.prompt_factory.create_prompt("modify_subtask", 
@@ -535,14 +535,14 @@ class Model:
             success = False
             for _ in range(self.predict_api_llm_retry):
                 try:
-                    response, _ = LLM_response(api_predict_prompt, self.model_llm_type, history=[], kwargs={})  # llm
-                    self.logger.info('==>LLM response: {}, {}', api_predict_prompt, response)
+                    ori_response, _ = LLM_response(api_predict_prompt, self.model_llm_type, history=[], kwargs={})  # llm
+                    self.logger.info('==>LLM response: {}, {}', api_predict_prompt, ori_response)
                     # hack for if LLM answers this or that
                     """response = response.split(',')[0].split("(")[0].split(' or ')[0]
                     response = response.replace('{','').replace('}','').replace('"','').replace("'",'')
                     response = response.split(':')[0]# for robustness, sometimes llm will return api:description"""
-                    response = correct_pred(response, self.LIB)
-                    self.logger.info('==>correct response: {}', response)
+                    response = correct_pred(ori_response, self.LIB)
+                    self.logger.info('==>correct response: {}, {}', ori_response, response)
                     self.logger.info('correct prediction')
                     response = response.replace('"','').replace("'","")
                     response = response.strip()
@@ -550,10 +550,26 @@ class Model:
                     if len(response.split(','))>1:
                         response = response.split(',')[0].strip()
                     self.logger.info('==>Predicted API: {}', response)
-                    self.all_apis_json[response]
-                    self.predicted_api_name = response
-                    success = True
-                    break
+                    if response in self.all_apis_json:
+                        self.predicted_api_name = response
+                        success = True
+                        break
+                    else:
+                        # use another way to parse
+                        def extract_api_calls(text, library):
+                            pattern = rf'\b{library}(?:\.\w+)*\b'
+                            matches = re.findall(pattern, text)
+                            return [i for i in matches if i not in [library]]
+                        from ..configs.model_config import get_all_variable_from_cheatsheet
+                        info_json = get_all_variable_from_cheatsheet(self.LIB)
+                        lib_alias = info_json["lib_alias"]
+                        extracted_api_calls = extract_api_calls(ori_response, lib_alias)
+                        if extracted_api_calls:
+                            response = extracted_api_calls[0]
+                            if response in self.all_apis_json:
+                                self.predicted_api_name = response
+                                success = True
+                                break
                 except Exception as e:
                     e = traceback.format_exc()
                     self.logger.error('error during api prediction: {}', e)
@@ -564,23 +580,25 @@ class Model:
             # if the predicted API is in ambiguous API list, then show those API and select one from them
             if self.predicted_api_name in self.ambiguous_api:
                 filtered_pairs = [api_pair for api_pair in self.ambiguous_pair if self.predicted_api_name in api_pair]
-                self.filtered_api = list(set(api for api_pair in filtered_pairs for api in api_pair))
+                self.filtered_api = [i for i in list(set(api for api_pair in filtered_pairs for api in api_pair)) if i!=self.predicted_api_name]
                 #next_str = ""
                 next_str = "We have retrieved an API, but we found that there may be several similar or related APIs. Please choose one of the following options:\n"
                 idx_api = 1
+                next_str += f"Enter [1] Retrieved API: {self.predicted_api_name}"
+                description_1 = self.API_composite[self.predicted_api_name]['Docstring'].split("\n")[0]
+                next_str+='\n'+description_1.replace('`','')  + '\n'
+                idx_api+=1
                 for api in self.filtered_api:
-                    if idx_api == 1:
-                        next_str += f"1---Retrieved: {api}"
-                    else:
-                        next_str += f"{idx_api}---Similar: {api}"
+                    next_str += f"Enter [{idx_api}] Ambiguous API: {api}"
                     #next_str+=f"Candidate [{idx_api}]: {api}"
                     description_1 = self.API_composite[api]['Docstring'].split("\n")[0]
-                    next_str+='\n'+description_1  + '\n'
+                    next_str+='\n'+description_1.replace('`','')  + '\n'
                     idx_api+=1
+                self.filtered_api = [self.predicted_api_name] + self.filtered_api
                 #next_str+="\n"+f"Candidate [-1]: No appropriate API, input inquiry manually by enter -1"
                 #next_str+="\n"+f"Candidate [-2]: Skip to next subtask by enter -2"
-                next_str += "Option [-1]: No appropriate API, input inquiry manually by entering -1\n"
-                next_str += "Option [-2]: Skip to the next subtask by entering -2\n"
+                next_str += "Enter [-1]: No appropriate API, input inquiry manually\n"
+                next_str += "Enter [-2]: Skip to the next subtask\n"
                 # for ambiguous API, we think that it might be executed more than once as ambiguous API sometimes work together
                 # user can exit by entering -1
                 # so we add it back to the subtask list to execute it again
@@ -859,7 +877,9 @@ class Model:
             pass
         else:
             predicted_params = {}
-        predicted_parameters = predicted_params
+        # filter out the parameters which value is same as their default value
+        predicted_parameters = {k: v for k, v in predicted_params.items() if k not in param_tmp or v != param_tmp[k].get("default")}
+        
         self.logger.info('prediction by LLM')
         if len(parameters_name_list)==0:
             self.logger.info('if there is no required parameters, skip using LLM')
@@ -1420,7 +1440,8 @@ class Model:
         self.logger.info("Currently all executed code: {}", json.dumps(new_str))
         # 240604 add logic, if there exist sub task in self.user_query_list, then do not return, go ahead to the next sub task
         if self.user_query_list:
-            self.callback_func('log', "Remaining subtasks: \n → "+ '\n'.join(self.user_query_list), "Continue to the next subtask")
+            #self.callback_func('log', "Remaining subtasks: \n → "+ '\n  - '.join(self.user_query_list), "Continue to the next subtask")
+            self.callback_func('log', "Ongoing subtask and remaining subtasks: \n → "+ '\n - '.join(self.user_query_list), "Task Planning")
             sub_task = self.get_query()
             self.update_user_state("run_pipeline")
             self.save_state_enviro()
