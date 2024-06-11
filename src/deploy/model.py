@@ -31,6 +31,16 @@ def color_text(text, color):
     }
     return f"{color_codes.get(color, color_codes['reset'])}{text}{color_codes['reset']}"
 
+def label_sentence(sentence, parameters_dict):
+    colors = ['red', 'yellow', 'blue', 'green', 'orange']
+    color_index = 0
+    for key, value in parameters_dict.items():
+        color = colors[color_index % len(colors)]
+        sentence = sentence.replace(key, f"\\{color}{{{key}}}")
+        sentence = sentence.replace(str(value), f"\\{color}{{{value}}}")
+        color_index += 1
+    return sentence
+
 def remove_duplicates(lst):
     seen = set()
     result = []
@@ -595,8 +605,6 @@ class Model:
                     next_str+='\n'+description_1.replace('`','')  + '\n'
                     idx_api+=1
                 self.filtered_api = [self.predicted_api_name] + self.filtered_api
-                #next_str+="\n"+f"Candidate [-1]: No appropriate API, input inquiry manually by enter -1"
-                #next_str+="\n"+f"Candidate [-2]: Skip to next subtask by enter -2"
                 next_str += "Enter [-1]: No appropriate API, input inquiry manually\n"
                 next_str += "Enter [-2]: Skip to the next subtask\n"
                 # for ambiguous API, we think that it might be executed more than once as ambiguous API sometimes work together
@@ -681,6 +689,7 @@ class Model:
             return 'break'
         if user_index==-2:
             sub_task = self.get_query()
+            self.callback_func('log', "Ongoing subtask and remaining subtasks: \n → "+ '\n - '.join(self.user_query_list), "Task Planning")
             self.update_user_state("run_pipeline")
             self.save_state_enviro()
             self.run_pipeline(sub_task, self.LIB, top_k=3, files=[],conversation_started=False,session_id=self.session_id)
@@ -795,6 +804,7 @@ class Model:
                                                         )
                 self.user_query, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})
                 self.logger.info('modified subtask: {}', self.user_query)
+                self.callback_func('log', self.user_query, 'Modified subtask')
                 self.update_user_state("run_pipeline")
                 self.save_state_enviro()
                 self.run_pipeline(self.user_query, self.LIB, top_k=3, files=[],conversation_started=False,session_id=self.session_id)
@@ -896,6 +906,9 @@ class Model:
         required_param_list = [param_name for param_name, param_info in self.API_composite[apis_name]['Parameters'].items() if param_info['type'] in special_types or param_info['type'] in io_types or param_name in io_param_names]
         predicted_parameters = {key: value for key, value in predicted_parameters.items() if value not in [None, "None", "null"] or key in required_param_list}
         self.logger.info('after filtering, predicted_parameters: {}', predicted_parameters)
+        colored_sentence = label_sentence(self.user_query, predicted_parameters)
+        if '\\' in colored_sentence:
+            self.callback_func('log', colored_sentence, 'Parameters Prediction')
         # generate api_calling
         self.predicted_api_name, api_calling, self.parameters_info_list = generate_api_calling(self.predicted_api_name, self.API_composite[self.predicted_api_name], predicted_parameters)
         self.logger.info('parameters_info_list: {}', self.parameters_info_list)

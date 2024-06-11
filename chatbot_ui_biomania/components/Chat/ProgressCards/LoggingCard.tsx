@@ -5,11 +5,10 @@ import Divider from '@mui/material/Divider';
 import { useTheme } from '@mui/material/styles';
 import TableCard from './TableCard';
 import ImageProgressCard from './ImageProgressCard';
-import ReactMarkdown from 'react-markdown';
-
 import React, { useState } from 'react';
 import Button from '@mui/material/Button';
 import Collapse from '@mui/material/Collapse';
+import ReactMarkdown from 'react-markdown';
 
 interface LoggingCardProps {
   title: string;
@@ -21,6 +20,20 @@ interface LoggingCardProps {
 
 const generate_random_id = () => {
   return Math.random().toString(36).substr(2, 9);
+};
+
+const colorizeLogString = (logString, terms) => {
+  const colors = ['red', 'yellow', 'blue', 'green', 'orange'];
+  let colorIndex = 0;
+
+  for (let term of terms) {
+    const color = colors[colorIndex % colors.length];
+    const regex = new RegExp(term, 'g');
+    logString = logString.replace(regex, `<span style="color:${color}">${term}</span>`);
+    colorIndex++;
+  }
+
+  return logString;
 };
 
 const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageData }: LoggingCardProps) => {
@@ -50,13 +63,16 @@ const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageDat
 
   const formattedLogString = logString.replace(/\n/g, '  \n');
 
+  const termsToColorize = ["saaa", "bbb"]; // You can modify this list as needed
+  const colorizedLogString = colorizeLogString(formattedLogString, termsToColorize);
+
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
   };
 
   return (
-    <Paper elevation={2} sx={{ width: '200', height: 'auto', position: 'relative', padding: '8px', margin: '0', backgroundColor: 'white', overflow: 'hidden' }}>
-      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+    <Paper elevation={2} sx={{ width: '100%', maxWidth: '50vw', height: 'auto', position: 'relative', padding: '8px', margin: '0', backgroundColor: 'white', overflow: 'hidden' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', paddingLeft: '0px' }}>
         <Typography variant="caption" component="div" sx={{ fontFamily: 'monospace', fontSize: '0.9rem', lineHeight: '1.2', marginBottom: '0px' }}>
           <span style={{ color: titleColor }}>{title}</span>
         </Typography>
@@ -69,7 +85,9 @@ const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageDat
             />
           )}
           {tableData && tableData.trim() !== '' && (
-            <TableCard data={tableData} />
+            <Box sx={{ overflowX: 'auto', width: '100%', paddingLeft: '0px' }}>
+              <TableCard data={tableData} />
+            </Box>
           )}
           <Typography variant="body1" sx={{
             fontFamily: 'monospace',
@@ -83,7 +101,11 @@ const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageDat
               margin: 0,
             },
           }}>
-            <ReactMarkdown>{formattedLogString}</ReactMarkdown>
+            <ReactMarkdown components={{ 
+                p: ({ node, ...props }) => <p {...props} dangerouslySetInnerHTML={{ __html: colorizedLogString }} /> 
+            }}>
+              {colorizedLogString}
+            </ReactMarkdown>
           </Typography>
         </Collapse>
         <Button
