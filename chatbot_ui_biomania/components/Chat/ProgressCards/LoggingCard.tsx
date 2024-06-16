@@ -5,10 +5,11 @@ import Divider from '@mui/material/Divider';
 import { useTheme } from '@mui/material/styles';
 import TableCard from './TableCard';
 import ImageProgressCard from './ImageProgressCard';
+import ReactMarkdown from 'react-markdown';
 import React, { useState } from 'react';
 import Button from '@mui/material/Button';
 import Collapse from '@mui/material/Collapse';
-import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 
 interface LoggingCardProps {
   title: string;
@@ -25,14 +26,14 @@ const generate_random_id = () => {
 const colorizeLogString = (logString, terms) => {
   const colors = ['red', 'yellow', 'blue', 'green', 'orange'];
   let colorIndex = 0;
-
+  
   for (let term of terms) {
     const color = colors[colorIndex % colors.length];
     const regex = new RegExp(term, 'g');
     logString = logString.replace(regex, `<span style="color:${color}">${term}</span>`);
     colorIndex++;
   }
-
+  
   return logString;
 };
 
@@ -63,7 +64,7 @@ const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageDat
 
   const formattedLogString = logString.replace(/\n/g, '  \n');
 
-  const termsToColorize = ["saaa", "bbb"]; // You can modify this list as needed
+  const termsToColorize = ["log", "mean_threshold", "cv_threshold", "n_pcs", "svd_solver", "random_state", "copy"]; // Updated terms list
   const colorizedLogString = colorizeLogString(formattedLogString, termsToColorize);
 
   const toggleCollapse = () => {
@@ -101,9 +102,7 @@ const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageDat
               margin: 0,
             },
           }}>
-            <ReactMarkdown components={{ 
-                p: ({ node, ...props }) => <p {...props} dangerouslySetInnerHTML={{ __html: colorizedLogString }} /> 
-            }}>
+            <ReactMarkdown components={{ p: 'span' }} rehypePlugins={[rehypeRaw]}>
               {colorizedLogString}
             </ReactMarkdown>
           </Typography>

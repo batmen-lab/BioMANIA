@@ -146,10 +146,12 @@ Based on the provided task description, create a task plan with subtasks.
 The tone of Each subtask should vary among queries: polite, straightforward, casual. 
 Each subtask should correspond to the exact usage scope of one single API from library {LIB}.
 Avoid creating steps that are too coarse or too detailed. If you find that more than one API needs to be used, split the step into two or more subtasks. For example, if for the preprocessing data step, filtering and normalization are both required, then use two subtasks `preprocessing data by filtering` and `preprocessing data by normalization` to describe them separately.
-Only include keywords in the subtask, avoid including API name in subtask.
+Only include keywords in the subtask, omit API name from all subtasks.
 Each subtask should consists of 15-20 words, should be clear and concise for one single API usage.
-The arrangement of tasks should take into account API dependencies (for example, some APIs need to calculate metrics before visualization) and the logical order of tasks (for example, an example flow is to load data first, then preprocess data by logarimizing and then filtering, then apply methods, and finally visualize the results).
-If a file path is provided, use it to load the data. If no file path is provided, use the built-in dataset API to load the default dataset. Omit API name from all subtasks.
+The arrangement of tasks should take into account API order and dependencies (for example, some APIs need to calculate metrics before visualization) and the logical order of tasks (for example, an example flow is to load data first, then preprocess data, then apply methods, and finally visualize the results).
+To improve task planning and make it more user-friendly, integrate visualization subtasks between specific key subtasks.
+If a file path is provided, use it to load the data. If no file path is provided, use the built-in dataset API to load the default dataset. If several filepaths are provided, either use them in one subtask or in different subtasks regarding the task description.
+Never include data description in other subtasks except for the data loading subtask. Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
 Only respond in JSON format strictly enclosed in double quotes, adhering to the Response Format.
 Exclude any extraneous content from your response.
 Goal: {goal_description}\n
@@ -190,8 +192,9 @@ API: No matter the API inexists or the external lib is uninstalled, replace with
 Parameter Names: Remove unnecessary optional parameters and keep only those essentials for successful execution. Remove fake parameters that not belong to target API.
 Attribute and Values: Correct any incorrect parameter values. For AnnData object attributes, only fillin existing attributes in namespace variables instead of using hallucinated attributes.
 Previous steps needed: Some pre-API are required for API executions due to the API design. If so, ensure these steps are included in the corrected code before target API call. E.g., before visualization, you might need to calculate metrics to store it in anndata object first. E.g., some API require to input logarimize data, you need to logarimize the data by another API first.
+For required parameters, pass the values directly without specifying parameter names, like api(required_param1). For optional parameters, specify them explicitly by name, like api(required_param1, optional_param1=value).
 If the data needs intermediate processing, address these by setting appropriate parameters or another API if possible. If not, use tools like AnnData, pandas related API to preprocess the data before calling the corresponding API from {api_calling}.
-Sometimes errors are indirect; deduce and locate the real cause based on these steps.
+Sometimes errors are indirect; deduce and locate the real cause then correct it. Present the logic steps in the "analysis" part, while present the code in the "code" part
 
 Rules:
 - Conduct minimum correction.
@@ -213,8 +216,10 @@ Code Execution History: {execution_history}
 Namespace Variables: {namespace_variables}
 Current Subtask: {current_subtask}
 API documentation: {api_docs}
-Your Task: Based on the Total task planning, current subtask, execution history prior to the current subtasks, namespace variables, and relevant API documentation, please rewrite the subtask description. The rewritten description should correspond to the most specific API and include only the necessary parameters and their values to clearly describe the subtask. Maintain a tone that is polite, neutral, or formal, as if it were a user inquiry.
+Your Task: Based on the Total task planning, current subtask, execution history prior to the current subtasks, namespace variables, and relevant API documentation, please rewrite the subtask description. The rewritten description should correspond to the most specific API and include only the necessary parameters and their values to clearly describe the subtask. Maintain a tone that is polite, neutral, or formal, as if it were a user inquiry. 
 **IMPORTANT**
+Never include data description in other subtasks except for the data loading subtask. Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
+Ensure to check docstring requirements for API dependencies, required optional parameters, parameter conflicts, and deprecations.
 Just response with the modified subtask description directly. DO NOT add additional explanations or introducement.
 '''
         return query_prompt

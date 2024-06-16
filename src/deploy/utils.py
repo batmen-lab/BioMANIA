@@ -9,7 +9,7 @@ basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'L
 basic_types.extend(['_AvailShapes']) # extend for squidpy `shape` type
 
 special_types = {'AnnData', 'ndarray', 'spmatrix', 'DataFrame', 'recarray', 'Axes'}
-io_types = {'PathLike', 'Path'}
+io_types = {'PathLike', 'Path', 'path'}
 io_param_names = {'filename'}
 
 # post_process_parsed_params, parse_json_safely are saved in param_count_acc_just_test.py
