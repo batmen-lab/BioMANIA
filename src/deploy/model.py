@@ -30,15 +30,31 @@ def color_text(text, color):
         'reset': '\033[0m'
     }
     return f"{color_codes.get(color, color_codes['reset'])}{text}{color_codes['reset']}"
-
 def label_sentence(sentence, parameters_dict):
+    import re
+    
     colors = ['red', 'purple', 'blue', 'green', 'orange']
+    color_map = {}
     color_index = 0
+
+    def get_color(term):
+        nonlocal color_index
+        if term not in color_map:
+            color_map[term] = colors[color_index % len(colors)]
+            color_index += 1
+        return color_map[term]
+    
+    def replace_match(match):
+        term = match.group(0)
+        color = get_color(term)
+        return f'  <span style="color:{color}">{term}</span>  '
+    
     for key, value in parameters_dict.items():
-        color = colors[color_index % len(colors)]
-        sentence = sentence.replace(key, f"\\{color}{{{key}}}")
-        sentence = sentence.replace(str(value), f"\\{color}{{{value}}}")
-        color_index += 1
+        pattern_key = re.compile(r'\b' + re.escape(key) + r'\b')
+        pattern_value = re.compile(r'\b' + re.escape(str(value)) + r'\b')
+        sentence = re.sub(pattern_key, replace_match, sentence)
+        sentence = re.sub(pattern_value, replace_match, sentence)
+    
     return sentence
 
 def remove_duplicates(lst):
@@ -66,7 +82,16 @@ basic_types.append('Any')
 
 class Model:
     def __init__(self, logger, device, model_llm_type="gpt-3.5-turbo-0125"): # llama3,  # gpt-4-turbo # 
-        print('start initialization!')
+        # IO
+        self.image_folder = "./tmp/images/"
+        os.makedirs(self.image_folder, exist_ok=True)
+        os.makedirs("./tmp", exist_ok=True)
+        os.makedirs("./tmp/states/", exist_ok=True)
+        os.makedirs("./tmp/sessions/", exist_ok=True)
+        self.LIB = "scanpy"
+        with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
+            self.centroids = pickle.load(f)
+        
         self.user_query_list = []
         self.prompt_factory = PromptFactory()
         self.model_llm_type = model_llm_type
@@ -78,7 +103,6 @@ class Model:
         self.queue = Queue()
         self.callbacks = [ServerEventCallback(self.queue)]
         self.occupied = False
-        self.LIB = "scanpy"
         self.args_retrieval_model_path = f'./hugging_models/retriever_model_finetuned/{self.LIB}/assigned'
         self.shot_k = 5 # 5 seed examples for api prediction
         self.retry_execution_limit = 3
@@ -90,37 +114,26 @@ class Model:
         self.enable_multi_task = True
         self.session_id = ""
         #load_dotenv()
-        OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
-        os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
-        GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')
-        os.environ["GITHUB_TOKEN"] = GITHUB_TOKEN
+        os.environ["OPENAI_API_KEY"] = os.getenv('OPENAI_API_KEY', 'sk-test')
+        os.environ["GITHUB_TOKEN"] = os.getenv('GITHUB_TOKEN', '')
         self.initialize_executor()
         reset_result = self.reset_lib(self.LIB)
         if reset_result=='Fail':
-            print('Reset lib fail! Exit the dialog!')
+            self.logger.error('Reset lib fail! Exit the dialog!')
             return
         self.last_user_states = ""
         self.user_states = "run_pipeline"
         self.parameters_info_list = None
-        self.image_folder = "./tmp/images/"
         self.initial_goal_description = ""
-        os.makedirs(self.image_folder, exist_ok=True)
-        os.makedirs("./tmp", exist_ok=True)
-        os.makedirs("./tmp/states/", exist_ok=True)
-        os.makedirs("./tmp/sessions/", exist_ok=True)
         self.image_file_list = []
         self.image_file_list = self.update_image_file_list()
-        #with open(f'./data/standard_process/{self.LIB}/vectorizer.pkl', 'rb') as f:
-        #    self.vectorizer = pickle.load(f)
-        with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
-            self.centroids = pickle.load(f)
         self.retrieve_query_mode = "similar"
         #self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
         self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
         self.new_task_planning = True # decide whether re-plan the task
         self.retry_modify_count=0
         self.loaded_files = False
-        print("Server ready")
+        self.logger.info("Server ready")
     async def predict_all_params(self, api_name_tmp, boolean_params, literal_params, int_params, boolean_document, literal_document, int_document):
         predicted_params = {}
         if boolean_params:
@@ -391,7 +404,7 @@ class Model:
         self.logger.info("State loaded from {}", file_name)
     def run_pipeline_without_files(self, user_input):
         self.initialize_tool()
-        self.logger.info('==> run_pipeline_without_files')
+        #self.logger.info('==> run_pipeline_without_files')
         # if check, back to the last iteration and status
         if user_input in ['y', 'n']:
             if user_input == 'n':
@@ -426,7 +439,7 @@ class Model:
                 pass
         if len(files)>0:
             self.loaded_files = True
-            self.logger.info('we set loaded_files as true')
+            #self.logger.info('we set loaded_files as true')
         # only reset lib when changing lib
         if lib!=self.LIB and lib!='GPT':
             reset_result = self.reset_lib(lib)
@@ -441,10 +454,10 @@ class Model:
         # only clear namespace when starting new conversations
         if conversation_started in ["True", True]:
             self.loaded_files = False
-            self.logger.info('we reset loaded_files')
+            #self.logger.info('we reset loaded_files')
             if len(files)>0:
                 self.loaded_files = True
-                self.logger.info('we set loaded_files as true')
+                #self.logger.info('we set loaded_files as true')
             else:
                 # return and ensure if user go on without uploading some files,
                 # we just ask once!!!!!!
@@ -455,7 +468,7 @@ class Model:
                 return
             self.new_task_planning = True
             self.user_query_list = []
-            self.logger.info('==>new conversation_started!')
+            #self.logger.info('==>new conversation_started!')
             self.user_states="run_pipeline"
             self.initialize_executor()
             for var_name in list(globals()):
@@ -465,9 +478,10 @@ class Model:
                 if var_name.startswith('result_') or (var_name.endswith('_instance')):
                     del locals()[var_name]
         else:
-            self.logger.info('==>old conversation_continued!')
+            pass
+            #self.logger.info('==>old conversation_continued!')
         if self.user_states == "run_pipeline":
-            self.logger.info('start initial!')
+            #self.logger.info('start initial!')
             while not self.queue.empty():
                 self.queue.get()
             self.initialize_tool()
@@ -495,7 +509,7 @@ class Model:
                     prompt = self.prompt_factory.create_prompt("multi_task", self.LIB, user_input, files)
                     #TODO: try with max_trials times
                     response, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})
-                    self.logger.info('multi task prompt: {}', prompt)
+                    self.logger.info('multi task prompt: {}, response: {}', prompt, response)
                     try:
                         steps_list = ast.literal_eval(response)['plan']
                     except:
@@ -506,7 +520,7 @@ class Model:
                                 steps_list = re.findall(r'\"(.*?)\"', response)
                             except:
                                 steps_list = []
-                    self.logger.info('steps_list: {}', steps_list)
+                    #self.logger.info('steps_list: {}', steps_list)
                     if not steps_list:
                         self.callback_func('log', "LLM can not return valid steps list, please redesign your prompt.", "LLM predict Error")
                         return
@@ -533,21 +547,18 @@ class Model:
                                                         "\n".join(["def "+self.API_composite[api]["api_calling"][0]+":\n" + self.API_composite[api]["Docstring"] for api in retrieved_apis])
                                                         )
                 sub_task, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})
-                self.logger.info('modified sub_task: {}', sub_task)
+                #self.logger.info('modified sub_task: {}', sub_task)
                 #self.callback_func('log', 'we modify the subtask as '+sub_task, 'Modify subtask description')
                 self.callback_func('log', sub_task, 'Polished subtask')
-                print('-'*10)
-                print('modified sub_task: ', sub_task)
-                print('-'*10)
             else:
                 pass
-            self.logger.info("start retrieving names!")
+            #self.logger.info("start retrieving names!")
             # get sub_task after dialog prediction
             self.user_query = sub_task
-            self.logger.info('we filter those API with IO parameters!')
+            #self.logger.info('we filter those API with IO parameters!')
             retrieved_names = self.retriever.retrieving(self.user_query, top_k=self.args_top_k+10)
             # filter out APIs
-            self.logger.info('first_task_start: {}, self.loaded_files: {}', self.first_task_start, self.loaded_files)
+            #self.logger.info('first_task_start: {}, self.loaded_files: {}', self.first_task_start, self.loaded_files)
             if self.first_task_start and (not self.loaded_files): # need to consider only the builtin dataset
                 retrieved_names = [api_name for api_name in retrieved_names if all((not any(special_type in str(param['type']) for special_type in special_types)) and (not any(io_type in str(param['type']) for io_type in io_types)) and (param_name not in io_param_names) for param_name, param in self.API_composite[api_name]['Parameters'].items())]
                 self.logger.info('there not exist files, retrieved_names are: {}', retrieved_names)
@@ -560,10 +571,10 @@ class Model:
             # start retrieving names
             # produce prompt
             if self.retrieve_query_mode=='similar':
-                self.logger.info('start retrieving similar queries!')
+                #self.logger.info('start retrieving similar queries!')
                 instruction_shot_example = self.retriever.retrieve_similar_queries(self.user_query, shot_k=self.shot_k)
             else:
-                self.logger.info('start retrieving shuffled queries!')
+                #self.logger.info('start retrieving shuffled queries!')
                 sampled_shuffled = random.sample(self.retriever.shuffled_data, 5)
                 instruction_shot_example = "".join(["\nInstruction: " + ex['query'] + "\nFunction: " + ex['gold'] for ex in sampled_shuffled])
                 similar_queries = ""
@@ -582,34 +593,31 @@ class Model:
                             new_function_candidates = [f"{api}, description: "+self.all_apis_json[api].replace('\n',' ') for i, api in enumerate(tmp_retrieved_api_list)] # {i}:
                             similar_queries += "function candidates:\n" + "\n".join(new_function_candidates) + '\n' + tmp_str + "\n---\n"
                 instruction_shot_example = similar_queries
-            self.logger.info('start predicting API!')
+            #self.logger.info('start predicting API!')
             api_predict_init_prompt = get_retrieved_prompt()
-            self.logger.info('api_predict_init_prompt:', api_predict_init_prompt)
+            #self.logger.info('api_predict_init_prompt: {}', api_predict_init_prompt)
             #print(self.all_apis_json.keys())
             retrieved_apis_prepare = ""
             for idx, api in enumerate(retrieved_names):
                 retrieved_apis_prepare+=f"{idx}:" + api+", description: "+self.all_apis_json[api].replace('\n',' ')+"\n"
             #print('retrieved_apis_prepare:', retrieved_apis_prepare)
             api_predict_prompt = api_predict_init_prompt.format(query=self.user_query, retrieved_apis=retrieved_apis_prepare, similar_queries=instruction_shot_example)
-            self.logger.info('==>Ask LLM: {}', api_predict_prompt)
+            #self.logger.info('==>start predicting API! Ask LLM: {}', api_predict_prompt)
             success = False
             for _ in range(self.predict_api_llm_retry):
                 try:
                     ori_response, _ = LLM_response(api_predict_prompt, self.model_llm_type, history=[], kwargs={})  # llm
-                    self.logger.info('==>LLM response: {}, {}', api_predict_prompt, ori_response)
+                    #self.logger.info('==>start predicting API! LLM response: {}, {}', api_predict_prompt, ori_response)
                     # hack for if LLM answers this or that
                     """response = response.split(',')[0].split("(")[0].split(' or ')[0]
                     response = response.replace('{','').replace('}','').replace('"','').replace("'",'')
                     response = response.split(':')[0]# for robustness, sometimes llm will return api:description"""
                     response = correct_pred(ori_response, self.LIB)
-                    self.logger.info('==>correct response: {}, {}', ori_response, response)
-                    self.logger.info('correct prediction')
-                    response = response.replace('"','').replace("'","")
-                    response = response.strip()
+                    response = response.replace('"','').replace("'","").strip()
                     #self.logger.info('self.all_apis_json keys: {}', self.all_apis_json.keys())
                     if len(response.split(','))>1:
                         response = response.split(',')[0].strip()
-                    self.logger.info('==>Predicted API: {}', response)
+                    self.logger.info('==>start predicting API! api_predict_prompt, {}, correct response: {}, {}', api_predict_prompt, ori_response, response)
                     if response in self.all_apis_json:
                         self.predicted_api_name = response
                         success = True
@@ -656,8 +664,7 @@ class Model:
                     idx_api+=1
                 self.filtered_api = [self.predicted_api_name] + self.filtered_api
                 next_str += "Enter [-1]: No appropriate API, input inquiry manually\n"
-                next_str += "Enter [-2]: Skip to the next subtask\n"
-                self.logger.info('next_str: {}', next_str)
+                next_str += "Enter [-2]: Skip to the next subtask"
                 # for ambiguous API, we think that it might be executed more than once as ambiguous API sometimes work together
                 # user can exit by entering -1
                 # so we add it back to the subtask list to execute it again
@@ -684,7 +691,7 @@ class Model:
             raise ValueError
     def run_pipeline_asking_GPT(self,user_input):
         self.initialize_tool()
-        self.logger.info('==>run_pipeline_asking_GPT')
+        #self.logger.info('==>run_pipeline_asking_GPT')
         self.retry_execution_count +=1
         if self.retry_execution_count>self.retry_execution_limit:
             self.logger.error('retry_execution_count exceed the limit! Exit the dialog!')
@@ -725,7 +732,7 @@ class Model:
     
     def run_pipeline_after_ambiguous(self,user_input):
         self.initialize_tool()
-        self.logger.info('==>run_pipeline_after_ambiguous')
+        #self.logger.info('==>run_pipeline_after_ambiguous')
         user_input = user_input.strip()
         try:
             user_index = int(user_input)
@@ -791,7 +798,7 @@ class Model:
         #print(f"Updated state from {self.last_user_states} to {self.user_states}")
     def run_pipeline_after_fixing_API_selection(self,user_input):
         self.initialize_tool()
-        self.logger.info('==>run_pipeline_after_fixing_API_selection')
+        #self.logger.info('==>run_pipeline_after_fixing_API_selection')
         # check if composite API/class method API, return the relevant APIs
         if isinstance(self.predicted_api_name, str):
             self.relevant_api_list = self.process_api_info(self.API_composite, self.predicted_api_name)
@@ -834,7 +841,7 @@ class Model:
     
     def run_pipeline_after_doublechecking_API_selection(self, user_input):
         self.initialize_tool()
-        self.logger.info('==>run_pipeline_after_doublechecking_API_selection')
+        #self.logger.info('==>run_pipeline_after_doublechecking_API_selection')
         user_input = str(user_input)
         if user_input == 'n':
             if self.new_task_planning or self.retry_modify_count>=3: # if there is no task planning
@@ -855,7 +862,7 @@ class Model:
                                                         "\n".join(["def "+self.API_composite[api]["api_calling"][0]+":\n" + self.API_composite[api]["Docstring"] for api in retrieved_apis])
                                                         )
                 self.user_query, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})
-                self.logger.info('Polished subtask: {}', self.user_query)
+                #self.logger.info('Polished subtask: {}', self.user_query)
                 self.callback_func('log', self.user_query, 'Polished subtask')
                 self.update_user_state("run_pipeline")
                 self.save_state_enviro()
@@ -868,12 +875,11 @@ class Model:
             self.save_state_enviro()
             # user_states didn't change
             return
-        #self.logger.info("==>Need to collect all parameters for a composite API")
         combined_params = {}
-        self.logger.info('self.api_name_json: {}', self.api_name_json)
+        #self.logger.info('self.api_name_json: {}', self.api_name_json)
         # if the class API has already been initialized, then skip it
         executor_variables = {var_name: var_info["value"] for var_name, var_info in self.executor.variables.items() if str(var_info["value"]) not in ["None"]}
-        self.logger.info('executor_variables: {}', executor_variables)
+        #self.logger.info('executor_variables: {}', executor_variables)
         try:
             for api in self.api_name_json:
                 maybe_class_name = api.split('.')[-1]
@@ -882,7 +888,7 @@ class Model:
                 if self.API_composite[api]['api_type'] in ['class', 'unknown']:
                     from ..inference.execution_UI import find_matching_instance
                     matching_instance, is_match = find_matching_instance(api, executor_variables)
-                    self.logger.info(f'executor_variables: {executor_variables}, api: {api}, matching_instance: {matching_instance}, is_match: {is_match}')
+                    #self.logger.info(f'executor_variables: {executor_variables}, api: {api}, matching_instance: {matching_instance}, is_match: {is_match}')
                     if is_match:
                         maybe_instance_name = matching_instance
                         continue
@@ -891,9 +897,9 @@ class Model:
                 combined_params.update(self.API_composite[api]['Parameters'])
         except Exception as e:
             self.logger.info('error in combining parametesr: {}', e)
-        self.logger.info('combined_params: {}', combined_params)
+        #self.logger.info('combined_params: {}', combined_params)
         parameters_name_list = [key for key, value in combined_params.items() if (key not in self.path_info_list)] # if (not value['optional'])
-        self.logger.info('parameters_name_list: {}', parameters_name_list)
+        #self.logger.info('parameters_name_list: {}', parameters_name_list)
         api_parameters_information = change_format(combined_params, parameters_name_list)
         # turn None to All
         api_parameters_information = [
@@ -915,21 +921,18 @@ class Model:
         api_name_tmp = list(api_name_tmp_list.keys())[0]
         apis_name = api_name_tmp
         apis_description = self.API_composite[api_name_tmp]['description']
-        self.logger.info('next we conduct parameters prediction')
         # 240531 added, predict parameters in chunked setting
         param_tmp = {i:self.API_composite[apis_name]['Parameters'][i] for i in self.API_composite[apis_name]['Parameters'] if (self.API_composite[apis_name]['Parameters'][i]['description'] is not None) and (not any(special_type in str(self.API_composite[apis_name]['Parameters'][i]['type']) for special_type in special_types)) and (str(self.API_composite[apis_name]['Parameters'][i]['type']) not in io_types) and (i not in io_param_names)}
         
-        #self.logger.info('param_tmp finised!')
         boolean_params = {k: v for k, v in param_tmp.items() if 'boolean' in str(v['type']) or 'bool' in str(v['type'])}
         literal_params = {k: v for k, v in param_tmp.items() if 'literal' in str(v['type']) or 'Literal' in str(v['type'])}
         int_params = {k: v for k, v in param_tmp.items() if k not in boolean_params and k not in literal_params}
-        #self.logger.info('int_params finised!')
         boolean_document = json_to_docstring(apis_name, self.API_composite[apis_name]["description"], boolean_params)
         literal_document = json_to_docstring(apis_name, self.API_composite[apis_name]["description"], literal_params)
         int_document = json_to_docstring(apis_name, self.API_composite[apis_name]["description"], int_params)
         try:
             predicted_params = asyncio.run(self.predict_all_params(api_name_tmp, boolean_params, literal_params, int_params, boolean_document, literal_document, int_document))
-            self.logger.info('predicted_parameters async run finised! {}', predicted_params)
+            #self.logger.info('predicted_parameters async run finised! {}', predicted_params)
             param_success = True
         except Exception as e:
             e = traceback.format_exc()
@@ -942,24 +945,24 @@ class Model:
         # filter out the parameters which value is same as their default value
         predicted_parameters = {k: v for k, v in predicted_params.items() if k not in param_tmp or v != param_tmp[k].get("default")}
         
-        self.logger.info('prediction by LLM')
         if len(parameters_name_list)==0:
-            self.logger.info('if there is no required parameters, skip using LLM')
+            #self.logger.info('if there is no required parameters, skip using LLM')
             response = "[]"
             predicted_parameters = {}
         else:
-            self.logger.info('there exists required parameters, using LLM')
+            #self.logger.info('there exists required parameters, using LLM')
             if not param_success:
-                self.logger.info('param_success is False')
+                #self.logger.info('param_success is False')
                 self.callback_func('log', "LLM can not return valid parameters prediction, please redesign prompt in backend if you want to predict parameters. We will skip parameters prediction currently", "LLM predict Error")
                 response = "{}"
                 predicted_parameters = {}
-        self.logger.info('filter predicted_parameters: {}', predicted_parameters)
+        #self.logger.info('filter predicted_parameters: {}', predicted_parameters)
         required_param_list = [param_name for param_name, param_info in self.API_composite[apis_name]['Parameters'].items() if param_info['type'] in special_types or param_info['type'] in io_types or param_name in io_param_names]
         predicted_parameters = {key: value for key, value in predicted_parameters.items() if value not in [None, "None", "null"] or key in required_param_list}
         self.logger.info('after filtering, predicted_parameters: {}', predicted_parameters)
         colored_sentence = label_sentence(self.user_query, predicted_parameters)
-        self.callback_func('log', 'Polished Subtask: ' + colored_sentence, 'Highlight value in subtask description')
+        self.callback_func('log', 'Polished Subtask: ' + colored_sentence, 'Highlight parameters value in subtask description')
+        #self.logger.info('colored_sentence: {}', colored_sentence)
         # generate api_calling
         self.predicted_api_name, api_calling, self.parameters_info_list = generate_api_calling(self.predicted_api_name, self.API_composite[self.predicted_api_name], predicted_parameters)
         self.logger.info('parameters_info_list: {}', self.parameters_info_list)
@@ -979,29 +982,26 @@ class Model:
                         var_value = var_info["value"]
                         if str(var_value) not in ["None"]:
                             executor_variables[var_name] = var_value
-                    self.logger.info('executor_variables: {}', executor_variables)
                     try:
                         from ..inference.execution_UI import find_matching_instance
                         matching_instance, is_match = find_matching_instance(api, executor_variables)
                     except Exception as e:
                         e = traceback.format_exc()
                         self.logger.error('error during matching_instance: {}', e)
-                    self.logger.info(f'matching_instance: {matching_instance}, is_match: {is_match}')
+                    self.logger.info(f'executor_variables: {executor_variables}, matching_instance: {matching_instance}, is_match: {is_match}')
                     if is_match:
                         maybe_instance_name = matching_instance
                         fix_update = False
                 else:
                     pass
             if fix_update:
-                self.logger.info('fix_update')
                 self.parameters_info_list['parameters'].update(tmp_class_parameters_info_list['parameters'])
         ####### infer parameters
         # $ param
         self.selected_params = self.executor.select_parameters(self.parameters_info_list['parameters'])
-        self.logger.info("Automatically selected params for $, after selection the parameters are: {}", json.dumps(self.selected_params))
         # $ param if not fulfilled
         none_dollar_value_params = [param_name for param_name, param_info in self.selected_params.items() if param_info["value"] in ['$']]
-        self.logger.info('none_dollar_value_params: {}', json.dumps(none_dollar_value_params))
+        self.logger.info('Automatically selected params for $, after selection the parameters are: {}, none_dollar_value_params: {}', json.dumps(self.selected_params), json.dumps(none_dollar_value_params))
         if none_dollar_value_params:
             self.callback_func('log', "However, there are still some parameters with special type undefined. Please start from uploading data, or check your parameter type in json files.", "Missing Parameters: special type")
             self.update_user_state("run_pipeline")
@@ -1032,7 +1032,7 @@ class Model:
         self.callback_func('log', "Can not find the executed code corresponding to the expected parameters", "Error Enter Parameters: special type","red")
     def run_select_special_params(self, user_input):
         self.initialize_tool()
-        self.logger.info('==>run_select_special_params')
+        #self.logger.info('==>run_select_special_params')
         if self.last_user_states == "run_select_special_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter_type_special(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         #print('self.filtered_params: {}', json.dumps(self.filtered_params))
@@ -1057,7 +1057,6 @@ class Model:
             self.callback_func('log', f"Which value do you think is appropriate for the parameters '{self.last_param_name}'? We find some candidates \n {candidate_text}. ", "Enter Parameters: special type", "red")
             self.update_user_state("run_pipeline_after_select_special_params")
             del self.filtered_params[self.last_param_name]
-            #print('self.filtered_params: {}', json.dumps(self.filtered_params))
             self.save_state_enviro()
         else:
             self.callback_func('log', "The parameters candidate list is empty", "Error Enter Parameters: basic type", "red")
@@ -1068,14 +1067,14 @@ class Model:
         if self.last_user_states == "run_select_special_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter_type_special(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         # @ param
-        self.logger.info('==> run_pipeline_after_select_special_params')
+        #self.logger.info('==> run_pipeline_after_select_special_params')
         none_at_value_params = [param_name for param_name, param_info in self.selected_params.items() if (param_info["value"] in ['@']) and (param_name not in self.path_info_list)]
         self.filtered_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (value["value"] in ['@']) and (key not in self.path_info_list)}
         self.filtered_pathlike_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (value["value"] in ['@']) and (key in self.path_info_list)}
         # TODO: add condition later: if uploading data files, 
         # avoid asking Path params, assign it as './tmp'
         if none_at_value_params: # TODO: add type PathLike
-            self.logger.info('if exist non path, basic type parameters, start selecting parameters')
+            #self.logger.info('if exist non path, basic type parameters, start selecting parameters')
             tmp_input_para = ""
             for idx, api in enumerate(self.filtered_params):
                 if idx!=0:
@@ -1091,7 +1090,7 @@ class Model:
     
     def run_select_basic_params(self, user_input):
         self.initialize_tool()
-        self.logger.info('==>run_select_basic_params')
+        #self.logger.info('==>run_select_basic_params')
         if self.last_user_states == "run_select_basic_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         self.logger.info('self.filtered_params: {}', json.dumps(self.filtered_params))
@@ -1161,7 +1160,7 @@ class Model:
         self.initialize_tool()
         if self.last_user_states == "run_select_basic_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
-        self.logger.info('==>run pipeline after entering parameters')
+        #self.logger.info('==>run pipeline after entering parameters')
         self.update_user_state("run_pipeline")
         self.image_file_list = self.update_image_file_list()
         if self.filtered_pathlike_params:
@@ -1174,19 +1173,16 @@ class Model:
                     "valuefrom": 'userinput',
                     "optional": param_info["optional"]
                 }
-        self.logger.info('self.selected_params: {}', json.dumps(self.selected_params))
         # split parameters according to multiple API, or class/method API
         tmp_api_info = {api: details for api, details in self.API_composite.items() if api in self.api_name_json}
-        self.logger.info('==>tmp_api_info: {}', json.dumps(tmp_api_info))
         parameters_list = self.extract_parameters(self.api_name_json, tmp_api_info, self.selected_params)
-        self.logger.info('==>parameters_list: {}', json.dumps(parameters_list))
+        self.logger.info('==>self.selected_params: {}, tmp_api_info: {}, parameters_list: {}', json.dumps(self.selected_params), json.dumps(tmp_api_info), json.dumps(parameters_list))
         extracted_params = self.split_params(self.selected_params, parameters_list)
         extracted_params_dict = {api_name: extracted_param for api_name, extracted_param in zip(self.api_name_json, extracted_params)}
         self.logger.info('==>self.api_name_json: {}, parameters_list: {}, extracted_params: {}, extracted_params_dict: {}',str(self.api_name_json), str(parameters_list), str(extracted_params), str(extracted_params_dict))
         api_params_list = []
         for idx, api_name in enumerate(self.api_name_json):
             #if self.api_name_json[api_name]['type'] in ['class', 'unknown']: # !
-            #print('==>assume not start with class API: {}', api_name)
             class_selected_params = {}
             fake_class_api = '.'.join(api_name.split('.')[:-1])
             if fake_class_api in self.api_name_json:
@@ -1231,7 +1227,6 @@ class Model:
         self.logger.info('==>api_params_list: {}, ==>optional_param: {}, len(optional_param) {}', json.dumps(api_params_list), json.dumps(optional_param), len(optional_param))
         if False: # TODO: if True, to debug the optional card showing
             if len(optional_param)>0:
-                self.logger.info('producing optional param card')
                 self.callback_func('log', "Do you want to modify the optional parameters? You can leave it unchange if you don't want to modify the default value.", "Optional cards")
                 self.callback_func('optional', convert_bool_values(correct_bool_values(optional_param)), "Optional cards")
             else:
@@ -1251,7 +1246,7 @@ class Model:
         
     def run_pipeline_after_doublechecking_execution_code(self, user_input):
         self.initialize_tool()
-        self.logger.info('==> run_pipeline_after_doublechecking_execution_code')
+        #self.logger.info('==> run_pipeline_after_doublechecking_execution_code')
         # if check, back to the last iteration and status
         if user_input in ['y', 'n', 'r']:
             if user_input == 'n':
@@ -1287,11 +1282,11 @@ class Model:
         process.start()
         #process.join()
         while process.is_alive():
-            self.logger.info('process is alive!')
+            #self.logger.info('process is alive!')
             time.sleep(1)
             with open(temp_output_file, 'r') as file:
                 accumulated_output = file.read() ######?
-                self.logger.info('accumulated_output: {}', accumulated_output)
+                #self.logger.info('accumulated_output: {}', accumulated_output)
                 self.callback_func('log', accumulated_output, "Executing results", enhance_indexxxx=False)
         self.indexxxx+=1
         with open("./tmp/tmp_output_run_pipeline_execution_code_list.txt", 'r') as file:
@@ -1329,12 +1324,12 @@ class Model:
                     print_value = self.executor.variables[print_val]['value']
                     print_type = self.executor.variables[print_val]['type']
                     self.callback_func('log', "We obtain a new variable: " + str(print_value), "Executed results [Success]")
-                    if print_type=='AnnData':
-                        self.logger.info('if the new variable is of type AnnData, ')
+                    if print_type=='AnnData': #TODO: 'AnnData' in print_type
+                        #self.logger.info('if the new variable is of type AnnData, ')
                         visual_attr_list = [i_tmp for i_tmp in list(dir(print_value)) if not i_tmp.startswith('_')]
                         #if len(visual_attr_list)>0:
                         if 'obs' in visual_attr_list:
-                            visual_attr = 'obs'#visual_attr_list[0]
+                            visual_attr = 'obs' # TODO: visual_attr_list[0]
                             self.logger.info('visualize {} attribute', visual_attr)
                             output_table = getattr(self.executor.variables[vari[0]]['value'], "obs", None).head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
                             # if exist \n in the last index, remove it
@@ -1347,7 +1342,7 @@ class Model:
                         else:
                             pass
                     try:
-                        self.logger.info('if exist table, visualize it')
+                        #self.logger.info('if exist table, visualize it')
                         output_table = self.executor.variables[vari[0]]['value'].head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
                         last_newline_index = output_table.rfind('\n')
                         if last_newline_index != -1:
@@ -1362,7 +1357,7 @@ class Model:
                 tips_for_execution_success = False
             else:
                 pass
-            self.logger.info('if generate image, visualize it')
+            #self.logger.info('if generate image, visualize it')
             new_img_list = self.update_image_file_list()
             new_file_list = set(new_img_list)-set(self.image_file_list)
             if new_file_list:
@@ -1398,13 +1393,12 @@ class Model:
                 else:
                     filtered_output_list = []
                 executor_info = "\n".join(filtered_output_list)
-                self.logger.info('executor_info: {}', executor_info)
                 from ..models.query_issue_corpus import retrieved_issue_solution, search_github_issues
                 from ..gpt.get_summarize_tutorial import extract_imports, get_sub_API
                 # use github issue retriever
                 #possible_solution = retrieved_issue_solution(self.LIB, 3, executor_info, "sentencebert", "issue_title") # issue_description
                 possible_solution = search_github_issues(self.LIB, 2, executor_info)
-                self.logger.info('possible_solution: {}', possible_solution)
+                self.logger.info('executor_info: {}, possible_solution: {}', executor_info, possible_solution)
                 try:
                     if isinstance(possible_solution, list):
                         possible_solution = '\n'.join(possible_solution)
@@ -1415,7 +1409,6 @@ class Model:
                 # do not use github issue retriever
                 #possible_solution = ""
                 self.logger.info("possible_solution: {}", possible_solution)
-                print("possible_solution: {}", possible_solution)
                 example_json = {}
                 api_callings = {}
                 parameters_json = {}
@@ -1426,8 +1419,7 @@ class Model:
                 )
                 #error_code = '\n'.join([i['code'] for i in self.executor.execute_code if i['success']=='False'])
                 error_code = error_code_after_last_success
-                self.logger.info("success_history_code: {}", success_history_code)
-                self.logger.info("error_code: {}", error_code)
+                self.logger.info("success_history_code: {}, error_code: {}", success_history_code, error_code)
                 whole_code = success_history_code+'\n' + error_code
                 # get all previous API in the code, then collect the examples and put into prompt
                 imports = extract_imports(whole_code)
@@ -1441,14 +1433,12 @@ class Model:
                         parameters_json[api] = self.API_composite[api]['Parameters']
                     else:
                         self.logger.error('there exist error that some APIs are not in API_init.json')
-                self.logger.info('relevant_API: {}', relevant_API)
                 # collect parameters and put into prompt
                 execution_prompt = self.prompt_factory.create_prompt('executor_correction', executor_info, json.dumps(parameters_json,indent=4), json.dumps({str(key): str(value) for key, value in self.executor.variables.items()}), error_code, possible_solution, json.dumps(example_json), json.dumps(list(api_callings.values())), success_history_code, self.user_query)
-                self.logger.info('execution_prompt: {}', execution_prompt)
+                self.logger.info('relevant_API: {}, execution_prompt: {}', relevant_API, execution_prompt)
                 #prompt = self.prompt_factory.create_prompt('subtask_code', [], self.user_query, whole_code, True, execution_prompt)
-                #self.logger.info('prompt: {}', prompt)
                 response, _ = LLM_response(execution_prompt, self.model_llm_type, history=[], kwargs={})  # llm
-                self.logger.info('response: {}', response)
+                self.logger.info('prompt: {}, response: {}', prompt, response)
                 tmp_retry_count = 0
                 while tmp_retry_count<5:
                     tmp_retry_count+=1
@@ -1459,12 +1449,10 @@ class Model:
                         if ast.parse(newer_code): # must be valid code
                             break
                     except Exception as e:
-                        print('Error: ', e)
+                        self.logger.error('Error: {}', e)
                         newer_code = ""
                         newer_analysis = ""
-                self.logger.info('clean_response: {}', clean_response)
-                self.logger.info('newer_code: {}', newer_code)
-                self.logger.info('newer_analysis: {}', newer_analysis)
+                self.logger.info('clean_response: {}, newer_code: {}, newer_analysis: {}', clean_response, newer_code, newer_analysis)
                 #newer_code = response.replace('\"\"\"', '')
                 if newer_analysis:
                     self.callback_func('log', newer_analysis, "Error Analysis," +" retry count: "+str(self.retry_execution_count) + "/"+str(self.retry_execution_limit))
@@ -1501,11 +1489,10 @@ class Model:
                 pass
         else:
             pass
-        self.logger.info("Show current variables in namespace: {}", json.dumps(list(self.executor.variables.keys())))
         new_str = []
         for i in self.executor.execute_code:
             new_str.append({"code":i['code'],"execution_results":i['success']})
-        self.logger.info("Currently all executed code: {}", json.dumps(new_str))
+        self.logger.info("namespace vari: {}, Currently all executed code: {}", json.dumps(list(self.executor.variables.keys())), json.dumps(new_str))
         # 240604 add logic, if there exist sub task in self.user_query_list, then do not return, go ahead to the next sub task
         if self.user_query_list:
             #self.callback_func('log', "Remaining subtasks: \n → "+ '\n  - '.join(self.user_query_list), "Continue to the next subtask")

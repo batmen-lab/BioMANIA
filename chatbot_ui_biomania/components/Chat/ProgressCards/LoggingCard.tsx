@@ -23,20 +23,6 @@ const generate_random_id = () => {
   return Math.random().toString(36).substr(2, 9);
 };
 
-const colorizeLogString = (logString, terms) => {
-  const colors = ['red', 'yellow', 'blue', 'green', 'orange'];
-  let colorIndex = 0;
-  
-  for (let term of terms) {
-    const color = colors[colorIndex % colors.length];
-    const regex = new RegExp(term, 'g');
-    logString = logString.replace(regex, `<span style="color:${color}">${term}</span>`);
-    colorIndex++;
-  }
-  
-  return logString;
-};
-
 const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageData }: LoggingCardProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -63,9 +49,6 @@ const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageDat
   const theme = useTheme();
 
   const formattedLogString = logString.replace(/\n/g, '  \n');
-
-  const termsToColorize = ["log", "mean_threshold", "cv_threshold", "n_pcs", "svd_solver", "random_state", "copy"]; // Updated terms list
-  const colorizedLogString = colorizeLogString(formattedLogString, termsToColorize);
 
   const toggleCollapse = () => {
     setIsCollapsed(!isCollapsed);
@@ -103,7 +86,7 @@ const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageDat
             },
           }}>
             <ReactMarkdown components={{ p: 'span' }} rehypePlugins={[rehypeRaw]}>
-              {colorizedLogString}
+              {formattedLogString}
             </ReactMarkdown>
           </Typography>
         </Collapse>
