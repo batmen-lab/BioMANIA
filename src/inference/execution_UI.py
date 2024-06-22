@@ -23,13 +23,13 @@ def find_matching_instance(api_string, executor_variables):
                 return instance_name, True
         return None, False
     except (ImportError, AttributeError) as e:
-        print(f"Error: {e}")
+        self.logger.info(f"Error: {e}")
         return None, False
 
 class FakeLogger:
     def info(self, *messages):
         combined_message = " ".join(str(message) for message in messages)
-        print("Logged info:", combined_message)
+        self.logger.info("Logged info:", combined_message)
 
 class CodeExecutor:
     def __init__(self, logger=None):
@@ -118,9 +118,9 @@ class CodeExecutor:
                 if k.endswith("_AnnData"):  # Assuming you have a way to recognize AnnData objects
                     self.variables[k] = read_h5ad(f"{file_name}_{k}.h5ad")  # Load AnnData object from file
             self.execute_code = loaded_data["execute_code"]
-            print('before loading environment:', self.counter)
+            #print('before loading environment:', self.counter)
             self.counter = loaded_data["counter"]
-            print('after loading environment:', self.counter)
+            #print('after loading environment:', self.counter)
             tmp_variables = {k: self.variables[k]['value'] for k in self.variables if not k.endswith("_AnnData")}
             globals().update(tmp_variables)
             locals().update(tmp_variables)
@@ -331,7 +331,7 @@ class CodeExecutor:
             import_code, type_api = self.get_import_code(api_name)
         except:
             error = traceback.format_exc()
-            print('generate_execution_code_for_one_api: {}', error)
+            self.logger.info('generate_execution_code_for_one_api: {}', error)
         self.logger.info(f'==>import_code, type_api, {import_code, type_api}')
         if import_code in [i['code'] for i in self.execute_code if i['success']=='True']:
             self.logger.info('==>api already imported!')

@@ -24,6 +24,7 @@ def cli_demo():
         os.mkdir('tmp')
     device= 'cuda' if torch.cuda.is_available() else 'cpu'
     model = Model(logger,device)
+    print(model.user_states)
     print(Fore.GREEN + "Welcome to BioMANIA CLI Demo!" + Style.RESET_ALL)
     print(Fore.BLUE + "[Would you like to see some examples to learn how to interact with the bot?](https://github.com/batmen-lab/BioMANIA/tree/main/examples)" + Style.RESET_ALL)
     libs = ["scanpy", "squidpy", "ehrapy", "snapatac2"]

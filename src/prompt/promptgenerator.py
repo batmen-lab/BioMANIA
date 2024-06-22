@@ -221,7 +221,7 @@ Your Task: Based on the Total task planning, current subtask, execution history 
 Never include data description in other subtasks except for the data loading subtask. Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
 Ensure to check docstring requirements for API dependencies, required optional parameters, parameter conflicts, and deprecations.
 If there are obvious parameter values in the current subtask, retain them in the polished subtask description and condense the parameter assignments in 1-2 sentences.
-Just response with the modified subtask description directly. DO NOT add additional explanations or introducement.
+Only respond the modified subtask description with assigned parameter values. DO NOT add additional explanations or introducement. DO NOT return any previous subtask.
 '''
         return query_prompt
 

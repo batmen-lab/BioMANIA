@@ -33,7 +33,7 @@ def color_text(text, color):
 def label_sentence(sentence, parameters_dict):
     import re
     
-    colors = ['red', 'purple', 'blue', 'green', 'orange']
+    colors = ['red'] # , 'purple', 'blue', 'green', 'orange'
     color_map = {}
     color_index = 0
 
@@ -91,7 +91,6 @@ class Model:
         self.LIB = "scanpy"
         with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
             self.centroids = pickle.load(f)
-        
         self.user_query_list = []
         self.prompt_factory = PromptFactory()
         self.model_llm_type = model_llm_type
@@ -113,6 +112,14 @@ class Model:
         self.predict_api_llm_retry = 3
         self.enable_multi_task = True
         self.session_id = ""
+        self.last_user_states = ""
+        self.user_states = "run_pipeline"
+        self.retrieve_query_mode = "similar"
+        self.parameters_info_list = None
+        self.initial_goal_description = ""
+        self.new_task_planning = True # decide whether re-plan the task
+        self.retry_modify_count=0
+        self.loaded_files = False
         #load_dotenv()
         os.environ["OPENAI_API_KEY"] = os.getenv('OPENAI_API_KEY', 'sk-test')
         os.environ["GITHUB_TOKEN"] = os.getenv('GITHUB_TOKEN', '')
@@ -121,19 +128,12 @@ class Model:
         if reset_result=='Fail':
             self.logger.error('Reset lib fail! Exit the dialog!')
             return
-        self.last_user_states = ""
-        self.user_states = "run_pipeline"
-        self.parameters_info_list = None
-        self.initial_goal_description = ""
         self.image_file_list = []
         self.image_file_list = self.update_image_file_list()
-        self.retrieve_query_mode = "similar"
         #self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
         self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
-        self.new_task_planning = True # decide whether re-plan the task
-        self.retry_modify_count=0
-        self.loaded_files = False
         self.logger.info("Server ready")
+        self.save_state_enviro()
     async def predict_all_params(self, api_name_tmp, boolean_params, literal_params, int_params, boolean_document, literal_document, int_document):
         predicted_params = {}
         if boolean_params:
@@ -389,25 +389,23 @@ class Model:
         asyncio.run(self.loading_data_async(files, verbose))
     def save_state(self):
         a = str(self.session_id)
-        file_name = f"./tmp/states/{a}_state.pkl"
         state = {k: v for k, v in self.__dict__.copy().items() if self.executor.is_picklable(v) and k != 'executor'}
-        with open(file_name, 'wb') as file:
+        with open(f"./tmp/states/{a}_state.pkl", 'wb') as file:
             pickle.dump(state, file)
-        self.logger.info("State saved to {}", file_name)
+        self.logger.info("State saved to {}", f"./tmp/states/{a}_state.pkl")
     #@lru_cache(maxsize=10)
     def load_state(self, session_id):
         a = str(session_id)
-        file_name = f"./tmp/states/{a}_state.pkl"
-        with open(file_name, 'rb') as file:
+        with open(f"./tmp/states/{a}_state.pkl", 'rb') as file:
             state = pickle.load(file)
         self.__dict__.update(state)
-        self.logger.info("State loaded from {}", file_name)
+        self.logger.info("State loaded from {}", f"./tmp/states/{a}_state.pkl")
     def run_pipeline_without_files(self, user_input):
         self.initialize_tool()
         #self.logger.info('==> run_pipeline_without_files')
         # if check, back to the last iteration and status
-        if user_input in ['y', 'n']:
-            if user_input == 'n':
+        if user_input in ['y', 'n', 'Y', 'N']:
+            if user_input in ['n', 'N']:
                 self.update_user_state("run_pipeline")
                 self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
                 self.save_state_enviro()
@@ -843,7 +841,7 @@ class Model:
         self.initialize_tool()
         #self.logger.info('==>run_pipeline_after_doublechecking_API_selection')
         user_input = str(user_input)
-        if user_input == 'n':
+        if user_input in ['n', 'N']:
             if self.new_task_planning or self.retry_modify_count>=3: # if there is no task planning
                 self.update_user_state("run_pipeline")
                 self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
@@ -868,7 +866,7 @@ class Model:
                 self.save_state_enviro()
                 self.run_pipeline(self.user_query, self.LIB, top_k=3, files=[],conversation_started=False,session_id=self.session_id)
             return
-        elif user_input == 'y':
+        elif user_input in ['y', 'Y']:
             pass
         else:
             self.callback_func('log', "The input was not y or n, please enter the correct value.", "Index Error")
@@ -961,7 +959,7 @@ class Model:
         predicted_parameters = {key: value for key, value in predicted_parameters.items() if value not in [None, "None", "null"] or key in required_param_list}
         self.logger.info('after filtering, predicted_parameters: {}', predicted_parameters)
         colored_sentence = label_sentence(self.user_query, predicted_parameters)
-        self.callback_func('log', 'Polished Subtask: ' + colored_sentence, 'Highlight parameters value in subtask description')
+        self.callback_func('log', colored_sentence, 'Highlight parameters value in polished subtask description')
         #self.logger.info('colored_sentence: {}', colored_sentence)
         # generate api_calling
         self.predicted_api_name, api_calling, self.parameters_info_list = generate_api_calling(self.predicted_api_name, self.API_composite[self.predicted_api_name], predicted_parameters)
@@ -1248,8 +1246,8 @@ class Model:
         self.initialize_tool()
         #self.logger.info('==> run_pipeline_after_doublechecking_execution_code')
         # if check, back to the last iteration and status
-        if user_input in ['y', 'n', 'r']:
-            if user_input == 'n':
+        if user_input in ['y', 'n', 'r', 'Y', 'N', 'R']:
+            if user_input in ['n', 'N']:
                 if self.last_user_states=='run_pipeline_asking_GPT':
                     self.update_user_state("run_pipeline_asking_GPT")
                     self.callback_func('log', "We will redirect to the LLM model to re-generate the code", "Re-generate the code")
@@ -1262,7 +1260,7 @@ class Model:
                     self.save_state_enviro()
                     self.run_pipeline_after_doublechecking_API_selection('y')
                     return
-            elif user_input == 'r':
+            elif user_input in ['r', 'R']:
                 self.update_user_state("run_pipeline")
                 self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
                 self.save_state_enviro()
@@ -1438,7 +1436,7 @@ class Model:
                 self.logger.info('relevant_API: {}, execution_prompt: {}', relevant_API, execution_prompt)
                 #prompt = self.prompt_factory.create_prompt('subtask_code', [], self.user_query, whole_code, True, execution_prompt)
                 response, _ = LLM_response(execution_prompt, self.model_llm_type, history=[], kwargs={})  # llm
-                self.logger.info('prompt: {}, response: {}', prompt, response)
+                self.logger.info('prompt: {}, response: {}', execution_prompt, response)
                 tmp_retry_count = 0
                 while tmp_retry_count<5:
                     tmp_retry_count+=1
