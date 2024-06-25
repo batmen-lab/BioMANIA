@@ -218,6 +218,9 @@ def get_relevant_API(combined_tutorials, LIB_ALIAS, ask_GPT=False):
             #text+='Here are some comments for code.'+'\n'.join(comments)
             imports.update(extract_imports(code))
             ori_relevant_API, relevant_API = get_sub_API(code, imports, LIB_ALIAS)
+            # a quick makeup for old version of API, which consists of scanpy.API.xx
+            ori_relevant_API = [api.replace('scanpy.api.', 'scanpy.') for api in ori_relevant_API]
+            relevant_API = [api.replace('scanpy.api.', 'scanpy.') for api in relevant_API]
             if ask_GPT:
                 # ask gpt to polish and summarize the tutorial text
                 prompt = build_prompt_for_summarize(code, text)

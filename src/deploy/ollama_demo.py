@@ -1,4 +1,4 @@
-from ..deploy.model import Model
+ -rf from ..deploy.model import Model
 import os, torch
 from datetime import datetime
 from colorama import Fore, Style

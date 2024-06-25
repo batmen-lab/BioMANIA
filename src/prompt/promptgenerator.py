@@ -113,18 +113,18 @@ Return parameter with extracted value in format: {{"param1":"value1", "param2":"
 
 class SummaryPromptBuilder(PromptBuilder):
     # from prompt/summary.py
-    def build_prompt(self, user_query, api_function, api_description, parameters_description, return_information):
+    def build_prompt(self, user_query, api_docstring):
         return f"""
-Help to summarize the task with its solution in layman tone, it should be understandable by non professional programmers. Starts from description of the user query `{user_query}` and includes the selected API function `{api_function}` which functionality is `{api_description}` with its parameters `{parameters_description}`. The returned variable is `{return_information}`
-Please use the template as `The task is ..., we solved it by ...`. The response should be in three sentences
+Help to summarize the task with its solution in layman tone, it should be understandable by non professional programmers. Starts from description of the user query `{user_query}` and includes the selected API function's Docstring `{api_docstring}`.
+Please use the template as `The task is ..., we solved it by ...`. The response should be no more than two sentences
 """
 
 class SummaryPromptFullBuilder(PromptBuilder):
     # from prompt/summary.py
-    def build_prompt(self, user_query, api_function, api_description, parameters_description, return_information, execution_code):
+    def build_prompt(self, user_query, api_docstring, execution_code):
         return f"""
-Help to summarize the task with its solution in layman tone, it should be understandable by non professional programmers. Starts from description of the user query `{user_query}` and includes the selected API function `{api_function}` which functionality is `{api_description}` with its parameters `{parameters_description}`. The returned variable is `{return_information}`. The generated code is `{execution_code}`.
-Please use the template as `The task is ..., we solved it by ...`. The response should be in four sentences. Additionally, the interpretation encompasses explanations for the parameters utilized in the generated code.
+Help to summarize the task with its solution in layman tone, it should be understandable by non professional programmers. Starts from description of the user query `{user_query}` and includes the selected API function `{api_docstring}`. The generated code is `{execution_code}`.
+Please use the template as `The task is ..., we solved it by ...`. The response should be no more than three sentences. Additionally, the interpretation encompasses explanations for the parameters utilized in the generated code.
 """
 
 class ExecutionCorrectionPromptBuilder(PromptBuilder):
@@ -142,30 +142,46 @@ Your task is to generate a Python code snippet based on the provided information
 class MultiTaskPromptBuilder(PromptBuilder):
     def build_prompt(self, LIB, goal_description, data_list=[]):
         prompt = f"""
-Based on the provided task description, create a task plan with subtasks. 
-The tone of Each subtask should vary among queries: polite, straightforward, casual. 
-Each subtask should correspond to the exact usage scope of one single API from library {LIB}.
-Avoid creating steps that are too coarse or too detailed. If you find that more than one API needs to be used, split the step into two or more subtasks. For example, if for the preprocessing data step, filtering and normalization are both required, then use two subtasks `preprocessing data by filtering` and `preprocessing data by normalization` to describe them separately.
-Only include keywords in the subtask, omit API name from all subtasks.
-Each subtask should consists of 15-20 words, should be clear and concise for one single API usage.
-The arrangement of tasks should take into account API order and dependencies (for example, some APIs need to calculate metrics before visualization) and the logical order of tasks (for example, an example flow is to load data first, then preprocess data, then apply methods, and finally visualize the results).
-To improve task planning and make it more user-friendly, integrate visualization subtasks between specific key subtasks.
-If a file path is provided, use it to load the data. If no file path is provided, use the built-in dataset API to load the default dataset. If several filepaths are provided, either use them in one subtask or in different subtasks regarding the task description.
-Never include data description in other subtasks except for the data loading subtask. Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
+Create a detailed step-by-step task plan with subtasks to achieve the goal.
+The tone should vary among queries: polite, straightforward, casual. 
+Each subtask has 15-20 words, be clear and concise for the scope of one single API's functionality from PyPI library {LIB}. Omit API name from subtask.
+Split the subtask into two or more subtasks if it is too complex. Using `Filtering dataset` together with `Normalize dataset` instead of `Preprocess dataset for filtering, and normalization.`
+When arranging tasks, consider the logical order and dependencies.
+Integrate visualization subtasks among subtasks.
+Include Data description only in data loading subtask. 
+Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
 Only respond in JSON format strictly enclosed in double quotes, adhering to the Response Format.
 Exclude any extraneous content from your response.
+---
+Examples:
+Goal: use Squidpy for spatial analysis of Imaging Mass Cytometry data, focusing on the spatial distribution and interactions of cell types
+Response:
+{{"plan": [
+"step 1: Load pre-processed Imaging Mass Cytometry data.",
+"step 2: Visualize cell type clusters in spatial context to identify distributions of apoptotic and tumor cells among others.",
+"step 3: Calculate co-occurrence of cell types across spatial dimensions, focusing on interactions between basal CK tumor cells and T cells.",
+"step 4: Visualize co-occurrence results to understand cell type interactions and their spatial patterns.",
+"step 5: Compute neighborhood enrichment to assess spatial proximity and interactions of cell clusters.",
+"step 6: Visualize neighborhood enrichment results to highlight enriched or depleted interactions among cell clusters.",
+"step 7: Construct a spatial neighbors graph to further detail cell-to-cell interactions.",
+"step 8: Analyze interaction matrix to count interactions among clusters.",
+"step 9: Compute network centrality scores to evaluate the importance of each cell type in the spatial graph."
+]}}
+---
+Now finish the goal with the following information:
 Goal: {goal_description}\n
 Response Format:
-{{"plan": ["List your detailed step-by-step tasks to achieve your goal, e.g., ['step 1: content', 'step 2: content', 'step 3: content']."]}}
-""" # Specify API and function names and avoid including non PyPI functions in your answered code.
-        if data_list:
-            prompt+=f"Input: You have the following information in a list with the format `file path: file description`. I provide those files to you, so you don't need to prepare the data. {data_list}"
-        else:
-            prompt+="You don't have any local data provided. Please only use API to load builtin dataset. Please avoid any API that need to load local data."
+{{"plan": ['step 1: content', 'step 2: content', ... ]}}
+""" 
+# Specify API and function names and avoid including non PyPI functions in your answered code.
+# Avoid creating steps that are too coarse or too detailed. 
+# Only include keywords in the subtask.
+# If a file path is provided, use it to load the data. If no file path is provided, use the built-in dataset API to load the default dataset. If several filepaths are provided, either use them in one subtask or in different subtasks regarding the task description.
+        prompt += f"Input: Your data is provided in the format 'file path: file description' from {data_list}" if data_list else "You have no local data. Please use only APIs that access built-in datasets and avoid those requiring local data loading."
         return prompt
 
 class ExecutorPromptBuilder(PromptBuilder):
-    def build_prompt(self, executor_info, parameters_info, namespace_variables, error_code, possible_solution="", api_examples="", api_calling="", success_history_code="", goal_description=""):
+    def build_prompt(self, api_docstring, namespace_variables, error_code, possible_solution="", api_examples="", success_history_code="", goal_description=""):
         if possible_solution:
             possible_solution_info = f"\nPossible solution from similar issues from Github Issue Discussion:\n{possible_solution}"
         else:
@@ -175,54 +191,77 @@ class ExecutorPromptBuilder(PromptBuilder):
         else:
             api_examples_info = ""
         prompt = f"""
-Task: Analyze and correct the Python script based on the traceback information. Here are some information to help you analyze the error in code:
+Task: Analyze and correct a Python script based on provided traceback information:
 Success execution History: {success_history_code}
-Current goal for code generation: {goal_description}
-We try below codes for this task several times, but all fails: {error_code}
-traceback error information from the last trial: {executor_info}
-Current Namespace variables: {namespace_variables}
+Existing Namespace variables: {namespace_variables}
+Current Goal: {goal_description}
+Failed Attempts with their tracebacks: {error_code}
 {possible_solution_info}{api_examples_info}
-API calling template: {api_calling}. 
-Parameters information for this API calling: {parameters_info}
-You only need to keep required parameters from previous trial codes, only keep minimum optional parameters necessary for task. Remove optional parameters from error code which cause the problem. Please ensure that required parameters are passed in their proper positional order, as keyword arguments should only be used for optional parameters. You only need to include the task related correct code in your response, do not repeat other API from the success execution history in your response. For parameters starting with 'result_', use only those that exist in the namespace. Do not generate inexist variables.
+API Docstring: {api_docstring}.
 
-Below are some common reasons, debug based on error types:
-Import Verification: Ensure all necessary libraries are imported.
-API: No matter the API inexists or the external lib is uninstalled, replace with the correct or similar API if necessary; otherwise, continue with the same API.
-Parameter Names: Remove unnecessary optional parameters and keep only those essentials for successful execution. Remove fake parameters that not belong to target API.
-Attribute and Values: Correct any incorrect parameter values. For AnnData object attributes, only fillin existing attributes in namespace variables instead of using hallucinated attributes.
-Previous steps needed: Some pre-API are required for API executions due to the API design. If so, ensure these steps are included in the corrected code before target API call. E.g., before visualization, you might need to calculate metrics to store it in anndata object first. E.g., some API require to input logarimize data, you need to logarimize the data by another API first.
-For required parameters, pass the values directly without specifying parameter names, like api(required_param1). For optional parameters, specify them explicitly by name, like api(required_param1, optional_param1=value).
-If the data needs intermediate processing, address these by setting appropriate parameters or another API if possible. If not, use tools like AnnData, pandas related API to preprocess the data before calling the corresponding API from {api_calling}.
-Sometimes errors are indirect; deduce and locate the real cause then correct it. Present the logic steps in the "analysis" part, while present the code in the "code" part
+Guidelines:
+Perform minimal corrections necessary.
+Begin the script with all necessary library imports.
+Include prerequisite steps if required by API dependencies, ensuring correct order of execution. This includes not only the pandas, numpy, AnnData, or other libs, depends on the traceback error and the variables.
+Use only existing variables from successful executions and avoid those from failed attempts.
+Correct the code by removing unnecessary or incorrect parameters, ensuring required parameters are passed in proper positional order.
+Adjust any misused attributes or values, especially for object-specific attributes like those in an AnnData object.
+If intermediate processing is necessary, utilize relevant tools or APIs to preprocess the data before the main API call.
+Respond only with the task-related correct code in JSON format.
 
-Rules:
-- Conduct minimum correction.
-- Import all necessary libraries at the beginning of the script.
-- Include any prerequisite steps required for the task if you feel it is necessary for API dependency, e.g. in order to use API2, API1 must be executed ahead.
-- Respond only with the answer in JSON format.
-- Only successful execution history is recorded. Each time, remember to import the targeted API again in correct code, remember to use the exists variable, do not use variable from error trials as they are not recognized as part of the execution history.
+Common Errors to Address:
+Import Verification: Confirm necessary libraries are imported.
+API Usage: Replace or continue with the correct API as needed.
+Parameter Handling: Streamline parameters to essentials, removing any incorrect or irrelevant ones.
+Prerequisite API Calls: Include any necessary pre-API steps.
+Identify and address indirect errors by deducing the root cause. Present the logical steps in the 'analysis' section and the corresponding code in the 'code' section.
 
 Response Format:
 {{"analysis": "Locate error, explain how to correct the bug.", "code": "Task oriented corrected bug-free Python code based on analysis."}}
-"""
-        # Response format: {{"info": "Summary and suggestion."}}
+""" # You only need to keep required parameters from previous trial codes, only keep minimum optional parameters necessary for task. Remove optional parameters from error code which cause the problem. Please ensure that required parameters are passed in their proper positional order, as keyword arguments should only be used for optional parameters. You only need to include the task related correct code in your response, do not repeat other API from the success execution history in your response. For parameters starting with 'result_', use only those that exist in the namespace. Do not generate inexist variables.
         return prompt
     
 class ModifySubtaskPromptBuilder(PromptBuilder):
     def build_prompt(self, current_subtask,  execution_history, namespace_variables, api_docs):
         query_prompt = f'''
-Code Execution History: {execution_history}
-Namespace Variables: {namespace_variables}
-Current Subtask: {current_subtask}
-API documentation: {api_docs}
-Your Task: Based on the Total task planning, current subtask, execution history prior to the current subtasks, namespace variables, and relevant API documentation, please rewrite the subtask description. The rewritten description should correspond to the most specific API and include only the necessary parameters and their values to clearly describe the subtask. Maintain a tone that is polite, neutral, or formal, as if it were a user inquiry. 
-**IMPORTANT**
-Never include data description in other subtasks except for the data loading subtask. Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
-Ensure to check docstring requirements for API dependencies, required optional parameters, parameter conflicts, and deprecations.
-If there are obvious parameter values in the current subtask, retain them in the polished subtask description and condense the parameter assignments in 1-2 sentences.
-Only respond the modified subtask description with assigned parameter values. DO NOT add additional explanations or introducement. DO NOT return any previous subtask.
-'''
+Refine the subtask description by integrating essential parameters and their values from the docstring, ensuring they are appropriate for the next steps in the code execution. Inherit any clear parameter values from the current subtask, verifying their accuracy and relevance. Check the docstring for API dependencies, required optional parameters, parameter conflicts, duplication, and deprecations.
+Provide only the revised subtask description. Avoid including any extraneous information.
+---
+Example:
+Original Subtask description: Can you scale the data to unit variance and zero mean and clip values?
+response: Can you scale the data to unit variance and zero mean and clip values at maximum value as '10.0'?
+
+Example:
+Details to consider
+Namespace variables: {{"result_1": "{{'type': 'AnnData', 'value': AnnData object with n_obs \u00d7 n_vars = 3798 \u00d7 36601\n    obs: 'in_tissue', 'array_row', 'array_col'\n    var: 'gene_ids', 'feature_types', 'genome'\n    uns: 'spatial', 'pca'\n    obsm: 'spatial', 'X_pca'\n    varm: 'PCs'}}"}}
+Extract necessary parameter details and constraints from API Docstring: def squidpy.gr.ripley(adata=$, cluster_key=@, mode=$, spatial_key=@, metric=@, n_neigh=@, n_simulations=@, n_observations=@, max_dist=@, n_steps=@, seed=@, copy=@):
+Original Subtask description: Can you calculate Ripley's statistics?
+response: Can you calculate Ripley's statistics with cluster_key set as 'array_row'?
+---
+Details to consider
+Understand context and dependencies from past executed code: {execution_history}
+Ensure parameter compatibility for existing namespace variables: {namespace_variables}
+Extract necessary parameter details and constraints from API Docstring: {api_docs}
+Original Subtask description: {current_subtask}
+response: 
+''' # Never include data description in other subtasks except for the data loading subtask. Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
+        return query_prompt
+
+class ModifySubtaskCorrectionPromptBuilder(PromptBuilder):
+    def build_prompt(self, current_subtask,  execution_history, namespace_variables, api_docs):
+        query_prompt = f'''
+Refine the subtask description to more closely align with the functionality and intent of a specific API. Review the docstrings of similar API candidates that will be provided, and polish the task description to ensure it encapsulates the API's capabilities and constraints accurately. Refine the interpretation of the existing task based on the most appropriate API's features. Omit API name from subtask.
+---
+Example:
+Original Subtask description: Can you scale the data to unit variance and zero mean and clip values?
+response: Can you scale the data to unit variance and zero mean and clip values at maximum value as '10.0'?
+---
+Details to consider:
+Extract relevant details from the API docstrings to understand constraints and capabilities: {api_docs}
+Review past executed code and namespace variables to ensure compatibility and relevance: {execution_history}, {namespace_variables}
+Refine the original subtask description to closely match the intended API functionality: {current_subtask}
+response: 
+''' # Never include data description in other subtasks except for the data loading subtask. Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
         return query_prompt
 
 class SubtaskCodePromptBuilder(PromptBuilder):
@@ -296,10 +335,12 @@ class PromptFactory:
             return MultiTaskPromptBuilder().build_prompt(*args)
         elif prompt_type == 'executor_correction':
             return ExecutorPromptBuilder().build_prompt(*args)
-        elif prompt_type == 'subtask_code':
-            return SubtaskCodePromptBuilder().build_prompt(*args)
-        elif prompt_type == 'modify_subtask':
+        #elif prompt_type == 'subtask_code':
+        #    return SubtaskCodePromptBuilder().build_prompt(*args)
+        elif prompt_type == 'modify_subtask_parameters':
             return ModifySubtaskPromptBuilder().build_prompt(*args)
+        elif prompt_type == 'modify_subtask_correction':
+            return ModifySubtaskCorrectionPromptBuilder().build_prompt(*args)
         else:
             raise ValueError("Unknown prompt type")
 
