@@ -21,6 +21,28 @@ from ..deploy.utils import basic_types, generate_api_calling, download_file_from
 from ..models.dialog_classifier import Dialog_Gaussian_classification
 from ..inference.param_count_acc import predict_parameters
 
+def check_api_order(vari1, vari2, tutorials):
+    all_api_calls = {}
+    for tutorial_name, blocks in tutorials.items():
+        if tutorial_name not in all_api_calls:
+            all_api_calls[tutorial_name] = []
+        for block in blocks:
+            all_api_calls[tutorial_name].extend(block["ori_relevant_API"])
+    print(all_api_calls)
+    all_api_calls = list(all_api_calls.values())
+
+    for tutorial in all_api_calls:
+        if vari1 in tutorial and vari2 in tutorial:
+            index1 = tutorial.index(vari1)
+            index2 = tutorial.index(vari2)
+            if index1 < index2:
+                return {"order": [vari1, vari2], "related": True}
+            elif index1 > index2:
+                return {"order": [vari2, vari1], "related": True}
+            else:
+                return {"order": None, "related": False}
+    return {"order": None, "related": False}
+
 def generate_function_signature(api_name, parameters_json):
     # Load parameters from JSON string if it's not already a dictionary
     if isinstance(parameters_json, str):
@@ -72,7 +94,7 @@ def label_sentence(sentence, parameters_dict):
     def replace_match(match):
         term = match.group(0)
         color = get_color(term)
-        return f' <span style="color:{color}">{term}</span> '
+        return f'<span style="color:{color}">{term}</span>'
     
     for key, value in parameters_dict.items():
         pattern_key = re.compile(r'\b' + re.escape(key) + r'\b')
@@ -116,6 +138,8 @@ class Model:
         self.LIB = "scanpy"
         with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
             self.centroids = pickle.load(f)
+        self.success_history_API = []
+        self.ambi_related_apis_json = []
         self.user_query_list = []
         self.prompt_factory = PromptFactory()
         self.model_llm_type = model_llm_type
@@ -217,6 +241,7 @@ class Model:
         # reset and reload all the LIB-related data/models
         # suppose that all data&model are prepared already in their path
         try:
+            self.tutorials_API = load_json(f"./data/autocoop/{lib_name}/summarized_responses.json")
             # load the previous variables, execute_code, globals()
             self.args_retrieval_model_path = f'./hugging_models/retriever_model_finetuned/{lib_name}/assigned'
             self.ambiguous_pair = find_similar_two_pairs(f"./data/standard_process/{lib_name}/API_init.json")
@@ -573,11 +598,12 @@ class Model:
                 self.callback_func('log', sub_task, 'Polished subtask')
             else:
                 pass
-            #self.logger.info("start retrieving names!")
             # get sub_task after dialog prediction
             self.user_query = sub_task
-            #self.logger.info('we filter those API with IO parameters!')
+            self.logger.info('we filter those API with IO parameters!')
+            #self.logger.info('self.user_query: {}', self.user_query)
             retrieved_names = self.retriever.retrieving(self.user_query, top_k=self.args_top_k+20)
+            #self.logger.info('retrieved_names: {}', retrieved_names)
             # filter out APIs
             #self.logger.info('first_task_start: {}, self.loaded_files: {}', self.first_task_start, self.loaded_files)
             if self.first_task_start and (not self.loaded_files): # need to consider only the builtin dataset
@@ -595,7 +621,7 @@ class Model:
                 # TODO: 240623: try smarter way, as there are some saved path instead of loading path parameters, e.g. squidpy.datasets.visium_fluo_adata
                 self.logger.info('there not exist files, retrieved_names are: {}', retrieved_names)
             else: # for the first API, it is assumed to be loading data (not setting), if no files provided, must use builtin dataset,
-                retrieved_names = [api_name for api_name in retrieved_names if all((not any(special_type in str(param['type']) for special_type in special_types)) for param_name, param in self.API_composite[api_name]['Parameters'].items())]
+                #retrieved_names = [api_name for api_name in retrieved_names if all((not any(special_type in str(param['type']) for special_type in special_types)) for param_name, param in self.API_composite[api_name]['Parameters'].items())]
                 self.logger.info('there exist files or we have already load some dataset, retrieved_names are: {}', retrieved_names)
             retrieved_names = retrieved_names[:self.args_top_k]
             self.first_task_start = False
@@ -687,6 +713,34 @@ class Model:
                 return
             # if the predicted API is in ambiguous API list, then show those API and select one from them
             if self.predicted_api_name in self.ambiguous_api:
+                # 240624: we split the ambiguous case into two subcases
+                # insert ambiguous API if needed:
+                related_pairs = [pair for pair in self.ambiguous_pair if self.predicted_api_name in pair]
+                related_apis = list(set(api for pair in related_pairs for api in pair)-set([self.predicted_api_name]))
+                self.logger.info('related_apis: {}', related_apis)
+                if len(related_apis)==1:
+                    tmp_re = check_api_order(self.predicted_api_name, related_apis[0], self.tutorials_API)
+                    self.logger.info('self.predicted_api_name: {}', self.predicted_api_name)
+                    self.logger.info('tmp_re: {}', tmp_re)
+                    self.logger.info('success_history_API: {}', self.success_history_API)
+                    if tmp_re['related']: # 1. the ambiguous pair is used together to achieved one task from tutorial codes
+                        if tmp_re['order'][0] not in self.success_history_API:# if this has already been executed then we skip # 
+                            self.predicted_api_name = tmp_re['order'][0]
+                            self.ambi_related_apis_json.extend(related_apis)
+                            self.update_user_state("run_pipeline_after_fixing_API_selection")
+                            self.save_state_enviro()
+                            self.run_pipeline_after_fixing_API_selection(self.user_query)
+                            return
+                        else:
+                            self.predicted_api_name = tmp_re['order'][1]
+                            self.ambi_related_apis_json = [] # we clean it
+                            self.update_user_state("run_pipeline_after_fixing_API_selection")
+                            self.save_state_enviro()
+                            self.run_pipeline_after_fixing_API_selection(self.user_query)
+                            return
+                    else:
+                        pass # we leave it for user to determine
+                # 2. the ambiguous pair is used separately from tutorial codes, we leave it for user to determine
                 filtered_pairs = [api_pair for api_pair in self.ambiguous_pair if self.predicted_api_name in api_pair]
                 self.filtered_api = [i for i in list(set(api for api_pair in filtered_pairs for api in api_pair)) if i!=self.predicted_api_name]
                 #next_str = ""
@@ -704,11 +758,11 @@ class Model:
                     idx_api+=1
                 self.filtered_api = [self.predicted_api_name] + self.filtered_api
                 next_str += "Enter [-1]: No appropriate API, input inquiry manually\n"
-                next_str += "Enter [-2]: Skip to the next subtask"
+                #next_str += "Enter [-2]: Skip to the next subtask"
                 # for ambiguous API, we think that it might be executed more than once as ambiguous API sometimes work together
                 # user can exit by entering -1
                 # so we add it back to the subtask list to execute it again
-                self.add_query([self.user_query], mode='pre')
+                #self.add_query([self.user_query], mode='pre') # 240625: deprecate
                 self.update_user_state("run_pipeline_after_ambiguous")
                 self.initialize_tool()
                 self.callback_func('log', next_str, f"Can you confirm which of the following {len(self.filtered_api)} candidates")
@@ -787,7 +841,8 @@ class Model:
             self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
             self.save_state_enviro()
             return 'break'
-        if user_index==-2:
+        # 240625: deprecate
+        """if user_index==-2:
             sub_task = self.get_query()
             if self.user_query_list:
                 self.callback_func('log', "Ongoing subtask and remaining subtasks: \n → "+ '\n - '.join(self.user_query_list), "Task Planning")
@@ -796,7 +851,7 @@ class Model:
             self.update_user_state("run_pipeline")
             self.save_state_enviro()
             self.run_pipeline(sub_task, self.LIB, top_k=3, files=[],conversation_started=False,session_id=self.session_id)
-            return
+            return"""
         try:
             self.filtered_api[user_index-1]
         except IndexError:
@@ -871,7 +926,6 @@ class Model:
     
     def run_pipeline_after_doublechecking_API_selection(self, user_input):
         self.initialize_tool()
-        #self.logger.info('==>run_pipeline_after_doublechecking_API_selection')
         user_input = str(user_input)
         if user_input in ['n', 'N']:
             if self.new_task_planning or self.retry_modify_count>=3: # if there is no task planning
@@ -914,13 +968,12 @@ class Model:
             self.user_query, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})
             self.logger.info('modified sub_task prompt: {}', prompt)
             self.logger.info('modified sub_task: {}', self.user_query)
-            #self.callback_func('log', 'we modify the subtask as '+sub_task, 'Modify subtask description')
-            #self.callback_func('log', self.user_query, 'Polished subtask')
-            # we leave this to the `highlight` card
         else:
             pass
+        
+        self.logger.info('self.api_name_json: {}', self.api_name_json)
+        # combine parameters among different APIs
         combined_params = {}
-        #self.logger.info('self.api_name_json: {}', self.api_name_json)
         # if the class API has already been initialized, then skip it
         executor_variables = {var_name: var_info["value"] for var_name, var_info in self.executor.variables.items() if str(var_info["value"]) not in ["None"]}
         #self.logger.info('executor_variables: {}', executor_variables)
@@ -941,6 +994,11 @@ class Model:
                 combined_params.update(self.API_composite[api]['Parameters'])
         except Exception as e:
             self.logger.info('error in combining parametesr: {}', e)
+        """try:
+            for api in ambi_related_apis_json:
+                combined_params.update(self.API_composite[api]['Parameters'])
+        except Exception as e:
+            self.logger.info('error in combining parametesr: {}', e)"""
         #self.logger.info('combined_params: {}', combined_params)
         parameters_name_list = [key for key, value in combined_params.items() if (key not in self.path_info_list)] # if (not value['optional'])
         #self.logger.info('parameters_name_list: {}', parameters_name_list)
@@ -964,10 +1022,8 @@ class Model:
         api_name_tmp_list = self.relevant_api_list[0]
         api_name_tmp = list(api_name_tmp_list.keys())[0]
         apis_name = api_name_tmp
-        apis_description = self.API_composite[api_name_tmp]['description']
         # 240531 added, predict parameters in chunked setting
         param_tmp = {i:self.API_composite[apis_name]['Parameters'][i] for i in self.API_composite[apis_name]['Parameters'] if (self.API_composite[apis_name]['Parameters'][i]['description'] is not None) and (not any(special_type in str(self.API_composite[apis_name]['Parameters'][i]['type']) for special_type in special_types)) and (str(self.API_composite[apis_name]['Parameters'][i]['type']) not in io_types) and (i not in io_param_names)}
-        
         boolean_params = {k: v for k, v in param_tmp.items() if 'boolean' in str(v['type']) or 'bool' in str(v['type'])}
         literal_params = {k: v for k, v in param_tmp.items() if 'literal' in str(v['type']) or 'Literal' in str(v['type'])}
         int_params = {k: v for k, v in param_tmp.items() if k not in boolean_params and k not in literal_params}
@@ -1010,8 +1066,10 @@ class Model:
         self.callback_func('log', colored_sentence, 'Highlight parameters value in polished subtask description')
         #self.logger.info('colored_sentence: {}', colored_sentence)
         # generate api_calling
+        self.logger.info('self.API_composite[self.predicted_api_name]: {}', self.API_composite[self.predicted_api_name])
         self.predicted_api_name, api_calling, self.parameters_info_list = generate_api_calling(self.predicted_api_name, self.API_composite[self.predicted_api_name], predicted_parameters)
         self.logger.info('parameters_info_list: {}', self.parameters_info_list)
+        # if there exist class API
         if len(self.api_name_json)> len(self.relevant_api_list):
             #assume_class_API = list(set(list(self.api_name_json.keys()))-set(self.relevant_api_list))[0]
             assume_class_API = '.'.join(self.predicted_api_name.split('.')[:-1])
@@ -1042,6 +1100,11 @@ class Model:
                     pass
             if fix_update:
                 self.parameters_info_list['parameters'].update(tmp_class_parameters_info_list['parameters'])
+        self.logger.info("self.parameters_info_list['parameters']: {}", self.parameters_info_list['parameters'])
+        # if there exist ambiguous API
+        """for api in ambi_related_apis_json:
+            self.parameters_info_list['parameters'].update(self.API_composite[api]['Parameters'])
+        self.logger.info("self.parameters_info_list['parameters']: {}", self.parameters_info_list['parameters'])"""
         ####### infer parameters
         # $ param
         self.selected_params = self.executor.select_parameters(self.parameters_info_list['parameters'])
@@ -1113,7 +1176,6 @@ class Model:
         if self.last_user_states == "run_select_special_params":
             self.selected_params = self.executor.makeup_for_missing_single_parameter_type_special(params = self.selected_params, param_name_to_update=self.last_param_name, user_input = user_input)
         # @ param
-        #self.logger.info('==> run_pipeline_after_select_special_params')
         none_at_value_params = [param_name for param_name, param_info in self.selected_params.items() if (param_info["value"] in ['@']) and (param_name not in self.path_info_list)]
         self.filtered_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (value["value"] in ['@']) and (key not in self.path_info_list)}
         self.filtered_pathlike_params = {key: value for key, value in self.parameters_info_list['parameters'].items() if (value["value"] in ['@']) and (key in self.path_info_list)}
@@ -1360,6 +1422,7 @@ class Model:
         # show the new variable 
         if self.last_execute_code['code'] and self.last_execute_code['success']=='True':
             # if execute, visualize value
+            self.success_history_API.append(self.predicted_api_name)
             code = self.last_execute_code['code']
             vari = [i.strip() for i in code.split('(')[0].split('=')]
             self.logger.info('-----code: {} -----vari: {}', code, vari)
@@ -1444,7 +1507,7 @@ class Model:
                 else:
                     executor_info = ""
                 # append executor_info to the self.executor.execute_code
-                self.executor.execute_code[-1]['traceback'] = executor_info
+                self.executor.execute_code[-1]['traceback'] = tmp_output
                 from ..models.query_issue_corpus import retrieved_issue_solution, search_github_issues
                 from ..gpt.get_summarize_tutorial import extract_imports, get_sub_API
                 # use github issue retriever
@@ -1470,7 +1533,7 @@ class Model:
                     [i['code'] for i in self.executor.execute_code[last_success_index + 1:] if i['success'] == 'False']
                 )
                 error_code_with_info = '\n'.join(
-                    [i['code'] + ', its traceback:' + i.get('traceback', '') + '\n' for i in self.executor.execute_code[last_success_index + 1:] if i['success'] == 'False']
+                    [f'failed attempt {idx+1}: ' + i['code'] + ', traceback: `' + i.get('traceback', '')+'`' for idx,i in enumerate(self.executor.execute_code[last_success_index + 1:]) if i['success'] == 'False']
                 )
                 #error_code = '\n'.join([i['code'] for i in self.executor.execute_code if i['success']=='False'])
                 error_code = error_code_after_last_success
@@ -1558,9 +1621,22 @@ class Model:
             self.run_pipeline(sub_task, self.LIB, top_k=3, files=[],conversation_started=False,session_id=self.session_id)
             return
         else:
-            self.callback_func('log', "All subtasks are predicted and executed.", "Start another round.")
-            self.new_task_planning = True
-            self.user_query_list = []
+            if self.ambi_related_apis_json:
+                # check if two APIs work together
+                self.predicted_api_name = self.ambi_related_apis_json[0]
+                # goes on to the same task, but with another API
+                self.ambi_related_apis_json = [] # empty the list
+                self.callback_func('log', "Ongoing subtask and remaining subtasks: \n → "+ '\n - '.join(self.user_query_list), "Task Planning")
+                #self.update_user_state("run_pipeline")
+                #self.run_pipeline(sub_task, self.LIB, top_k=3, files=[],conversation_started=False,session_id=self.session_id)
+                self.update_user_state("run_pipeline_after_fixing_API_selection")
+                self.save_state_enviro()
+                self.run_pipeline_after_fixing_API_selection(self.user_query)
+                return
+            else:
+                self.callback_func('log', "All subtasks are predicted and executed.", "Start another round.")
+                self.new_task_planning = True
+                self.user_query_list = []
         self.update_user_state("run_pipeline")
         self.save_state_enviro()
     def modify_code_add_tmp(self, code, add_tmp = "tmp"):

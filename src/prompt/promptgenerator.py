@@ -145,9 +145,9 @@ class MultiTaskPromptBuilder(PromptBuilder):
 Create a detailed step-by-step task plan with subtasks to achieve the goal.
 The tone should vary among queries: polite, straightforward, casual. 
 Each subtask has 15-20 words, be clear and concise for the scope of one single API's functionality from PyPI library {LIB}. Omit API name from subtask.
-Split the subtask into two or more subtasks if it is too complex. Using `Filtering dataset` together with `Normalize dataset` instead of `Preprocess dataset for filtering, and normalization.`
+Split the subtask into two or more subtasks if it is too complex. Using `Filtering ...` together with `Normalize ...` instead of `Filtering and Normalizing.`
 When arranging tasks, consider the logical order and dependencies.
-Integrate visualization subtasks among subtasks.
+Integrate visualization subtasks between each step.
 Include Data description only in data loading subtask. 
 Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
 Only respond in JSON format strictly enclosed in double quotes, adhering to the Response Format.
@@ -191,11 +191,11 @@ class ExecutorPromptBuilder(PromptBuilder):
         else:
             api_examples_info = ""
         prompt = f"""
-Task: Analyze and correct a Python script based on provided traceback information:
+Task: Analyze and correct the latest failed attempt Python script based on provided traceback information:
 Success execution History: {success_history_code}
 Existing Namespace variables: {namespace_variables}
 Current Goal: {goal_description}
-Failed Attempts with their tracebacks: {error_code}
+History Failed Attempts with their tracebacks: {error_code}
 {possible_solution_info}{api_examples_info}
 API Docstring: {api_docstring}.
 
@@ -208,6 +208,8 @@ Correct the code by removing unnecessary or incorrect parameters, ensuring requi
 Adjust any misused attributes or values, especially for object-specific attributes like those in an AnnData object.
 If intermediate processing is necessary, utilize relevant tools or APIs to preprocess the data before the main API call.
 Respond only with the task-related correct code in JSON format.
+If the issue lies with unnecessary parameters, remove them instead of trying different values or assigning values to different parameters.
+Refer to the namespace variables for their values and attributes; do not use variables with a value of None.
 
 Common Errors to Address:
 Import Verification: Confirm necessary libraries are imported.
@@ -215,6 +217,7 @@ API Usage: Replace or continue with the correct API as needed.
 Parameter Handling: Streamline parameters to essentials, removing any incorrect or irrelevant ones.
 Prerequisite API Calls: Include any necessary pre-API steps.
 Identify and address indirect errors by deducing the root cause. Present the logical steps in the 'analysis' section and the corresponding code in the 'code' section.
+KeyError: Ensure to use the exist and correct attribute from existing variables in namespace. Or use the correct API to generate the attribute before executing this subtask.
 
 Response Format:
 {{"analysis": "Locate error, explain how to correct the bug.", "code": "Task oriented corrected bug-free Python code based on analysis."}}
@@ -224,26 +227,22 @@ Response Format:
 class ModifySubtaskPromptBuilder(PromptBuilder):
     def build_prompt(self, current_subtask,  execution_history, namespace_variables, api_docs):
         query_prompt = f'''
-Refine the subtask description by integrating essential parameters and their values from the docstring, ensuring they are appropriate for the next steps in the code execution. Inherit any clear parameter values from the current subtask, verifying their accuracy and relevance. Check the docstring for API dependencies, required optional parameters, parameter conflicts, duplication, and deprecations.
+Refine the subtask description by integrating essential parameters and their values from the docstring, ensuring they are appropriate for the next steps in the code execution. Inherit any clear parameter values from the current subtask, verifying their accuracy and relevance. Check the docstring for API dependencies, required optional parameters, parameter conflicts, duplication, and deprecations. Include only the parameters with explicitly assigned values; avoid stating default values or parameters with vague values. For example, turning the old task "identify 'target_sum' as median of total counts, 'key' with specific value, 'max_num' as '10', 'log' as 'True'" into the new task "set 'max_num' as '10'" because the parameter 'target_sum' repeats its description, 'key' is not specified, and the default value of the parameter 'log' is 'True', while only the 'max_num' as '10' is valid and executable.
 Provide only the revised subtask description. Avoid including any extraneous information.
 ---
-Example:
-Original Subtask description: Can you scale the data to unit variance and zero mean and clip values?
-response: Can you scale the data to unit variance and zero mean and clip values at maximum value as '10.0'?
-
 Example:
 Details to consider
 Namespace variables: {{"result_1": "{{'type': 'AnnData', 'value': AnnData object with n_obs \u00d7 n_vars = 3798 \u00d7 36601\n    obs: 'in_tissue', 'array_row', 'array_col'\n    var: 'gene_ids', 'feature_types', 'genome'\n    uns: 'spatial', 'pca'\n    obsm: 'spatial', 'X_pca'\n    varm: 'PCs'}}"}}
 Extract necessary parameter details and constraints from API Docstring: def squidpy.gr.ripley(adata=$, cluster_key=@, mode=$, spatial_key=@, metric=@, n_neigh=@, n_simulations=@, n_observations=@, max_dist=@, n_steps=@, seed=@, copy=@):
-Original Subtask description: Can you calculate Ripley's statistics?
-response: Can you calculate Ripley's statistics with cluster_key set as 'array_row'?
+original Subtask description: Can you calculate Ripley's statistics?
+revised subtask description: Can you calculate Ripley's statistics with 'cluster_key' set as 'array_row'?
 ---
 Details to consider
 Understand context and dependencies from past executed code: {execution_history}
 Ensure parameter compatibility for existing namespace variables: {namespace_variables}
 Extract necessary parameter details and constraints from API Docstring: {api_docs}
-Original Subtask description: {current_subtask}
-response: 
+original Subtask description: {current_subtask}
+revised subtask description: 
 ''' # Never include data description in other subtasks except for the data loading subtask. Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
         return query_prompt
 

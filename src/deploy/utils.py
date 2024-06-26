@@ -40,25 +40,21 @@ def generate_api_calling(api_name, api_details, predicted_parameters):
     """
     Generates an API call and formats output based on provided API details and returned content string.
     """
-    returned_content_dict = predicted_parameters
-    api_description = api_details["description"]
-    parameters = api_details['Parameters']
-    return_type = api_details['Returns']['type']
     parameters_dict = {}
     parameters_info_list = []
-    for param_name, param_details in parameters.items():
+    for param_name, param_details in api_details['Parameters'].items():
         # only include required parameters and optional parameters found from response, and a patch for color in scanpy/squidpy pl APIs
-        if (param_name in returned_content_dict) or (not param_details['optional']) or (param_name=='color' and (api_name.startswith('scanpy.pl') or api_name.startswith('squidpy.pl'))) or (param_name=='encodings' and (api_name.startswith('ehrapy.pp') or api_name.startswith('ehrapy.preprocessing'))) or (param_name=='encoded' and (api_name.startswith('ehrapy.'))):
-            #print(param_name, param_name in returned_content_dict, not param_details['optional'])
+        if (param_name in predicted_parameters) or (not param_details['optional']) or (param_name=='color' and (api_name.startswith('scanpy.pl') or api_name.startswith('squidpy.pl'))) or (param_name=='encodings' and (api_name.startswith('ehrapy.pp') or api_name.startswith('ehrapy.preprocessing'))) or (param_name=='encoded' and (api_name.startswith('ehrapy.'))):
+            #print(param_name, param_name in predicted_parameters, not param_details['optional'])
             param_type = param_details['type']
             if param_type in [None, 'None', 'NoneType']:
                 param_type = "Any"
             param_description = param_details['description']
             param_value = param_details['default']
             param_optional = param_details['optional']
-            if returned_content_dict:
-                if param_name in returned_content_dict:
-                    param_value = returned_content_dict[param_name]
+            if predicted_parameters:
+                if param_name in predicted_parameters:
+                    param_value = predicted_parameters[param_name]
                     #if param_type is not None and ('str' in param_type or 'PathLike' in param_type):
                     #    if ('"' not in param_type and "'" not in param_type) and (param_value not in ['None', None]):
                     #        param_value = "'"+str(param_value)+"'"
@@ -93,7 +89,7 @@ def generate_api_calling(api_name, api_details, predicted_parameters):
                 "optional": param['optional']
             } for param in parameters_info_list
         },
-        "return_type": return_type
+        "return_type": api_details['Returns']['type']
     }
     return api_name, api_calling, output
 
@@ -105,7 +101,8 @@ def format_string_list(input_string, left_bracket="[", right_bracket="]"):
         safe_input = input_string.replace(left_bracket, f'{left_bracket}"').replace(right_bracket, f'"{right_bracket}').replace(', ', '", "')
         data_list = ast.literal_eval(safe_input)
     except Exception as e:
-        return f"Error parsing input: {str(e)}"
+        # f"Error parsing input: {str(e)}"
+        return input_string
     formatted_list = [f"'{item}'" if isinstance(item, str) and "'" not in item else str(item) for item in data_list]
     # Convert list back to string representation
     result_string = left_bracket + ", ".join(formatted_list) + right_bracket
