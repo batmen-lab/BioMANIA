@@ -142,12 +142,13 @@ Your task is to generate a Python code snippet based on the provided information
 class MultiTaskPromptBuilder(PromptBuilder):
     def build_prompt(self, LIB, goal_description, data_list=[]):
         prompt = f"""
-Create a detailed step-by-step task plan with subtasks to achieve the goal.
+Create step-by-step task plan with subtasks to achieve the goal.
 The tone should vary among queries: polite, straightforward, casual. 
 Each subtask has 15-20 words, be clear and concise for the scope of one single API's functionality from PyPI library {LIB}. Omit API name from subtask.
-Split the subtask into two or more subtasks if it is too complex. Using `Filtering ...` together with `Normalize ...` instead of `Filtering and Normalizing.`
+Split the subtask into two or more subtasks if it contains more than one action. Using `Filtering ...` together with `Normalize ...` instead of `Filtering and Normalizing.`
+Include only essential subtasks, with a range of 4 to 7 tasks.
 When arranging tasks, consider the logical order and dependencies.
-Integrate visualization subtasks between each step.
+Integrate visualization subtasks between each step. The last two subtasks MUST be visualization subtasks.
 Include Data description only in data loading subtask. 
 Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
 Only respond in JSON format strictly enclosed in double quotes, adhering to the Response Format.
@@ -163,9 +164,7 @@ Response:
 "step 4: Visualize co-occurrence results to understand cell type interactions and their spatial patterns.",
 "step 5: Compute neighborhood enrichment to assess spatial proximity and interactions of cell clusters.",
 "step 6: Visualize neighborhood enrichment results to highlight enriched or depleted interactions among cell clusters.",
-"step 7: Construct a spatial neighbors graph to further detail cell-to-cell interactions.",
-"step 8: Analyze interaction matrix to count interactions among clusters.",
-"step 9: Compute network centrality scores to evaluate the importance of each cell type in the spatial graph."
+"step 7: Visualize the distribution and interaction of all identified cell types",
 ]}}
 ---
 Now finish the goal with the following information:
@@ -173,6 +172,9 @@ Goal: {goal_description}\n
 Response Format:
 {{"plan": ['step 1: content', 'step 2: content', ... ]}}
 """ 
+# "step 8: Analyze interaction matrix to count interactions among clusters.",
+# "step 9: Compute network centrality scores to evaluate the importance of each cell type in the spatial graph.",
+
 # Specify API and function names and avoid including non PyPI functions in your answered code.
 # Avoid creating steps that are too coarse or too detailed. 
 # Only include keywords in the subtask.
@@ -191,25 +193,17 @@ class ExecutorPromptBuilder(PromptBuilder):
         else:
             api_examples_info = ""
         prompt = f"""
-Task: Analyze and correct the latest failed attempt Python script based on provided traceback information:
-Success execution History: {success_history_code}
-Existing Namespace variables: {namespace_variables}
-Current Goal: {goal_description}
-History Failed Attempts with their tracebacks: {error_code}
-{possible_solution_info}{api_examples_info}
-API Docstring: {api_docstring}.
-
-Guidelines:
-Perform minimal corrections necessary.
-Begin the script with all necessary library imports.
-Include prerequisite steps if required by API dependencies, ensuring correct order of execution. This includes not only the pandas, numpy, AnnData, or other libs, depends on the traceback error and the variables.
-Use only existing variables from successful executions and avoid those from failed attempts.
-Correct the code by removing unnecessary or incorrect parameters, ensuring required parameters are passed in proper positional order.
-Adjust any misused attributes or values, especially for object-specific attributes like those in an AnnData object.
-If intermediate processing is necessary, utilize relevant tools or APIs to preprocess the data before the main API call.
-Respond only with the task-related correct code in JSON format.
-If the issue lies with unnecessary parameters, remove them instead of trying different values or assigning values to different parameters.
-Refer to the namespace variables for their values and attributes; do not use variables with a value of None.
+Task: Analyze and correct the newest failed attempt Python script based on provided traceback information. 
+Correct the latest failed attempt without repeating previous mistakes. 
+Include all necessary library imports at the beginning. 
+Ensure the correct execution order for API dependencies like pandas, numpy, and AnnData, based on the traceback error and variables. 
+Use only variables from successful executions. 
+Remove unnecessary or incorrect parameters, ensuring required ones are in proper order. 
+Adjust misused attributes or values, especially for AnnData object-specific attributes. 
+Preprocess data if needed using relevant tools or APIs before the main API call. 
+Remove unnecessary optional parameters causing errors. 
+Respond with the corrected code in JSON format. 
+Refer to namespace variables for their values and attributes; avoid variables with None.
 
 Common Errors to Address:
 Import Verification: Confirm necessary libraries are imported.
@@ -217,45 +211,79 @@ API Usage: Replace or continue with the correct API as needed.
 Parameter Handling: Streamline parameters to essentials, removing any incorrect or irrelevant ones.
 Prerequisite API Calls: Include any necessary pre-API steps.
 Identify and address indirect errors by deducing the root cause. Present the logical steps in the 'analysis' section and the corresponding code in the 'code' section.
-KeyError: Ensure to use the exist and correct attribute from existing variables in namespace. Or use the correct API to generate the attribute before executing this subtask.
+KeyError: Ensure to use the exist and correct attribute from existing variables in namespace. Or use the correct API to generate the attribute before executing this subtask. Sometimes the key error is due to that there lack of previous API. 
+TypeError: Sometimes the processed variable gets None, please use other variable in namespace instead of the null variable.
 
-Response Format:
-{{"analysis": "Locate error, explain how to correct the bug.", "code": "Task oriented corrected bug-free Python code based on analysis."}}
+Here are information:
+Success execution History: {success_history_code}
+Existing Namespace variables: {namespace_variables}
+Current Goal: {goal_description}
+History Failed Attempts with their tracebacks: {error_code}
+{possible_solution_info}{api_examples_info}
+API Docstring: {api_docstring}.
+Response Format: {{"analysis": "Explain how to correct the bug.", "code": "Corrected code"}}
 """ # You only need to keep required parameters from previous trial codes, only keep minimum optional parameters necessary for task. Remove optional parameters from error code which cause the problem. Please ensure that required parameters are passed in their proper positional order, as keyword arguments should only be used for optional parameters. You only need to include the task related correct code in your response, do not repeat other API from the success execution history in your response. For parameters starting with 'result_', use only those that exist in the namespace. Do not generate inexist variables.
         return prompt
     
 class ModifySubtaskPromptBuilder(PromptBuilder):
-    def build_prompt(self, current_subtask,  execution_history, namespace_variables, api_docs):
+    def build_prompt(self, main_goal, current_subtask,  execution_history, namespace_variables, api_docs):
         query_prompt = f'''
-Refine the subtask description by integrating essential parameters and their values from the docstring, ensuring they are appropriate for the next steps in the code execution. Inherit any clear parameter values from the current subtask, verifying their accuracy and relevance. Check the docstring for API dependencies, required optional parameters, parameter conflicts, duplication, and deprecations. Include only the parameters with explicitly assigned values; avoid stating default values or parameters with vague values. For example, turning the old task "identify 'target_sum' as median of total counts, 'key' with specific value, 'max_num' as '10', 'log' as 'True'" into the new task "set 'max_num' as '10'" because the parameter 'target_sum' repeats its description, 'key' is not specified, and the default value of the parameter 'log' is 'True', while only the 'max_num' as '10' is valid and executable.
-Provide only the revised subtask description. Avoid including any extraneous information.
+Refine the subtask description by integrating essential parameters and their values from the docstring, ensuring their values are appropriate for the next steps in the code execution. Inherit any valid parameter values from the current subtask, verifying their accuracy and relevance. Check the docstring for API dependencies, required optional parameters, parameter conflicts, duplication, and deprecations. If the main goal provides a method name and the subtask can use this method to accomplish its goal, include the method name in the polished subtask. Include only the parameters with explicitly assigned values; avoid stating default values or parameters with vague values. 
+Provide only the refined subtask description. Avoid including any extraneous information.
 ---
+Example:
+original subtask description: Can you normalize the data and identify 'target_sum' as median of total counts, 'key' with specific value, 'max_num' as '10', 'log' as 'True'
+thought: we delete some parameters, remove 'target_sum' because the parameter 'target_sum' just repeats its description and wasn't assign valid value, remove 'key' as it wasn't assign valid value, and the default value of the parameter 'log' is 'True' so we remove it, while only the 'max_num' as '10' is valid and non default and executable.
+refined subtask description: Can you normalize the data and set 'max_num' as '10'
+
 Example:
 Details to consider
 Namespace variables: {{"result_1": "{{'type': 'AnnData', 'value': AnnData object with n_obs \u00d7 n_vars = 3798 \u00d7 36601\n    obs: 'in_tissue', 'array_row', 'array_col'\n    var: 'gene_ids', 'feature_types', 'genome'\n    uns: 'spatial', 'pca'\n    obsm: 'spatial', 'X_pca'\n    varm: 'PCs'}}"}}
 Extract necessary parameter details and constraints from API Docstring: def squidpy.gr.ripley(adata=$, cluster_key=@, mode=$, spatial_key=@, metric=@, n_neigh=@, n_simulations=@, n_observations=@, max_dist=@, n_steps=@, seed=@, copy=@):
-original Subtask description: Can you calculate Ripley's statistics?
-revised subtask description: Can you calculate Ripley's statistics with 'cluster_key' set as 'array_row'?
+original subtask description: Can you calculate Ripley's statistics?
+refined subtask description: Can you calculate Ripley's statistics with 'cluster_key' set as 'array_row'?
+
+Example:
+main goal: Use Scanpy to finish trajectory inference using the PAGA method.
+original subtask description: Please perform trajectory inference in this step.
+refined subtask description: Please perform trajectory inference using the PAGA method in this step.
+
+Example:
+Main goal: Use Scanpy to conduct gene annotation on dataset 3k PBMCs.
+original subtask description: Load the built-in dataset.
+refined subtask description: Load the built-in dataset 3k PBMCs.
 ---
 Details to consider
 Understand context and dependencies from past executed code: {execution_history}
 Ensure parameter compatibility for existing namespace variables: {namespace_variables}
 Extract necessary parameter details and constraints from API Docstring: {api_docs}
+Main goal (that includes this subtask as a step):  {main_goal}
 original Subtask description: {current_subtask}
-revised subtask description: 
+refined subtask description: 
 ''' # Never include data description in other subtasks except for the data loading subtask. Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
         return query_prompt
 
 class ModifySubtaskCorrectionPromptBuilder(PromptBuilder):
-    def build_prompt(self, current_subtask,  execution_history, namespace_variables, api_docs):
+    def build_prompt(self, main_goal, current_subtask,  execution_history, namespace_variables, api_docs):
         query_prompt = f'''
-Refine the subtask description to more closely align with the functionality and intent of a specific API. Review the docstrings of similar API candidates that will be provided, and polish the task description to ensure it encapsulates the API's capabilities and constraints accurately. Refine the interpretation of the existing task based on the most appropriate API's features. Omit API name from subtask.
+Refine the subtask description to more closely align with the functionality and intent of a specific API. Review the docstrings of similar API candidates that will be provided, and polish the task description to ensure it encapsulates the API's capabilities and constraints accurately. Refine the interpretation of the existing task based on the most appropriate API's features. If the main goal provides a method or data name and the subtask can use this method or data to accomplish its goal, include this keyword in the polished subtask. Omit API name from subtask.
 ---
 Example:
 Original Subtask description: Can you scale the data to unit variance and zero mean and clip values?
 response: Can you scale the data to unit variance and zero mean and clip values at maximum value as '10.0'?
+
+Example:
+Main goal: Use Scanpy to finish trajectory inference using the PAGA method.
+original subtask description: Please perform trajectory inference in this step.
+refined subtask description: Please perform trajectory inference using the PAGA method in this step.
+
+Example:
+Main goal: Use Scanpy to conduct gene annotation on dataset 3k PBMCs.
+original subtask description: Load the built-in dataset.
+refined subtask description: Load the built-in dataset 3k PBMCs.
 ---
 Details to consider:
+Main goal (that includes this subtask as a step): {main_goal}.
 Extract relevant details from the API docstrings to understand constraints and capabilities: {api_docs}
 Review past executed code and namespace variables to ensure compatibility and relevance: {execution_history}, {namespace_variables}
 Refine the original subtask description to closely match the intended API functionality: {current_subtask}

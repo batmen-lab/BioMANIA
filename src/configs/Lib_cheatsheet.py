@@ -350,5 +350,13 @@ CHEATSHEET = {
         "TUTORIAL_HTML_PATH": "https://magic.readthedocs.io/en/stable/tutorials.html",
         "TUTORIAL_GITHUB": None
     },
-    
+    "scanorama":{
+        "LIB": "scanorama",
+        "LIB_ALIAS": "scanorama",
+        "API_HTML_PATH": "https://scanpy.readthedocs.io/en/stable/generated/scanpy.external.pp.scanorama_integrate.html",
+        "GITHUB_LINK": "https://github.com/brianhie/scanorama",
+        "READTHEDOC_LINK": "https://scanpy-tutorials.readthedocs.io/en/latest/spatial/integration-scanorama.html",
+        "TUTORIAL_HTML_PATH": "https://scanpy-tutorials.readthedocs.io/en/latest/spatial/integration-scanorama.html",
+        "TUTORIAL_GITHUB": "https://github.com/brianhie/scanorama"
+    }
 }
