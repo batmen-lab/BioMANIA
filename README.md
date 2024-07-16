@@ -8,12 +8,11 @@
 [![Paper](https://img.shields.io/badge/Paper-burgundy?style=flat&logo=arxiv)](https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1)
 [![GitHub stars](https://img.shields.io/github/stars/batmen-lab/BioMANIA?style=social)](https://github.com/batmen-lab/BioMANIA)
 [![Documentation Status](https://img.shields.io/readthedocs/biomania/latest?style=flat&logo=readthedocs&label=Doc)](https://biomania.readthedocs.io/en/latest/?badge=latest)
-[![Python unit tests](https://github.com/batmen-lab/BioMANIA/actions/workflows/python-test-unit.yml/badge.svg)](https://github.com/batmen-lab/BioMANIA/actions/workflows/python-test-unit.yml)
 [![License](https://img.shields.io/badge/license-Apache%203.0-blue?style=flat&logo=open-source-initiative)](https://github.com/batmen-lab/BioMANIA/blob/main/LICENSE)
-
 [![Docker Version](https://img.shields.io/badge/Docker-v1.1.9-blue?style=flat&logo=docker)](https://hub.docker.com/repositories/chatbotuibiomania)
 [![Railway](https://img.shields.io/badge/Railway-purple?style=flat&logo=railway)](https://railway.app/template/qaQEvv)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14K4562oeesEz5qMoXmjv9gW_4VeLh6_U?usp=sharing)
+<!--[![Python unit tests](https://github.com/batmen-lab/BioMANIA/actions/workflows/python-test-unit.yml/badge.svg)](https://github.com/batmen-lab/BioMANIA/actions/workflows/python-test-unit.yml)-->
 
 
 Welcome to the BioMANIA! This guide provides detailed instructions on how to set up, run, and interact with the BioMANIA chatbot interface, which connects seamlessly with various APIs to deliver information across numerous libraries and frameworks.
@@ -21,7 +20,9 @@ Welcome to the BioMANIA! This guide provides detailed instructions on how to set
 
 Project Overview:
 
-![](./images/overview_v2.jpg)
+<!--![](./images/overview_v2.jpg)-->
+![](./images/Motivation.jpg)
+![](./images/Methods.jpg)
 
 
 🌟 We warmly invite you to share your trained models and datasets in our [issues section](https://github.com/batmen-lab/BioMANIA/issues/2), making it easier for others to utilize and extend your work, thus amplifying its impact. Feel free to explore and provide feedback on tools shared by other contributors as well! 🚀🔍
@@ -268,11 +269,10 @@ Thank you for choosing BioMANIA. We hope this guide assists you in navigating th
 
 
 ## **Version History**
-- v1.1.10 (2024-04-21)
-  - Add add git installation, add basic API documentation, add PyPI packaging support.
-  - Add basic pytest cases.
-  - Add terminal CLI, and Colab demo, with their video demo.
-  - Setup and simplify the process through PyPI installation!
+- v1.1.11 (2024-06)
+ - Include task planning, execution correction into the logic.
+ - Polish prompt.
+ - Wrap backend service to be compatible for newer UI
 
 view [version_history](./docs/version_history.md) for more details!
 
