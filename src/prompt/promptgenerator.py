@@ -144,11 +144,10 @@ class MultiTaskPromptBuilder(PromptBuilder):
         prompt = f"""
 Create step-by-step task plan with subtasks to achieve the goal.
 The tone should vary among queries: polite, straightforward, casual. 
-Each subtask has 15-20 words, be clear and concise for the scope of one single API's functionality from PyPI library {LIB}. Omit API name from subtask.
+Each subtask has 10-20 words, be clear and concise for the scope of one single API's functionality from PyPI library {LIB}. Omit API name from subtask.
 Split the subtask into two or more subtasks if it contains more than one action. Using `Filtering ...` together with `Normalize ...` instead of `Filtering and Normalizing.`
-Include only essential subtasks, with a range of 4 to 7 tasks.
 When arranging tasks, consider the logical order and dependencies.
-Integrate visualization subtasks between each step. The last two subtasks MUST be visualization subtasks.
+Integrate visualization tasks after each analytical step. Ensure the plan has around 5 tasks (maximum 7, minimum 3), with the last one exclusively for visualization. Focus on essential actions only.
 Include Data description only in data loading subtask. 
 Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
 Only respond in JSON format strictly enclosed in double quotes, adhering to the Response Format.
@@ -159,12 +158,12 @@ Goal: use Squidpy for spatial analysis of Imaging Mass Cytometry data, focusing 
 Response:
 {{"plan": [
 "step 1: Load pre-processed Imaging Mass Cytometry data.",
-"step 2: Visualize cell type clusters in spatial context to identify distributions of apoptotic and tumor cells among others.",
-"step 3: Calculate co-occurrence of cell types across spatial dimensions, focusing on interactions between basal CK tumor cells and T cells.",
-"step 4: Visualize co-occurrence results to understand cell type interactions and their spatial patterns.",
-"step 5: Compute neighborhood enrichment to assess spatial proximity and interactions of cell clusters.",
-"step 6: Visualize neighborhood enrichment results to highlight enriched or depleted interactions among cell clusters.",
-"step 7: Visualize the distribution and interaction of all identified cell types",
+"step 2: Could you show cell type clusters in spatial context?",
+"step 3: Please calculate co-occurrence of cell types across spatial dimensions.",
+"step 4: I want you to visualize co-occurrence results.",
+"step 5: Compute neighborhood enrichment.",
+"step 6: Can you plot neighborhood enrichment results?",
+"step 7: How to display the distribution and interaction of all identified cell types?"
 ]}}
 ---
 Now finish the goal with the following information:
@@ -188,10 +187,11 @@ class ExecutorPromptBuilder(PromptBuilder):
             possible_solution_info = f"\nPossible solution from similar issues from Github Issue Discussion:\n{possible_solution}"
         else:
             possible_solution_info = ""
-        if api_examples and api_examples != "{}":
-            api_examples_info = f"\nAPI Usage examples: {api_examples}."
-        else:
-            api_examples_info = ""
+        # remove api_examples as it is already included in the api docstring
+        #if api_examples and api_examples != "{}":
+        #    api_examples_info = f"\nAPI Usage examples: {api_examples}."
+        #else:
+        #    api_examples_info = ""
         prompt = f"""
 Task: Analyze and correct the newest failed attempt Python script based on provided traceback information. 
 Correct the latest failed attempt without repeating previous mistakes. 
@@ -218,10 +218,10 @@ Here are information:
 Success execution History: {success_history_code}
 Existing Namespace variables: {namespace_variables}
 Current Goal: {goal_description}
-History Failed Attempts with their tracebacks: {error_code}
+History Failed Attempts with their tracebacks:\n {error_code}
 {possible_solution_info}{api_examples_info}
 API Docstring: {api_docstring}.
-Response Format: {{"analysis": "Explain how to correct the bug.", "code": "Corrected code"}}
+Response Format: {{"analysis": "Explain how to correct the bug in 2 sentences, including the reason of the bug, and how to correct.", "code": "Contain the Corrected failed attempt code, exclude code from `success execution history`, exclude `save_plot_with_timestamp()`"}}
 """ # You only need to keep required parameters from previous trial codes, only keep minimum optional parameters necessary for task. Remove optional parameters from error code which cause the problem. Please ensure that required parameters are passed in their proper positional order, as keyword arguments should only be used for optional parameters. You only need to include the task related correct code in your response, do not repeat other API from the success execution history in your response. For parameters starting with 'result_', use only those that exist in the namespace. Do not generate inexist variables.
         return prompt
     
@@ -245,8 +245,8 @@ refined subtask description: Can you calculate Ripley's statistics with 'cluster
 
 Example:
 main goal: Use Scanpy to finish trajectory inference using the PAGA method.
-original subtask description: Please perform trajectory inference in this step.
-refined subtask description: Please perform trajectory inference using the PAGA method in this step.
+original subtask description: Please perform trajectory inference.
+refined subtask description: Please perform trajectory inference using the PAGA method.
 
 Example:
 Main goal: Use Scanpy to conduct gene annotation on dataset 3k PBMCs.
@@ -364,9 +364,9 @@ class PromptFactory:
             return ExecutorPromptBuilder().build_prompt(*args)
         #elif prompt_type == 'subtask_code':
         #    return SubtaskCodePromptBuilder().build_prompt(*args)
-        elif prompt_type == 'modify_subtask_parameters':
+        elif prompt_type == 'modify_task_parameters':
             return ModifySubtaskPromptBuilder().build_prompt(*args)
-        elif prompt_type == 'modify_subtask_correction':
+        elif prompt_type == 'modify_task_correction':
             return ModifySubtaskCorrectionPromptBuilder().build_prompt(*args)
         else:
             raise ValueError("Unknown prompt type")

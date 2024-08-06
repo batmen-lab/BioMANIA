@@ -395,10 +395,12 @@ class CodeExecutor:
                         api_call = f"{maybe_instance_name} = {maybe_class_name}"
                     else:
                         api_call = f"{maybe_instance_name} = {maybe_class_name}({class_params_formatted})"
+                self.logger.info(f'maybe_instance_name api_call: {api_call}')
                 if api_type in ['property', 'constant']:
-                    api_call = f"{maybe_instance_name}.{final_api_name}"
+                    api_call +="\n"+ f"{maybe_instance_name}.{final_api_name}"
                 else:
-                    api_call = f"{maybe_instance_name}.{final_api_name}({params_formatted})"
+                    api_call +="\n"+ f"{maybe_instance_name}.{final_api_name}({params_formatted})"
+                self.logger.info(f'api_call: {api_call}')
             class_API = maybe_instance_name
         else:
             self.logger.info('==>no Class type API')
