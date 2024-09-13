@@ -240,6 +240,26 @@ def evaluate_parameters(query, query_code, query_id, api_name, Parameters, true_
         "false_negative": false_negative
     }
 
+def process_type(details_type):
+    if not details_type:
+        return [details_type]
+    # remove optional[]
+    if details_type.startswith("Optional[") and details_type.endswith("]"):
+        details_type = details_type[len("Optional["):-1].strip()
+    if details_type.startswith("Literal"):
+        return ["Literal"]
+    # remove Union[]
+    if details_type.startswith("Union[") and details_type.endswith("]"):
+        details_type = details_type[len("Union["):-1].strip()
+    if not any(char in details_type for char in "[]()"):
+        if ',' in details_type:
+            details_type = details_type.split(',')
+            return details_type
+        else:
+            return [details_type]
+    else:
+        return [details_type]
+
 def accumulate_metrics(metrics, item_results):
     metrics['total_correct_params'] += sum(item_results['correct_names'].values())
     metrics['total_correct_values'] += sum(item_results['correct_values'].values())
@@ -255,20 +275,37 @@ def calculate_final_metrics(metrics):
         "param_value_acc_based_non_empty_params": param_value_acc_based_non_empty_params
     }
 
-def analyze_api_data(data, key='query_code_params'):
+def analyze_api_data(data, api_data, key='query_code_params'):
     api_count = 0
     total_parameters = 0
     non_empty_parameter_values = 0
+    non_empty_default_values = 0
     non_empty_apis = 0
+    literal_count = 0
+    boolean_count = 0
+    other_count = 0
+
     for item in data:
         api_count += 1
         api_has_non_empty_param = False
         params = item[key]
         total_parameters += len(params)
+        api = item['new_api_calling'].split('(')[0].strip()
         # Count non-empty parameter values and check if any parameter is non-empty
         for value in params.values():
-            if value is not None:
+            if value not in [None, "None", 'null']:
                 non_empty_parameter_values += 1
+                if value!=api_data[api]['Parameters'][list(params.keys())[0]]['default']:
+                    non_empty_default_values+=1
+                details_type = api_data[api]['Parameters'][list(params.keys())[0]]['type']
+                processed_type = process_type(str(details_type))
+                if 'Literal' in processed_type or 'literal' in processed_type :
+                    literal_count += 1
+                elif any('bool' in p_type.lower() for p_type in processed_type):
+                    boolean_count += 1
+                else:
+                    other_count += 1
+                
                 api_has_non_empty_param = True
         # Check if the API query code is non-empty
         if item['query_code'].strip() or api_has_non_empty_param:
@@ -277,7 +314,11 @@ def analyze_api_data(data, key='query_code_params'):
         'total_inquiries': api_count,
         'total_parameters': total_parameters,
         'non_empty_parameter_values': non_empty_parameter_values,
-        'non_empty_inquiries': non_empty_apis
+        'non_empty_default_values': non_empty_default_values,
+        'non_empty_inquiries': non_empty_apis,
+        'literal_count': literal_count,
+        'boolean_count': boolean_count,
+        'other_count': other_count
     }
 
 def parse_true_parameters(query_code, params_list):
@@ -356,25 +397,6 @@ def classify_apis(inquiry_data, special_types, io_types, io_param_names):
         item['new_api_calling'] = new_api_calling
         #item['required_params'] = required_params
         # Step1: count the special type
-        def process_type(details_type):
-            if not details_type:
-                return [details_type]
-            # remove optional[]
-            if details_type.startswith("Optional[") and details_type.endswith("]"):
-                details_type = details_type[len("Optional["):-1].strip()
-            if details_type.startswith("Literal"):
-                return ["Literal"]
-            # remove Union[]
-            if details_type.startswith("Union[") and details_type.endswith("]"):
-                details_type = details_type[len("Union["):-1].strip()
-            if not any(char in details_type for char in "[]()"):
-                if ',' in details_type:
-                    details_type = details_type.split(',')
-                    return details_type
-                else:
-                    return [details_type]
-            else:
-                return [details_type]
         
         for param, details in required_params.items():
             param_types = process_type(details['type'])
@@ -400,6 +422,7 @@ def classify_apis(inquiry_data, special_types, io_types, io_param_names):
             for param, details in required_params.items()
             if not any(t in str(details['type']) for t in special_types.union(io_types)) and param not in io_param_names
         }
+        
         item['ground_truth_params'] = ground_truth_params
         
         ground_truth_params_optional = {
@@ -531,7 +554,7 @@ async def predict_parameters(doc, instruction, parameters_name_list, api_name, a
         parsed_data = {}
     #if isinstance(parsed_data, dict):
     #    parsed_data = list(parsed_data.keys())
-    print('parsed_data: ', parsed_data)
+    #print('parsed_data: ', parsed_data)
     if success:
         return parsed_data, returned_content_str_new
     else:
@@ -657,12 +680,41 @@ async def main():
     # add optional items
     with open(f"api_parameters_{args.LIB}_class3_final_modified_v3.json", 'r') as f:
         uncategorized_item = json.load(f)
+    uncategorized_item = [item for item in uncategorized_item]
+    print('!!!', len(uncategorized_item))
+    
+    ############################
     # filter out the samples with some parameters
+    filter_out = [item for item in uncategorized_item if not item['query_code_params']]
+    #print(len(filter_out))
     uncategorized_item = [item for item in uncategorized_item if item['query_code_params']]
     # filter out the samples with non null parameters
+    filter_out = [item for item in uncategorized_item if not any(item['query_code_params'].values())]
+    #print(len(filter_out))
     uncategorized_item = [item for item in uncategorized_item if any(item['query_code_params'].values())]
+    #print('!!!', len(uncategorized_item))
+    # filter out the samples with non default parameters
+    filter_out = [
+        item for item in uncategorized_item
+        if not any(
+            value not in [None, 'None', 'null', ''] and 
+            str(api_data[item['new_api_calling'].split('(')[0].strip()]['Parameters'][param]['default']) != str(value)
+            for param, value in item['query_code_params'].items()
+        )
+    ]
+    #print(len(filter_out))
+    uncategorized_item = [
+        item for item in uncategorized_item
+        if any(
+            value not in [None, 'None', 'null', ''] and 
+            str(api_data[item['new_api_calling'].split('(')[0].strip()]['Parameters'][param]['default']) != str(value)
+            for param, value in item['query_code_params'].items()
+        )
+    ]
+    print('!!!', len(uncategorized_item))
+    
+    #print(len(uncategorized_item))
     print('after adding optional items:')
-    print(analyze_api_data(uncategorized_item))
     def filter_uncategorized_items(uncategorized_item, api_data):
         filtered_items = []
         for item in uncategorized_item:
@@ -681,8 +733,7 @@ async def main():
                 filtered_items.append(item)
         return filtered_items
     uncategorized_item = filter_uncategorized_items(uncategorized_item, api_data)
-    print('after removing non description parameters items:')
-    print(analyze_api_data(uncategorized_item))
+    print(analyze_api_data(uncategorized_item, api_data))
     
     #### Prediction:
     # query_code parameters name and value check:
@@ -705,7 +756,7 @@ async def main():
         json.dump(results, f, indent=4)
     # transfer type
     results = transfer_type(results)
-    print(analyze_api_data(results, key='true_params'))
+    print(analyze_api_data(results, api_data, key='true_params'))
 
     metrics = process_results(results, api_data)
     final_metrics = calculate_final_metrics(metrics)
@@ -719,3 +770,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+    

@@ -78,6 +78,7 @@ def compress_and_save_image(image_path, output_path=None):
     writer.write_array(output, pixels)
     output.close()
 def save_plot_with_timestamp(folder="./tmp/images", prefix="img", format="webp", save_pdf=False):
+    # from src.inference.utils import save_plot_with_timestamp
     current_time = datetime.datetime.now()
     timestamp = current_time.strftime("%Y%m%d%H%M%S")
     # save 

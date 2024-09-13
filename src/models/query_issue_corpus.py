@@ -209,7 +209,7 @@ def main():
     parser.add_argument('--example_query', type=str, required=True, help='Example query to test')
     parser.add_argument('--method', type=str, default="sentencebert", choices=['bm25', 'sentencebert'], help='Retrieval method to use')
     parser.add_argument('--field', type=str, default="issue_title", choices=['issue_title', 'issue_description'], help='Field to compare')
-    parser.add_argument('--top_k', type=int, default=10, help='Number of top documents to retrieve')
+    parser.add_argument('--top_k', type=int, default=30, help='Number of top documents to retrieve')
     parser.add_argument('--query_source', type=str, default="online", help='query issue with solutions online')
     args = parser.parse_args()
     

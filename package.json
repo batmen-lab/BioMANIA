@@ -1,0 +1,30 @@
+{
+  "name": "biomania",
+  "version": "1.0.0",
+  "description": "<div align=\"center\" style=\"display: flex; align-items: center; justify-content: center;\">   <a href=\"https://github.com/batmen-lab/BioMANIA\" target=\"_blank\">     <img src=\"./images/BioMANIA.png\" alt=\"BioMANIA Logo\" style=\"width: 80px; height: auto; margin-right: 10px;\">   </a>   <h1 style=\"margin: 0; white-space: nowrap;\">BioMANIA</h1> </div>",
+  "main": "main.js",
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
+  },
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-packager . BioMANIA --platform=darwin --arch=x64 --out=dist --icon=./images/BioMANIA.png"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/batmen-lab/BioMANIA.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/batmen-lab/BioMANIA/issues"
+  },
+  "homepage": "https://github.com/batmen-lab/BioMANIA#readme",
+  "devDependencies": {
+    "electron": "^31.3.1",
+    "electron-packager": "^17.1.2"
+  }
+}

@@ -716,6 +716,7 @@ def generate_api_callings(results: Dict[str, Any], basic_types: List[str] = ['st
         else:
             api_info["api_calling"] = []
         updated_results[api_name] = api_info
+    assert len(updated_results)==len(results)
     return updated_results
 
 def generate_api_calling_simple(api_name: str, parameters: Dict[str, Any]) -> List[str]:
@@ -796,10 +797,10 @@ def filter_specific_apis(data: Dict[str, Any], lib_name: str, unpredicted_types:
         "external_lib_function":0,
     }
     filter_API = {"api_type_module_constant_property_getsetdescriptor": [],
-        "api_type_unwant_func": [],
-        "api_type_unknown": [],
+        "api_type_unwant_func": [], # no
+        "api_type_unknown": [], # no
         "empty_docstring": [],
-        "empty_input_output":[],
+        "empty_input_output":[], # no
         "external_lib_function":[],}
     for api, details in data.items():
         api_type = details['api_type']
@@ -807,31 +808,31 @@ def filter_specific_apis(data: Dict[str, Any], lib_name: str, unpredicted_types:
         parameters = details['Parameters']
         Returns_type = details['Returns']['type']
         Returns_description = details['Returns']['description']
-        if api_type in unpredicted_types:
+        # Filter by empty docstring
+        if str(api_type) in unpredicted_types:
             filter_counts["api_type_module_constant_property_getsetdescriptor"] += 1
             filter_API["api_type_module_constant_property_getsetdescriptor"].append(api)
             continue
-        # We filter out `cython` type API, because some are compiled functions.
-        """if api_type in ["builtin", 'functools.partial', "rePattern", "cython"]:
-            filter_counts["api_type_unwant_func"] += 1
-            filter_API["api_type_unwant_func"].append(api)
-            continue"""
-        # We filter out the api_type that we can not parsed
-        """if api_type in ["unknown"]:
-            filter_counts["api_type_unknown"] += 1
-            filter_API["api_type_unknown"].append(api)
-            continue"""
-        # Filter by empty docstring
-        if (not docstring) or (not details['description']):
+        if (not docstring): #  or (not details['description'])
             filter_counts["empty_docstring"] += 1
             filter_API["empty_docstring"].append(api)
             continue
+        # We filter out `cython` type API, because some are compiled functions.
+        '''if api_type in ["builtin", 'functools.partial', "rePattern", "cython"]:
+            filter_counts["api_type_unwant_func"] += 1
+            filter_API["api_type_unwant_func"].append(api)
+            continue'''
+        # We filter out the api_type that we can not parsed
+        '''if api_type in ["unknown"]:
+            filter_counts["api_type_unknown"] += 1
+            filter_API["api_type_unknown"].append(api)
+            continue'''
         # These API is not our targeted API. We filter it because there are too many `method` type API in some libs.
         # TODO: We might include them in future for robustness.
-        """if (not parameters) and (not Returns_type) and (not Returns_description):
+        '''if (not parameters) and (not Returns_type) and (not Returns_description):
             filter_counts["empty_input_output"] += 1
             filter_API["empty_input_output"].append(api)
-            continue"""
+            continue'''
         # Remove API that imported from external lib 
         # (used for github repo 2 biomania app only)
         remove_extra_API = False
@@ -930,6 +931,7 @@ def main_get_API_init(lib_name: str, lib_alias: str, lib_data_path: str, api_htm
     # STEP2
     print('Start getting docparam from source')
     results = get_docparam_from_source(ori_content_keys, lib_name)
+    #print('1: Get API #numbers are: ', len(results))
     #results = filter_optional_parameters(results)
     results = generate_api_callings(results)
     print('Get API #numbers are: ', len(results))
@@ -983,11 +985,11 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--LIB', type=str, help='PyPI tool')
     parser.add_argument('--api_txt_path', type=str, default=None, help='Your self-defined api txt path')
-    parser.add_argument('--unpredicted_API_types', action='append', help='Add multiple types') # --type "module" --type "constant" --type "getset_descriptor" --type "property"
+    parser.add_argument('--unpredicted_API_types', action='append', help='Add multiple types') # --unpredicted_API_types "module" --unpredicted_API_types "constant" --unpredicted_API_types "getset_descriptor" --unpredicted_API_types "property"
     args = parser.parse_args()
     info_json = get_all_variable_from_cheatsheet(args.LIB)
     LIB_ALIAS, API_HTML, TUTORIAL_GITHUB, API_HTML_PATH, LIB_DATA_PATH, BASE_DATA_PATH = [info_json[key] for key in ['LIB_ALIAS', 'API_HTML', 'TUTORIAL_GITHUB','API_HTML_PATH', 'LIB_DATA_PATH', 'BASE_DATA_PATH']]
     CHEATSHEET = get_all_basic_func_from_cheatsheet()
-    main_get_API_init(args.LIB,LIB_ALIAS,LIB_DATA_PATH,API_HTML_PATH, api_txt_path=args.api_txt_path, unpredicted_types=args.unpredicted_API_types)
+    main_get_API_init(args.LIB,LIB_ALIAS,LIB_DATA_PATH,API_HTML_PATH, api_txt_path=args.api_txt_path) # , unpredicted_types=args.unpredicted_API_types
     # currently we do not need the API_base.json
     main_get_API_basic(BASE_DATA_PATH, CHEATSHEET)

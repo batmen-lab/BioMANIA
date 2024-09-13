@@ -2,7 +2,7 @@ from queue import Queue
 import json, time, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess, re
 from sentence_transformers import SentenceTransformer
 import multiprocessing
-import numpy as np, matplotlib.pyplot as plt
+import numpy as np, matplotlib.pyplot as plt, pandas as pd
 from functools import lru_cache
 import asyncio, aiofiles
 import traceback
@@ -20,12 +20,68 @@ from ..configs.Lib_cheatsheet import CHEATSHEET as LIB_CHEATSHEET
 from ..deploy.utils import basic_types, generate_api_calling, download_file_from_google_drive, download_data, save_decoded_file, correct_bool_values, convert_bool_values, infer, dataframe_to_markdown, convert_image_to_base64, change_format, special_types, io_types, io_param_names
 from ..models.dialog_classifier import Dialog_Gaussian_classification
 from ..inference.param_count_acc import predict_parameters
+from ..dataloader.get_API_full_from_unittest import merge_unittest_examples_into_API_init
 from sentence_transformers import SentenceTransformer, util
 from nltk.corpus import stopwords
 import nltk
 
 nltk.download('stopwords')
 stop_words = set(stopwords.words('english'))
+
+def compare_values(val1, val2):
+    """Safely compare two values considering their types."""
+    try:
+        if isinstance(val1, np.ndarray) and isinstance(val2, np.ndarray):
+            return np.array_equal(val1, val2)
+        elif isinstance(val1, pd.DataFrame) and isinstance(val2, pd.DataFrame):
+            return val1.equals(val2)
+        elif isinstance(val1, pd.Series) and isinstance(val2, pd.Series):
+            return val1.equals(val2)
+        else:
+            if val1.all() == val2.all():
+                return True
+            return True
+    except:
+        return True
+
+def compare_anndata_objects(a, b):
+    """Compare two AnnData objects for changes in keys and values of main attributes."""
+    attributes = list(set(dir(a)) & set(dir(b)))
+    attributes = [i for i in attributes if i in ['obs', 'var', 'uns', 'obsm', 'varm', 'obsp']]
+    differences = {}
+    for attr in attributes:
+        attr_a = getattr(a, attr, None)
+        attr_b = getattr(b, attr, None)
+        if attr_a is not None and attr_b is not None:
+            try:
+                keys_a = set(attr_a.keys())
+            except:
+                keys_a = []
+            try:
+                keys_b = set(attr_b.keys())
+            except:
+                keys_b = []
+            print(attr, keys_a, keys_b)
+            if keys_a != keys_b:
+                differences[attr] = f"Keys differ: {keys_a.symmetric_difference(keys_b)}"
+                return "no", differences
+            for key in keys_a:
+                if not compare_values(attr_a[key], attr_b[key]):
+                    differences[attr] = f"Values differ in key '{key}'"
+                    return "no", differences
+        elif attr_a is not None or attr_b is not None:
+            print('new attribute!')
+            differences[attr] = "Attribute present in one object but not in the other"
+            return "no", differences
+    return "yes", "No differences found"
+
+def remove_deprecated_apis(api_list, lib_name=None):
+    # these two are deprecated according to https://github.com/scverse/scanpy/issues/3086, 'scanpy.pl.dpt_groups_pseudotime', 'scanpy.pl.dpt_timeseries', 
+    deprecated_apis = ['ehrapy.data.mimic_2_preprocessed', 'ehrapy.dt.mimic_2_preprocessed']
+    api_list = [i for i in api_list if i not in deprecated_apis]
+    if lib_name and lib_name=='scanpy':
+        api_list = [i for i in api_list if not (('external' in i))] # remove external module, from https://github.com/scverse/scanpy/issues/2717
+    return api_list
 
 def remove_consecutive_duplicates(code: str) -> str:
     lines = code.split('\n')
@@ -70,6 +126,42 @@ def get_all_api_calls(tutorials):
             all_api_calls[tutorial_name].extend(block["ori_relevant_API"])
     all_api_calls = list(all_api_calls.values())
     return all_api_calls
+
+def get_all_api_codes(tutorials):
+    all_api_calls = {}
+    for tutorial_name, blocks in tutorials.items():
+        if tutorial_name not in all_api_calls:
+            all_api_calls[tutorial_name] = ""
+        for block in blocks:
+            if 'code' in block:
+                all_api_calls[tutorial_name]+=block["code"]
+    all_api_calls = list(all_api_calls.values())
+    return all_api_calls
+
+def get_api_calls_with_codes(tutorials):
+    # combine tutorials
+    new_tutorials = {}
+    for tut in tutorials:
+        for block in tutorials[tut]:
+            if "code" in block:
+                if tut not in new_tutorials:
+                    new_tutorials[tut] = [{}]
+                    new_tutorials[tut][0]["ori_relevant_API"] = []
+                    new_tutorials[tut][0]["code"] = ""
+                new_tutorials[tut][0]['code']+='\n'+block['code']
+                new_tutorials[tut][0]['ori_relevant_API'].extend(block['ori_relevant_API'])
+    del tutorials
+    tutorials = new_tutorials
+    del new_tutorials
+    api_to_tutorial_code_map = {}
+    for tutorial_name, blocks in tutorials.items():
+        for block in blocks:
+            if "ori_relevant_API" in block and "code" in block:
+                for api_call in block["ori_relevant_API"]:
+                    if api_call not in api_to_tutorial_code_map:
+                        api_to_tutorial_code_map[api_call] = []
+                    api_to_tutorial_code_map[api_call].append(block["code"])
+    return api_to_tutorial_code_map
 
 def check_api_order(vari1, vari2, all_api_calls):
     for tutorial in all_api_calls:
@@ -245,8 +337,9 @@ class Model:
             return
         self.image_file_list = []
         self.image_file_list = self.update_image_file_list()
-        #self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
-        self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{self.LIB}/API_init.json", mode='single')
+        #self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_composite.json", mode='single')
+        self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{self.LIB}/API_composite.json", mode='single')
+        self.enable_ambi_mode = False # whether let user choose ambiguous API
         self.logger.info("Server ready")
         self.save_state_enviro()
     async def predict_all_params(self, api_name_tmp, boolean_params, literal_params, int_params, boolean_document, literal_document, int_document):
@@ -309,9 +402,10 @@ class Model:
         try:
             self.tutorials_API = load_json(f"./data/autocoop/{lib_name}/summarized_responses.json")
             self.all_api_calls = get_all_api_calls(self.tutorials_API)
+            self.all_tut_codes = get_all_api_codes(self.tutorials_API)
             # load the previous variables, execute_code, globals()
             self.args_retrieval_model_path = f'./hugging_models/retriever_model_finetuned/{lib_name}/assigned'
-            self.ambiguous_pair = find_similar_two_pairs(f"./data/standard_process/{lib_name}/API_init.json")
+            self.ambiguous_pair = find_similar_two_pairs(f"./data/standard_process/{lib_name}/API_composite.json")
             self.ambiguous_api = list(set(api for api_pair in self.ambiguous_pair for api in api_pair))
             #self.load_composite_code_cache(lib_name)
             t1 = time.time()
@@ -328,15 +422,15 @@ class Model:
                 lambda: self.load_bert_model_cache(),
                 lambda: self.load_retriever(lib_name, retrieval_model_path),
                 lambda: self.load_multiple_corpus_in_namespace(),
-                lambda: self.get_all_api_json_cache(f"./data/standard_process/{lib_name}/API_init.json", mode='single')
+                lambda: self.get_all_api_json_cache(f"./data/standard_process/{lib_name}/API_composite.json", mode='single')
             ]
             await asyncio.gather(*[task() for task in tasks])"""
             self.load_data(f"./data/standard_process/{lib_name}/API_composite.json")
             self.load_bert_model_cache()
             self.load_retriever(lib_name, retrieval_model_path)
             self.load_multiple_corpus_in_namespace()
-            #self.get_all_api_json_cache(f"./data/standard_process/{lib_name}/API_init.json", mode='single')
-            self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{lib_name}/API_init.json", mode='single')
+            #self.get_all_api_json_cache(f"./data/standard_process/{lib_name}/API_composite.json", mode='single')
+            self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{lib_name}/API_composite.json", mode='single')
 
             with open(f'./data/standard_process/{lib_name}/centroids.pkl', 'rb') as f:
                 self.centroids = pickle.load(f)
@@ -372,7 +466,6 @@ class Model:
         from ..dataloader.utils.code_download_strategy import download_lib
         from ..dataloader.utils.other_download import download_readthedoc
         from ..dataloader.get_API_init_from_sourcecode import main_get_API_init
-        from ..dataloader.get_API_full_from_unittest import merge_unittest_examples_into_API_init
         self.callback_func('installation', "Downloading lib...", "0")
         os.makedirs(f"./data/standard_process/{self.LIB}/", exist_ok=True)
         #self.callback_func('installation', "downloading materials...", "13")
@@ -456,6 +549,20 @@ class Model:
     def load_data(self, API_file):
         self.API_composite = load_json(API_file)
         self.API_composite.update(load_json("./data/standard_process/base/API_composite.json"))
+        self.API_composite = merge_unittest_examples_into_API_init(False, self.LIB, "data/standard_process", GITHUB_PATH, self.API_composite) # merge unittest into it
+        for key in self.API_composite: # add unit_example into examples
+            if 'example' in self.API_composite[key] and 'unit_example' in self.API_composite[key]:
+                if self.API_composite[key]['unit_example'] and not self.API_composite[key]['example']: # only when there is no example, add unittest
+                    self.API_composite[key]['example'] = self.API_composite[key]['example'] + '\n\n' + '\n\n'.join(self.API_composite[key]['unit_example'])
+                    #print('processed some API with unit_example')
+        # add the tutorial into example
+        api_to_tutorial_code_map = get_api_calls_with_codes(self.tutorials_API)
+        for api_name in self.API_composite:
+            if api_name in api_to_tutorial_code_map:
+                for entry in api_to_tutorial_code_map[api_name]:
+                    self.API_composite[api_name]['tutorial_example'] = entry
+            else:
+                self.API_composite[api_name]['tutorial_example'] = ""
     def generate_file_loading_code(self, file_path, file_type):
         # Define the loading code for each file type
         file_loading_templates = {
@@ -552,6 +659,7 @@ class Model:
             self.initialize_executor()
             self.new_task_planning = True
             self.user_query_list = []
+            self.success_history_API = []
             pass
         # only reset lib when changing lib
         if lib!=self.LIB and lib!='GPT':
@@ -651,35 +759,36 @@ class Model:
                 else:
                     sub_task = user_input
             else:
+                if self.success_history_API:
+                    self.first_task_start = False
+                else:
+                    self.first_task_start = True
                 sub_task = user_input
             # we correct the task description before retrieving API
             if len([i['code'] for i in self.executor.execute_code if i['success']=='True'])>0: # for non-first tasks
-                retrieved_apis = self.retriever.retrieving(sub_task, top_k=23)
-                # remove external API, as it deprecates in scanpy
-                if self.LIB=='scanpy':
-                    retrieved_apis = [i for i in retrieved_apis if not ((any(keyword in i  for keyword in self.keywords)) and ('external' in i))]
-                    retrieved_apis = [i for i in retrieved_apis if i not in ['scanpy.pl.dpt_groups_pseudotime', 'scanpy.pl.dpt_timeseries']]# these two are deprecated according to https://github.com/scverse/scanpy/issues/3086
+                retrieved_apis = self.retriever.retrieving(sub_task, top_k=30+3)
+                retrieved_apis = remove_deprecated_apis(retrieved_apis, self.LIB)
                 #retrieved_apis = [i for i in retrieved_apis if not self.validate_class_attr_api(i)]
                 retrieved_apis = retrieved_apis[:3]
-                prompt = self.prompt_factory.create_prompt("modify_task_correction", self.initial_goal_description, sub_task, 
+                '''prompt = self.prompt_factory.create_prompt("modify_task_correction", self.initial_goal_description, sub_task, 
                     '\n'.join([i['code'] for i in self.executor.execute_code if i['success']=='True']), 
                     json.dumps({str(key): str(value) for key, value in self.executor.variables.items() if value['type'] not in ['function', 'module', 'NoneType']}), 
                     "\n".join(['def '+generate_function_signature(api, self.API_composite[api]['Parameters'])+':\n"""'+self.API_composite[api]['Docstring'] + '"""' for api in retrieved_apis])
                 )
                 self.logger.info('modified task prompt: {}', prompt)
                 sub_task, _ = LLM_response(prompt, self.model_llm_type, history=[], kwargs={})
-                self.logger.info('modified task: {}', sub_task)
+                self.logger.info('modified task: {}', sub_task)'''
                 #self.callback_func('log', 'we modify the task as '+sub_task, 'Modify task description')
-                self.callback_func('log', sub_task, 'Polished task')
+                # 240903: do not show
+                #self.callback_func('log', sub_task, 'Polished task')
             else:
                 pass
             # get sub_task after dialog prediction
             self.user_query = sub_task
             self.logger.info('we filter those API with IO parameters!')
             #self.logger.info('self.user_query: {}', self.user_query)
-            retrieved_names = self.retriever.retrieving(self.user_query, top_k=self.args_top_k+20)
-            if self.LIB=='scanpy':
-                retrieved_names = [i for i in retrieved_names if i not in ['scanpy.pl.dpt_groups_pseudotime', 'scanpy.pl.dpt_timeseries']]# these two are deprecated according to https://github.com/scverse/scanpy/issues/3086
+            retrieved_names = self.retriever.retrieving(self.user_query, top_k=self.args_top_k+30)
+            retrieved_names = remove_deprecated_apis(retrieved_names, self.LIB)
             # get scores dictionary
             query_embedding = self.retriever.embedder.encode(self.user_query, convert_to_tensor=True)
             hits = util.semantic_search(query_embedding, self.retriever.corpus_embeddings, top_k=self.args_top_k+20, score_function=util.cos_sim)
@@ -688,14 +797,10 @@ class Model:
                 api = self.retriever.corpus2tool[hit['corpus_id']]
                 score = hit['score']
                 api_score_mapping[api] = score
-            # Here are external API which need to be removed, from https://github.com/scverse/scanpy/issues/2717
-            if self.LIB=='scanpy':
-                retrieved_names = [i for i in retrieved_names if not ((any(keyword in i  for keyword in self.keywords)) and ('external' in i))]
             #retrieved_names = [i for i in retrieved_names if not self.validate_class_attr_api(i)]
             # Filter out the executed API
-            retrieved_names = [i for i in retrieved_names if i not in self.success_history_API]
-            if self.LIB=='scanpy':
-                retrieved_names = [i for i in retrieved_names if i not in ['scanpy.pl.dpt_groups_pseudotime', 'scanpy.pl.dpt_timeseries']]# these two are deprecated according to https://github.com/scverse/scanpy/issues/3086
+            #retrieved_names = [i for i in retrieved_names if i not in self.success_history_API]
+            retrieved_names = remove_deprecated_apis(retrieved_names, self.LIB)
             #self.logger.info('retrieved_names: {}', retrieved_names)
             # filter out APIs
             #self.logger.info('first_task_start: {}, self.loaded_files: {}', self.first_task_start, self.loaded_files)
@@ -739,7 +844,9 @@ class Model:
                 idx = 0
                 for iii in sampled_shuffled:
                     instruction = iii['query']
-                    tmp_retrieved_api_list = self.retriever.retrieving(instruction, top_k=top_k)
+                    tmp_retrieved_api_list = self.retriever.retrieving(instruction, top_k=top_k+30)
+                    tmp_retrieved_api_list = remove_deprecated_apis(tmp_retrieved_api_list, self.LIB)
+                    tmp_retrieved_api_list = tmp_retrieved_api_list[:top_k]
                     # ensure the order won't affect performance
                     tmp_retrieved_api_list = random.sample(tmp_retrieved_api_list, len(tmp_retrieved_api_list))
                     # ensure the example is correct
@@ -812,7 +919,7 @@ class Model:
                 self.callback_func('log', "LLM can not return valid API name prediction, please redesign your prompt.", "LLM predict Error")
                 return
             # if the predicted API is in ambiguous API list, then show those API and select one from them
-            if self.predicted_api_name in self.ambiguous_api:
+            if self.enable_ambi_mode  and (self.predicted_api_name in self.ambiguous_api):
                 # 240624: we split the ambiguous case into two subcases
                 # insert ambiguous API if needed:
                 related_pairs = [pair for pair in self.ambiguous_pair if self.predicted_api_name in pair]
@@ -913,7 +1020,9 @@ class Model:
         api_docstring = 'def '+generate_function_signature(self.predicted_api_name, self.API_composite[self.predicted_api_name]['Parameters'])+':\n"""'+self.API_composite[self.predicted_api_name]['Docstring'] + '"""'
         summary_prompt = self.prompt_factory.create_prompt('summary_full', self.user_query, api_docstring, self.execution_code)
         response, _ = LLM_response(summary_prompt, self.model_llm_type, history=[], kwargs={})
-        self.callback_func('log', response, "Task summary")
+        self.logger.info('code explanation prompt: {}', summary_prompt)
+        self.logger.info('response: {}', response)
+        self.callback_func('log', response, "Code explanation")
         self.callback_func('log', "Could you confirm should this task be executed?\nEnter [y]: Go on please.\nEnter [n]: Re-generate the code\nEnter [r], Restart another turn", "User Confirmation")
         self.update_user_state("run_pipeline_after_doublechecking_execution_code")
         self.save_state_enviro()
@@ -938,7 +1047,10 @@ class Model:
             return 'break'
         if user_index==-1:
             self.update_user_state("run_pipeline")
-            self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
+            if self.enable_multi_task:
+                self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
+            else:
+                self.callback_func('log', "Could you enter your next inquiry?", "Enter inquiry")
             self.save_state_enviro()
             return 'break'
         # 240625: deprecate
@@ -1043,9 +1155,7 @@ class Model:
                 #sub_task = self.get_query()
                 # polish and modify the sub_task
                 """retrieved_apis = self.retriever.retrieving(user_input, top_k=23)
-                if self.LIB=='scanpy':
-                    retrieved_apis = [i for i in retrieved_apis if (not any(keyword in i  for keyword in self.keywords)) and ('external' in i)]
-                    retrieved_apis = [i for i in retrieved_apis if i not in ['scanpy.pl.dpt_groups_pseudotime', 'scanpy.pl.dpt_timeseries']] # these two are deprecated according to https://github.com/scverse/scanpy/issues/3086
+                retrieved_apis = remove_deprecated_apis(retrieved_apis, self.LIB)
                 # remove class attribute API
                 #retrieved_apis = [i for i in retrieved_apis if not self.validate_class_attr_api(i)]
                 # filter out the executed API
@@ -1142,6 +1252,7 @@ class Model:
         boolean_document = json_to_docstring(apis_name, self.API_composite[apis_name]["description"], boolean_params)
         literal_document = json_to_docstring(apis_name, self.API_composite[apis_name]["description"], literal_params)
         int_document = json_to_docstring(apis_name, self.API_composite[apis_name]["description"], int_params)
+        self.logger.info(f'user query: {self.user_query}, parameters prompt: boolean_params: {list(boolean_params.keys())}, literal_params: {list(literal_params.keys())}, int_params: {list(int_params.keys())}, boolean_document: {boolean_document}, literal_document: {literal_document}, int_document: {int_document}')
         try:
             predicted_params = asyncio.run(self.predict_all_params(api_name_tmp, boolean_params, literal_params, int_params, boolean_document, literal_document, int_document))
             #self.logger.info('predicted_parameters async run finised! {}', predicted_params)
@@ -1157,7 +1268,8 @@ class Model:
         # filter out the parameters which value is same as their default value
         self.logger.info('now filter out the parameters which value is same as their default value!')
         self.logger.info('predicted_parameters: {}', predicted_params)
-        predicted_parameters = {k: v for k, v in predicted_params.items() if ((k in param_tmp) and (str(v) != param_tmp[k]["default"]) and (str(v) not in [None, "None", "null", 'NoneType']))}
+        # sanity check that the predicted parameters are in the list of parameters
+        predicted_parameters = {k: v for k, v in predicted_params.items() if ((k in param_tmp) and (str(v) != str(param_tmp[k]["default"])) and (str(v) not in [None, "None", "null", 'NoneType']))}
         self.logger.info('predicted_parameters after filtering: {}', predicted_parameters)
         if len(parameters_name_list)==0:
             #self.logger.info('if there is no required parameters, skip using LLM')
@@ -1413,7 +1525,28 @@ class Model:
             if ('inplace' in api_data_single['Parameters']) and (api_name.startswith('scanpy') or api_name.startswith('squidpy')):
                 extracted_params[idx]['inplace'] = {
                     "type": api_data_single['Parameters']['inplace']['type'],
-                    "value": True,
+                    "value": True, # we change the default value to False
+                    "valuefrom": 'value',
+                    "optional": True,
+                }
+            if ('copy' in api_data_single['Parameters']) and (api_name.startswith('scanpy') or api_name.startswith('squidpy')):
+                extracted_params[idx]['copy'] = {
+                    "type": api_data_single['Parameters']['copy']['type'],
+                    "value": False, # we change the default value to False
+                    "valuefrom": 'value',
+                    "optional": True,
+                }
+            if ('copy' in api_data_single['Parameters']) and (api_name.startswith('ehrapy')):
+                extracted_params[idx]['copy'] = {
+                    "type": api_data_single['Parameters']['copy']['type'],
+                    "value": True, # we change the default value to False
+                    "valuefrom": 'value',
+                    "optional": True,
+                }
+            if ('show' in api_data_single['Parameters']) and (api_name.startswith('scanpy') or api_name.startswith('squidpy')):
+                    extracted_params[idx]['show'] = {
+                    "type": api_data_single['Parameters']['show']['type'],
+                    "value": True, # because we want to show figure obtained to print
                     "valuefrom": 'value',
                     "optional": True,
                 }
@@ -1467,6 +1600,8 @@ class Model:
         api_docstring = 'def '+generate_function_signature(self.predicted_api_name, self.API_composite[self.predicted_api_name]['Parameters'])+':\n"""'+self.API_composite[self.predicted_api_name]['Docstring'] + '"""'
         summary_prompt = self.prompt_factory.create_prompt('summary_full', user_input, api_docstring, self.execution_code)
         response, _ = LLM_response(summary_prompt, self.model_llm_type, history=[], kwargs={})
+        self.logger.info('code explanation prompt: {}', summary_prompt)
+        self.logger.info('response: {}', response)
         self.callback_func('log', response, "Task summary")
         self.callback_func('log', "Could you confirm whether this task is what you aimed for, and the code should be executed?\nEnter [y]: Go on please\nEnter [n]: Re-direct to the parameter input step\nEnter [r]: Restart another turn", "User Confirmation")
         self.update_user_state("run_pipeline_after_doublechecking_execution_code")
@@ -1503,9 +1638,12 @@ class Model:
             # user_states didn't change
             return
         # else, continue
+        # get the variables startswith result_ and its value
+        self.tmp_variables = {key: value for key, value in self.executor.variables.items() if key.startswith('result_')}
+        print('tmp_variables updated!!!!')
         execution_code_list = self.execution_code.split('\n')
         self.plt_status = plt.get_fignums()
-        temp_output_file = "./sub_process_execution.txt"
+        temp_output_file = f"./tmp/sessions/sub_process_execution_{self.session_id}.txt"
         process = multiprocessing.Process(target=self.run_pipeline_execution_code_list, args=(execution_code_list, temp_output_file))
         process.start()
         #process.join()
@@ -1560,40 +1698,97 @@ class Model:
                     print_val = vari[0]
                     print_value = self.executor.variables[print_val]['value']
                     print_type = self.executor.variables[print_val]['type']
-                    self.callback_func('log', "We obtain a new variable: " + str(print_value), "Executed results [Success]")
+                    attr = None
+                    if print_value is not None:
+                        pass
+                    else: # if none, print the changed values, need to compare
+                        print('tmp_variables_new updated!!!!')
+                        self.tmp_variables_new = {key: value for key, value in self.executor.variables.items() if key.startswith('result_')}
+                        for key in self.tmp_variables_new.keys() & self.tmp_variables.keys():
+                            if compare_anndata_objects(self.tmp_variables[key]['value'], self.tmp_variables_new[key]['value'])[0]=='no': # if any variable changes
+                                print_val = key
+                                print_value = self.tmp_variables_new[key]['value']
+                                print_type = self.executor.variables[key]['type']
+                                print('find difference!!!')
+                                print(compare_anndata_objects(self.tmp_variables[key]['value'], self.tmp_variables_new[key]['value'])[1])
+                                attr = list(compare_anndata_objects(self.tmp_variables[key]['value'], self.tmp_variables_new[key]['value'])[1].keys())[0]
+                                break
+                        if not print_value:
+                            print_value = None
+                    self.logger.info('print_val {}, print_value {}, print_type {}', print_val, str(print_value), str(print_type))
                     if print_type=='AnnData': #TODO: 'AnnData' in print_type
                         #self.logger.info('if the new variable is of type AnnData, ')
                         visual_attr_list = [i_tmp for i_tmp in list(dir(print_value)) if not i_tmp.startswith('_')]
                         #if len(visual_attr_list)>0:
-                        if 'obs' in visual_attr_list:
-                            visual_attr = 'obs' # TODO: visual_attr_list[0]
+                        self.logger.info('attr {}', attr)
+                        if attr or ('obs' in visual_attr_list) or ('var' in visual_attr_list):
+                            if attr and (attr in visual_attr_list): # if we identify new attribute, then we use the new attribute
+                                # we deprecate visualizing the attr, this is because that the obs and var are always dataframe, while other attribute data are not
+                                #visual_attr = attr
+                                pass
+                            if 'obs' in visual_attr_list:
+                                visual_attr = 'obs'
+                            elif 'var' in visual_attr_list:
+                                visual_attr = 'var'
+                            else:
+                                raise KeyError
                             self.logger.info('visualize {} attribute', visual_attr)
-                            output_table = getattr(self.executor.variables[vari[0]]['value'], "obs", None).head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
+                            output_table = getattr(self.executor.variables[print_val]['value'], visual_attr, None).head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
+                            #if output_table
+                            #output_table
                             # if exist \n in the last index, remove it
                             last_newline_index = output_table.rfind('\n')
                             if last_newline_index != -1:
                                 output_table = output_table[:last_newline_index] + '' + output_table[last_newline_index + 1:]
                             else:
                                 pass
+                            if print_value is not None:
+                                self.callback_func('log', f"We obtain a new variable {print_val}: " + str(print_value), "Executed results [Success]")
+                            else:
+                                self.callback_func('log', "Executed successsfully! No new variable obtained", "Executed results [Success]")
                             self.callback_func('log', "We visualize the first 5 rows of the table data", "Executed results [Success]", tableData=output_table)
                         else:
-                            pass
-                    try:
-                        #self.logger.info('if exist table, visualize it')
-                        output_table = self.executor.variables[vari[0]]['value'].head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
+                            if print_value is not None:
+                                self.callback_func('log', f"We obtain a new variable {print_val}: " + str(print_value), "Executed results [Success]")
+                            else:
+                                self.callback_func('log', "Executed successsfully! No new variable obtained", "Executed results [Success]")
+                    elif print_type=='DataFrame':
+                        self.logger.info('visualize DataFrame')
+                        output_table = self.executor.variables[print_val]['value'].head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
+                        # if exist \n in the last index, remove it
                         last_newline_index = output_table.rfind('\n')
                         if last_newline_index != -1:
                             output_table = output_table[:last_newline_index] + '' + output_table[last_newline_index + 1:]
                         else:
                             pass
+                        if print_value is not None:
+                            self.callback_func('log', f"We obtain a new variable {print_val}: " + str(print_value), "Executed results [Success]")
+                        else:
+                            self.callback_func('log', "Executed successsfully! No new variable obtained", "Executed results [Success]")
                         self.callback_func('log', "We visualize the first 5 rows of the table data", "Executed results [Success]", tableData=output_table)
-                    except:
-                        pass
+                    #elif print_type: # write tuple(AnnData, DataFrame) visualization
+                    # TODO
+                    else:
+                        try:
+                            #self.logger.info('if exist table, visualize it')
+                            output_table = self.executor.variables[vari[0]]['value'].head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
+                            last_newline_index = output_table.rfind('\n')
+                            if last_newline_index != -1:
+                                output_table = output_table[:last_newline_index] + '' + output_table[last_newline_index + 1:]
+                            else:
+                                pass
+                            self.callback_func('log', "We visualize the first 5 rows of the table data", "Executed results [Success]", tableData=output_table)
+                        except:
+                            if print_value is not None:
+                                self.callback_func('log', f"We obtain a new variable {print_val}: " + str(print_value), "Executed results [Success]")
+                            else:
+                                self.callback_func('log', "Executed successsfully! No new variable obtained", "Executed results [Success]")
                 else:
+                    self.callback_func('log', "Executed successsfully! No new variable obtained", "Executed results [Success]")
                     self.logger.info('Something wrong with variables! success executed variables didnt contain targeted variable')
                 tips_for_execution_success = False
             else:
-                pass
+                self.callback_func('log', "Executed successsfully! No new variable obtained", "Executed results [Success]")
             #self.logger.info('if generate image, visualize it')
             new_img_list = self.update_image_file_list()
             new_file_list = set(new_img_list)-set(self.image_file_list)
@@ -1621,18 +1816,21 @@ class Model:
                 #prompt = self.prompt_factory.create_prompt('execution_correction', self.user_query, str(self.executor.execute_code), self.last_execute_code['code'], content, str(self.executor.variables), self.LIB)
                 # 240531: add newer execution prompt, which combines information from docstring examples, api_callings, and github issue solutions, and traceback informations
                 # remove tracebackerror because the information is nonsense, only keep the line of 'ValueError: '
-                '''if output_list:
+                # 240903: We must use the whole error information to debug, because some error info are not enough for debugging
+                if output_list:
                     executor_info = "\n".join(list(set([str(iii) for iii in output_list])))
+                elif content:
+                    executor_info = content
                 else:
-                    executor_info = ""'''
-                executor_info = tmp_output
-                # append executor_info to the self.executor.execute_code
-                self.executor.execute_code[-1]['traceback'] = tmp_output
+                    executor_info = tmp_output
+                #executor_info = tmp_output
+                #self.executor.execute_code[-1]['traceback'] = tmp_output
+                self.executor.execute_code[-1]['traceback'] = executor_info
                 from ..models.query_issue_corpus import retrieved_issue_solution, search_github_issues
                 from ..gpt.get_summarize_tutorial import extract_imports, get_sub_API
                 # use github issue retriever
                 #possible_solution = retrieved_issue_solution(self.LIB, 3, executor_info, "sentencebert", "issue_title") # issue_description
-                possible_solution = search_github_issues(self.LIB, 2, executor_info)
+                possible_solution = search_github_issues(self.LIB, 2, tmp_output) # 240903: check whether using whole information or partial information will help
                 self.logger.info('executor_info: {}, possible_solution: {}', executor_info, possible_solution)
                 print('=======================')
                 print(f'get solutions from github: {possible_solution}')
@@ -1668,15 +1866,17 @@ class Model:
                 ori_relevant_API, relevant_API = get_sub_API(error_code, imports, self.LIB) # ALIAS
                 for api in relevant_API:
                     if api in self.API_composite:
-                        example = self.API_composite[api]['example']
-                        if example:
-                            example_json[api] = example
+                        if self.API_composite[api]['tutorial_example']:
+                            example_json[api] = self.API_composite[api]['tutorial_example']
+                        elif self.API_composite[api]['example']:
+                            example_json[api] = self.API_composite[api]['example']
                         api_callings[api] = generate_function_signature(api, self.API_composite[api]['Parameters'])
                         parameters_json[api] = self.API_composite[api]['Parameters']
                     else:
                         self.logger.error('there exist error that some APIs are not in API_init.json')
                 # collect parameters and put into prompt
                 api_docstring = 'def '+generate_function_signature(self.predicted_api_name, self.API_composite[self.predicted_api_name]['Parameters'])+':\n"""'+self.API_composite[self.predicted_api_name]['Docstring'] + '"""'
+                # we add tutorial example here
                 execution_prompt = self.prompt_factory.create_prompt('executor_correction', api_docstring, json.dumps({str(key): str(value) for key, value in self.executor.variables.items() if value['type'] not in ['function', 'module', 'NoneType']}), error_code_with_info, possible_solution, json.dumps(example_json), success_history_code, self.user_query)
                 tmp_retry_count = 0
                 while tmp_retry_count<5:
@@ -1712,7 +1912,9 @@ class Model:
                 api_docstring = 'def '+generate_function_signature(self.predicted_api_name, self.API_composite[self.predicted_api_name]['Parameters'])+':\n"""'+self.API_composite[self.predicted_api_name]['Docstring'] + '"""'
                 summary_prompt = self.prompt_factory.create_prompt('summary_full', user_input, api_docstring, self.execution_code)
                 response, _ = LLM_response(summary_prompt, self.model_llm_type, history=[], kwargs={})
-                #self.callback_func('log', response, "Task summary")
+                self.logger.info('code explanation prompt: {}', summary_prompt)
+                self.logger.info('response: {}', response)
+                self.callback_func('log', response, "Code explanation")
                 #self.callback_func('log', "Could you confirm whether this task is what you aimed for, and the code should be executed?\nEnter [y]: Go on please\nEnter [n]: Re-direct to the parameter input step\nEnter [r]: Restart another turn", "User Confirmation")
                 self.update_user_state("run_pipeline_after_doublechecking_execution_code")
                 self.save_state_enviro()
@@ -1763,12 +1965,18 @@ class Model:
                     self.save_state_enviro()
                     self.run_pipeline_after_fixing_API_selection(self.user_query)
                 else:
-                    self.callback_func('log', "All tasks are predicted and executed.", "Start another round.")
+                    if self.enable_multi_task:
+                        self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
+                    else:
+                        self.callback_func('log', "Could you enter your next inquiry?", "Enter inquiry")
                     self.new_task_planning = True
                     self.user_query_list = []
                 return
             else:
-                self.callback_func('log', "All tasks are predicted and executed.", "Start another round.")
+                if self.enable_multi_task:
+                    self.callback_func('log', "We will start another round. Could you re-enter your inquiry?", "Start another round")
+                else:
+                    self.callback_func('log', "Could you enter your next inquiry?", "Enter inquiry")
                 self.new_task_planning = True
                 self.user_query_list = []
         self.update_user_state("run_pipeline")
@@ -1816,7 +2024,7 @@ class Model:
                 output_list.append(ans)
             if plt.get_fignums()!=self.plt_status:
                 output_list.append(self.executor.execute_api_call("from src.inference.utils import save_plot_with_timestamp", "import"))
-                output_list.append(self.executor.execute_api_call("save_plot_with_timestamp()", "code"))
+                output_list.append(self.executor.execute_api_call("save_plot_with_timestamp(save_pdf=True)", "code"))
                 self.plt_status = plt.get_fignums()
             else:
                 pass

@@ -1,9 +1,26 @@
 import openai
 import logging
 import tenacity as T
-import os
+import os, json
 from dotenv import load_dotenv
-from ..gpt.utils import load_json
+
+def load_json(filename: str) -> dict:
+    """
+    Load JSON data from a specified file.
+
+    Parameters
+    ----------
+    filename : str
+        The path to the JSON file to be loaded.
+
+    Returns
+    -------
+    dict
+        The data loaded from the JSON file.
+    """
+    with open(filename, 'r') as file:
+        data = json.load(file)
+    return data
 
 def setup_openai(fname, mode='azure'):
     assert mode in {'openai', 'azure'}

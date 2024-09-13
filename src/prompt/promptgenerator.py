@@ -143,13 +143,14 @@ class MultiTaskPromptBuilder(PromptBuilder):
     def build_prompt(self, LIB, goal_description, data_list=[]):
         prompt = f"""
 Create step-by-step task plan with subtasks to achieve the goal.
-The tone should vary among queries: polite, straightforward, casual. 
-Each subtask has 10-20 words, be clear and concise for the scope of one single API's functionality from PyPI library {LIB}. Omit API name from subtask.
-Split the subtask into two or more subtasks if it contains more than one action. Using `Filtering ...` together with `Normalize ...` instead of `Filtering and Normalizing.`
-When arranging tasks, consider the logical order and dependencies.
-Integrate visualization tasks after each analytical step. Ensure the plan has around 5 tasks (maximum 7, minimum 3), with the last one exclusively for visualization. Focus on essential actions only.
-Include Data description only in data loading subtask. 
-Ensure Goal-Oriented Task Structuring, place the goal description at the beginning of each subtask.
+Tone: Vary the tone appropriately across tasks, such as polite, straightforward, or casual.
+Subtask length: Each subtask should consist of around 10 words.
+Subtask scope: Each subtask should invoke only one API from the {LIB} PyPI library. Split subtasks if they contain more than one action. For example, use "Please filter the data" alongside "Could you normalize the data?" instead of "Please filter and normalize." Use "Please load/filter/normalize dataset1" and "Can you load/filter/normalize dataset2" instead of "How to load/filter/normalize dataset1 and dataset2.". Use "Integrate two datasets" (since integration requires two datasets).
+Subtask order: Ensure prerequisites appear before subsequent API calls.
+Number of subtasks: Create approximately 5 tasks based on complexity. The visualization step should appear last and not be included in previous steps.
+Focus on Operations: Concentrate on actions and objectives without over-explaining the object being operated on. For instance, "Please create scatter plot in UMAP basis" emphasizes the action rather than the object (data). Use "Could you process the data" instead of "Could you process the data for spatial analysis."
+Avoid Dataset Mentions: Aside from the data-loading step, avoid directly mentioning the dataset. For example, use "Could you draw scatter plot for the data" instead of "Could you draw scatter plot for the pbmc3k data?". Notice that never mention keywords like `pbmc3k`, `pbmc68k` except for the data loading step.
+Goal-Oriented Structure: State the goal at the beginning of each subtask. Be clear and concise, omit API names, and focus on key actions only.
 Only respond in JSON format strictly enclosed in double quotes, adhering to the Response Format.
 Exclude any extraneous content from your response.
 ---
@@ -160,10 +161,8 @@ Response:
 "step 1: Load pre-processed Imaging Mass Cytometry data.",
 "step 2: Could you show cell type clusters in spatial context?",
 "step 3: Please calculate co-occurrence of cell types across spatial dimensions.",
-"step 4: I want you to visualize co-occurrence results.",
-"step 5: Compute neighborhood enrichment.",
-"step 6: Can you plot neighborhood enrichment results?",
-"step 7: How to display the distribution and interaction of all identified cell types?"
+"step 4: Compute neighborhood enrichment.",
+"step 5: Can you plot neighborhood enrichment results?",
 ]}}
 ---
 Now finish the goal with the following information:
@@ -188,13 +187,13 @@ class ExecutorPromptBuilder(PromptBuilder):
         else:
             possible_solution_info = ""
         # remove api_examples as it is already included in the api docstring
-        #if api_examples and api_examples != "{}":
-        #    api_examples_info = f"\nAPI Usage examples: {api_examples}."
-        #else:
-        #    api_examples_info = ""
+        if api_examples and api_examples != "{}":
+            api_examples_info = f"\nHere are some examples. Identify the key prerequisite APIs or the correct usage of the target API to address the bug. Do not copy their parameters; predict based on the variable information in our namespace: {api_examples}.\n"
+        else:
+            api_examples_info = ""
         prompt = f"""
-Task: Analyze and correct the newest failed attempt Python script based on provided traceback information. 
-Correct the latest failed attempt without repeating previous mistakes. 
+Task: Analyze and correct the most recent failed Python script attempt based on the provided traceback information.
+Make corrections considering all previous failed attempts and the associated error details, ensuring that prior mistakes are not repeated. You must make some valid and meaningful change, and keep the key correction step you did correctly in past attempt. Please ensure each time you make a correction, you are moving towards the correct solution.
 Include all necessary library imports at the beginning. 
 Ensure the correct execution order for API dependencies like pandas, numpy, and AnnData, based on the traceback error and variables. 
 Use only variables from successful executions. 
@@ -204,6 +203,7 @@ Preprocess data if needed using relevant tools or APIs before the main API call.
 Remove unnecessary optional parameters causing errors. 
 Respond with the corrected code in JSON format. 
 Refer to namespace variables for their values and attributes; avoid variables with None.
+The function returned variable should not be the same name as the function name.
 
 Common Errors to Address:
 Import Verification: Confirm necessary libraries are imported.
@@ -213,6 +213,8 @@ Prerequisite API Calls: Include any necessary pre-API steps.
 Identify and address indirect errors by deducing the root cause. Present the logical steps in the 'analysis' section and the corresponding code in the 'code' section.
 KeyError: Ensure to use the exist and correct attribute from existing variables in namespace. Or use the correct API to generate the attribute before executing this subtask. Sometimes the key error is due to that there lack of previous API. 
 TypeError: Sometimes the processed variable gets None, please use other variable in namespace instead of the null variable.
+AttributeError: Sometimes the message 'NoneType' object indicates that the variable is None, verify that you're not using a None variable and replace it with a valid one from the current namespace. Or check whether the annotations or parameters you're accessing (e.g., .var, .obs, etc.) are indeed present in the object. It's possible that the attribute you're trying to use does not exist for this specific object or is incorrectly referenced.
+ValueError: Be careful for choosing the attributes from `.obs` and `.var` of AnnData object, as some API requires annotations are from the same attribute.
 
 Here are information:
 Success execution History: {success_history_code}
@@ -221,14 +223,16 @@ Current Goal: {goal_description}
 History Failed Attempts with their tracebacks:\n {error_code}
 {possible_solution_info}{api_examples_info}
 API Docstring: {api_docstring}.
-Response Format: {{"analysis": "Explain how to correct the bug in 2 sentences, including the reason of the bug, and how to correct.", "code": "Contain the Corrected failed attempt code, exclude code from `success execution history`, exclude `save_plot_with_timestamp()`"}}
+Response Format: {{"analysis": "Explain how to correct the bug in 2 sentences, including the reason of the bug, and how to correct.", "code": "Contain the Corrected failed attempt code, exclude code from `success execution history`, exclude `save_plot_with_timestamp()`, exclude any comments in the code. Notice to set any parameters named `inplace`, `show` as True, while `copy` as False"}}
 """ # You only need to keep required parameters from previous trial codes, only keep minimum optional parameters necessary for task. Remove optional parameters from error code which cause the problem. Please ensure that required parameters are passed in their proper positional order, as keyword arguments should only be used for optional parameters. You only need to include the task related correct code in your response, do not repeat other API from the success execution history in your response. For parameters starting with 'result_', use only those that exist in the namespace. Do not generate inexist variables.
         return prompt
     
 class ModifySubtaskPromptBuilder(PromptBuilder):
+    # add parameters
     def build_prompt(self, main_goal, current_subtask,  execution_history, namespace_variables, api_docs):
         query_prompt = f'''
 Refine the subtask description by integrating essential parameters and their values from the docstring, ensuring their values are appropriate for the next steps in the code execution. Inherit any valid parameter values from the current subtask, verifying their accuracy and relevance. Check the docstring for API dependencies, required optional parameters, parameter conflicts, duplication, and deprecations. If the main goal provides a method name and the subtask can use this method to accomplish its goal, include the method name in the polished subtask. Include only the parameters with explicitly assigned values; avoid stating default values or parameters with vague values. 
+Please avoid assigning values to `inplace`, `copy`, `show` parameters.
 Provide only the refined subtask description. Avoid including any extraneous information.
 ---
 Example:
@@ -264,6 +268,7 @@ refined subtask description:
         return query_prompt
 
 class ModifySubtaskCorrectionPromptBuilder(PromptBuilder):
+    # correct subtask
     def build_prompt(self, main_goal, current_subtask,  execution_history, namespace_variables, api_docs):
         query_prompt = f'''
 Refine the subtask description to more closely align with the functionality and intent of a specific API. Review the docstrings of similar API candidates that will be provided, and polish the task description to ensure it encapsulates the API's capabilities and constraints accurately. Refine the interpretation of the existing task based on the most appropriate API's features. If the main goal provides a method or data name and the subtask can use this method or data to accomplish its goal, include this keyword in the polished subtask. Omit API name from subtask.

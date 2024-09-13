@@ -319,7 +319,7 @@ def find_matching_api_pairs(api_data, threshold=5):
                     matching_pairs.append((api_names[i], api_names[j]))
     return matching_pairs
 
-def plot_figure(cluster_data, LIB):
+def plot_figure(cluster_data, LIB, colors=[]):
     categories = [
         "Multi-label\nclassification\nw/\nretriever",
         "GPT-3.5-turbo\ngeneration",
@@ -340,7 +340,10 @@ def plot_figure(cluster_data, LIB):
     index = np.arange(num_categories)
     fig, ax = plt.subplots(figsize=(14, 9))
     for i in range(num_conditions):
-        bars = ax.bar(index + i * bar_width, cluster_data[i], bar_width, label=legend_labels[i])
+        if colors:
+            bars = ax.bar(index + i * bar_width, cluster_data[i], bar_width, label=legend_labels[i], color=colors[i])
+        else:
+            bars = ax.bar(index + i * bar_width, cluster_data[i], bar_width, label=legend_labels[i])
         # Annotate the bars with the data values
         for rect in bars:
             height = rect.get_height()
@@ -447,6 +450,6 @@ if __name__ == '__main__':
         for item in a:
             print(item[0], ':',  all_apis_json[item[0]])
             print(item[1], ':',  all_apis_json[item[1]])
-        """print('-'*10)
-        print(b)"""
+        print('-'*10)
+        print(b)
     

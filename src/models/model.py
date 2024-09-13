@@ -49,8 +49,9 @@ __all__ = list(set([name for name, obj in locals().items() if not name.startswit
 
 if __name__=='__main__':
     #llm_model = "dolphin-phi"
-    llm_model = "gpt-3.5-turbo-0125"
-    prompt = "hello"
+    #llm_model = "gpt-3.5-turbo-0125"
+    llm_model = "gpt-4-turbo"
+    prompt = "Provide the python code for computing the neighborhood graph on data with the API only from Ehrapy. Apply it to the built-in dermatology dataset."
     response, history = LLM_response(prompt, llm_model)
     print(f'User: {prompt}')
     print(f'LLM: {response}')

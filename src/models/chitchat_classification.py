@@ -1,3 +1,10 @@
+"""
+Author: Zhengyuan Dong
+Date Created: Sep, 2023
+Last Modified: Aug 27, 2024
+Description: get chitchat model performance
+"""
+
 import argparse, os, torch, glob, time, pickle
 import pandas as pd
 import numpy as np
@@ -7,6 +14,7 @@ from ..inference.utils import sentence_transformer_embed, predict_by_similarity
 from ..gpt.utils import load_json
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
+import matplotlib.colors as mcolors
 
 def process_topicalchat() -> None:
     """
@@ -126,6 +134,8 @@ def calculate_centroid(data: pd.DataFrame, model_chosen: SentenceTransformer) ->
     ans = np.mean(embeddings, axis=0)
     return ans
 
+import matplotlib.colors as mcolors
+
 def plot_tsne_distribution_modified(lib_name: str, train_data: pd.DataFrame, test_data: pd.DataFrame, model: SentenceTransformer, 
                                     labels: list, c2_accuracy: float, embed_method: str) -> None:
     """
@@ -155,13 +165,16 @@ def plot_tsne_distribution_modified(lib_name: str, train_data: pd.DataFrame, tes
     tsne = TSNE(n_components=2, random_state=40, init='random')
     reduced_data_combined = tsne.fit_transform(tfidf_matrix_combined)
     print('step3: ', str(time.time()-t1))
+    
     # Split the reduced data back into train and test portions
     reduced_data_train = reduced_data_combined[:len(train_data)]
     reduced_data_test = reduced_data_combined[len(train_data):]
-    # Define a list of colors for each class
-    colors = ['#8a2be2', '#8a2be2', '#fad02e']  # Modify the colors list as per your requirement
+    
+    # Define the color scheme: first two blue, last one orange
+    colors = ['#1f77b4', '#1f77b4', '#ff7f0e']  # Blue for the first two, orange for the third
     markers_train = ['o', 'D', 'o']
-    markers_test = ['D', 'D', 'D']
+    markers_test = ['o', 'D', 'o']
+    
     # Create a figure for train data
     plt.figure(figsize=(12, 12))
     # Plot training data points
@@ -174,6 +187,7 @@ def plot_tsne_distribution_modified(lib_name: str, train_data: pd.DataFrame, tes
     plt.legend()
     plt.savefig(f'./plot/{lib_name}/chitchat_train_tsne_modified_{embed_method}.pdf')
     plt.clf()  # Clear the current figure
+    
     # Create a figure for test data
     plt.figure(figsize=(12, 12))
     # Plot test data points with different markers
@@ -181,9 +195,20 @@ def plot_tsne_distribution_modified(lib_name: str, train_data: pd.DataFrame, tes
         mask = test_data['Source'] == label
         plt.scatter(reduced_data_test[mask, 0], reduced_data_test[mask, 1], 
                     label=f"Test-{label}", color=colors[i], marker=markers_test[i], alpha=0.5)
-    plt.title('t-SNE visualization of test data')
+    plt.title(f't-SNE visualization of test data with test accuracy for api/non-api {formatted_accuracy}%')
     plt.legend()
     plt.savefig(f'./plot/{lib_name}/chitchat_test_tsne_modified_{embed_method}.pdf')
+
+def calculate_accuracy(test_data, centroids, labels, model_chosen):
+    correct_predictions = 0
+    for index, row in test_data.iterrows():
+        user_query_vector = np.array([sentence_transformer_embed(model_chosen, [row['Question']])])
+        user_query_vector = user_query_vector.flatten().reshape(1,-1)
+        predicted_label = predict_by_similarity(user_query_vector, centroids, labels)
+        actual_label = row['Source']
+        if predicted_label == actual_label:
+            correct_predictions += 1
+    return correct_predictions / len(test_data) * 100 if len(test_data) > 0 else 0, correct_predictions, len(test_data)
 
 def main(lib_data_path:str, LIB: str, ratio_1_to_3: float, ratio_2_to_3: float, embed_method: str, device: torch.device) -> None:
     """
@@ -246,18 +271,8 @@ def main(lib_data_path:str, LIB: str, ratio_1_to_3: float, ratio_2_to_3: float, 
     centroid3 = calculate_centroid(train_data3['Question'],model_chosen)
     centroids = [centroid1, centroid2, centroid3]
     labels = ['chitchat-data', 'topical-chat', 'api-query']
-    def calculate_accuracy(test_data, centroids, labels):
-        correct_predictions = 0
-        for index, row in test_data.iterrows():
-            user_query_vector = np.array([sentence_transformer_embed(model_chosen, [row['Question']])])
-            user_query_vector = user_query_vector.flatten().reshape(1,-1)
-            predicted_label = predict_by_similarity(user_query_vector, centroids, labels)
-            actual_label = row['Source']
-            if predicted_label == actual_label:
-                correct_predictions += 1
-        return correct_predictions / len(test_data) * 100 if len(test_data) > 0 else 0, correct_predictions, len(test_data)
-
-    c3_accuracy, correct_predictions_c3, total_predictions = calculate_accuracy(test_data, centroids, labels)
+    
+    c3_accuracy, correct_predictions_c3, total_predictions = calculate_accuracy(test_data, centroids, labels, model_chosen)
     print(f"Accuracy on test data on 3 clusters: {c3_accuracy:.2f}")
     
     correct_predictions_c2 = 0

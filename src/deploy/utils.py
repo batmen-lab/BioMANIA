@@ -5,7 +5,7 @@ from ..inference.utils import sentence_transformer_embed, predict_by_similarity
 from urllib.parse import urlparse
 import re, json
 
-basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'List', 'Dict', 'Any', 'any', 'Path', 'path', 'Pathlike']
+basic_types = ['str', 'int', 'float', 'bool', 'list', 'dict', 'tuple', 'set', 'List', 'Dict', 'Any', 'any', 'Path', 'path', 'Pathlike', 'Iterable']
 basic_types.extend(['_AvailShapes']) # extend for squidpy `shape` type
 
 special_types = {'AnnData', 'ndarray', 'spmatrix', 'DataFrame', 'recarray', 'Axes'}
