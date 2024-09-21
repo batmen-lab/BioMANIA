@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains functions to retrieve documents from a corpus using a pre-trained sentence transformer model.
+"""
 from sentence_transformers import SentenceTransformer, util
 import pandas as pd
 import torch

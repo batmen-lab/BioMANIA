@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This function contains utility functions for the BioMANIA CLI.
+"""
 import base64, ast, os, requests, subprocess
 from datetime import datetime
 import numpy as np

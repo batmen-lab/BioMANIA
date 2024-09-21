@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script is used to get API information from source code.
+"""
 import pydoc, json, re, os, collections, inspect, importlib, typing, functools
 from docstring_parser import parse
 from ..configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet, get_all_basic_func_from_cheatsheet
@@ -944,6 +949,7 @@ def main_get_API_init(lib_name: str, lib_alias: str, lib_data_path: str, api_htm
         api_info['relevant APIs'] = []
         api_info['type'] = 'singleAPI'
     save_json(output_file, tmp_results)
+    print(f'Lib API saved to {output_file}!!!')
 
 def main_get_API_basic(base_data_path, cheatsheet: Dict[str, List[str]]) -> None:
     """
@@ -976,6 +982,7 @@ def main_get_API_basic(base_data_path, cheatsheet: Dict[str, List[str]]) -> None
         api_info['type'] = 'singleAPI'
     with open(output_file, 'w') as file:
         file.write(json.dumps(outputs, indent=4))
+    print(f'Basic API saved to {output_file}!!')
 
 import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))

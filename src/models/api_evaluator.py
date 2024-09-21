@@ -1,3 +1,6 @@
+"""
+Description: This script contains the APIEvaluator class for Information Retrieval evaluation.
+"""
 from sklearn.metrics import ndcg_score
 import numpy as np
 import logging

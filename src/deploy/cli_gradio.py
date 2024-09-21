@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains functions to run the BioMANIA model using Gradio.
+"""
 import gradio as gr
 from datetime import datetime
 import os

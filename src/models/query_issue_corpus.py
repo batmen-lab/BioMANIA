@@ -6,6 +6,7 @@ Description: Query the issue corpus for the specified library
 Usage: 
 python -m src.models.query_issue_corpus --LIB scanpy --example_query "ValueError: cannot specify integer bins when input data contains infinity" --method sentencebert --field issue_description --top_k 1
 Notice: if we input wrong example_query, the output will be empty.
+Email: zydong122@gmail.com
 """
 
 import os, json, requests, argparse, ast

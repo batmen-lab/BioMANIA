@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: Get composite API from tutorials
+"""
 import ast, re, os, json, astor, ast
 from itertools import chain
 from datetime import datetime

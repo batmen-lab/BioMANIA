@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains functions to visualize text from a conversation and generate a PDF.
+"""
 import os
 import base64
 from PIL import Image

@@ -3,6 +3,7 @@ Author: Zhengyuan Dong
 Date Created: January 16, 2024
 Last Modified: May 22, 2024
 Description: aggregate prompts for all tasks
+Email: zydong122@gmail.com
 """
 
 from abc import ABC, abstractmethod

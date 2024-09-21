@@ -2,6 +2,7 @@
 Author: Zhengyuan Dong
 Date Created: Sep, 2023
 Last Modified: Aug 27, 2024
+Email: zydong122@gmail.com
 Description: get chitchat model performance
 """
 

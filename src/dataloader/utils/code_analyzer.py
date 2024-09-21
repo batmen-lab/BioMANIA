@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: The code analyzer module contains functions to extract input and output variables from code snippets.
+"""
 from typing import Tuple, Set
 import types
 

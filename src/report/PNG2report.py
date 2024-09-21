@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script generates a performance report for the ChatBot project.
+"""
 from fpdf import FPDF
 import os, re, glob
 import subprocess

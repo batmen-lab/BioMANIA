@@ -34,6 +34,7 @@ class Dialog_Gaussian_classification:
 
     def calculate_p_values(self, scores, mean, std):
         return [norm.cdf(score, mean, std) for score in scores]
+    
 
     def classify_based_on_p(self, p_values, threshold=0.05):
         return [1 if p < threshold else 0 for p in p_values]

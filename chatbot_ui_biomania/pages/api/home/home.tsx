@@ -193,6 +193,7 @@ const Home = ({
       lib_alias: "",
       conversation_started: true,
       session_id: "",
+      mode: "T",
     };
     const updatedConversations = [...conversations, newConversation];
     dispatch({ field: 'selectedConversation', value: newConversation });

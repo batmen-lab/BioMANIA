@@ -1,5 +1,8 @@
 """
-extract info from source code
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: 
+    extract info from source code
 """
 import os
 import ast

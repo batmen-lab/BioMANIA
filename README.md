@@ -45,7 +45,7 @@ We also offer a GPTs demo (under developing).
 
 # Web access online demo
 
-We provide a colab demo [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14K4562oeesEz5qMoXmjv9gW_4VeLh6_U?usp=sharing) and an [online demo](https://biomania.serveo.net/en) hosted on our server! 
+We provide a colab demo [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14K4562oeesEz5qMoXmjv9gW_4VeLh6_U?usp=sharing) and an [online demo](https://biomania.ngrok.io/en) hosted on our server! 
 
 # Quick start
 

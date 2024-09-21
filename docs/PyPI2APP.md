@@ -75,7 +75,7 @@ To use web UI smoothly, don't forget to add the new lib information to `BioMANIA
 
 2. Generate API_init.json using the provided script.
 ```bash
-python -m src.dataloader.get_API_init_from_sourcecode --LIB ${LIB}
+python -m src.dataloader.get_API_init_from_sourcecode --LIB ${LIB} --unpredicted_API_types "module" --unpredicted_API_types "constant" --unpredicted_API_types "getset_descriptor" --unpredicted_API_types "property"
 ```
 
 Note: If you have prepared an API list txt file, you can add `--api_txt_path your_file_path` to extract the API information. The sequence is firstly to recognize the API txt file, if not given then recognize the API html page, finally we start from Lib_ALIAS and check all its submodules.

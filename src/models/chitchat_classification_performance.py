@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains chitchat classification performance evaluation functions.
+"""
 import os
 import pandas as pd
 import torch

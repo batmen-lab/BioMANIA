@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: The script contains functions to extract API information from R source code.
+"""
 import pydoc, argparse, json, re, os, collections, inspect, importlib, typing, functools
 from docstring_parser import parse
 from langchain.document_loaders import BSHTMLLoader

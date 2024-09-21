@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: The code is the main module for the BioMANIA model, which contains the interactions between the user and the model.
+"""
 from queue import Queue
 import json, time, importlib, inspect, ast, os, random, io, sys, pickle, shutil, subprocess, re
 from sentence_transformers import SentenceTransformer
@@ -24,9 +29,44 @@ from ..dataloader.get_API_full_from_unittest import merge_unittest_examples_into
 from sentence_transformers import SentenceTransformer, util
 from nltk.corpus import stopwords
 import nltk
+import base64
+import requests
 
 nltk.download('stopwords')
 stop_words = set(stopwords.words('english'))
+
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
+def query_image_gpt(base64_image, query, model="gpt-4o-mini-2024-07-18"):
+    api_key = os.getenv('OPENAI_API_KEY', 'sk-test')
+    headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {api_key}"
+    }
+    payload = {
+    "model": model,
+    "messages": [
+        {
+        "role": "user",
+        "content": [
+            {
+            "type": "text",
+            "text": query
+            },
+            {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64,{base64_image}"
+            }
+            }
+        ]
+        }
+    ],
+    "max_tokens": 300
+    }
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    return response.json()['choices'][0]['message']['content']
 
 def compare_values(val1, val2):
     """Safely compare two values considering their types."""
@@ -81,6 +121,8 @@ def remove_deprecated_apis(api_list, lib_name=None):
     api_list = [i for i in api_list if i not in deprecated_apis]
     if lib_name and lib_name=='scanpy':
         api_list = [i for i in api_list if not (('external' in i))] # remove external module, from https://github.com/scverse/scanpy/issues/2717
+    if lib_name and lib_name!='ehrapy':
+        api_list = [i for i in api_list if not (('cellrank' in i))] # only use cellrank API in lib_name
     return api_list
 
 def remove_consecutive_duplicates(code: str) -> str:
@@ -294,6 +336,7 @@ class Model:
         with open(f'./data/standard_process/{self.LIB}/centroids.pkl', 'rb') as f:
             self.centroids = pickle.load(f)
         self.debugging_mode=False
+        self.add_base=False
         self.execution_visualize = True
         self.keywords = ["dca", "magic", "phate", "palantir", "trimap", "sam", "phenograph", "wishbone", "sandbag", "cyclone", "spring_project", "cellbrowser"] # "harmony", 
         self.success_history_API = []
@@ -317,7 +360,7 @@ class Model:
         self.args_top_k = 3
         self.param_llm_retry = 1
         self.predict_api_llm_retry = 3
-        self.enable_multi_task = True
+        self.enable_multi_task = False
         self.session_id = ""
         self.last_user_states = ""
         self.user_states = "run_pipeline"
@@ -338,7 +381,11 @@ class Model:
         self.image_file_list = []
         self.image_file_list = self.update_image_file_list()
         #self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_composite.json", mode='single')
-        self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{self.LIB}/API_composite.json", mode='single')
+        if self.add_base:
+            self.all_apis, self.all_apis_json = get_all_api_json([f"./data/standard_process/{self.LIB}/API_composite.json", "./data/standard_process/base/API_composite.json"], mode='single')
+            print('upload base to all_apis_json successfully!')
+        else:
+            self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{self.LIB}/API_composite.json", mode='single')
         self.enable_ambi_mode = False # whether let user choose ambiguous API
         self.logger.info("Server ready")
         self.save_state_enviro()
@@ -430,8 +477,12 @@ class Model:
             self.load_retriever(lib_name, retrieval_model_path)
             self.load_multiple_corpus_in_namespace()
             #self.get_all_api_json_cache(f"./data/standard_process/{lib_name}/API_composite.json", mode='single')
-            self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{lib_name}/API_composite.json", mode='single')
-
+            #self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{lib_name}/API_composite.json", mode='single')
+            if self.add_base:
+                self.all_apis, self.all_apis_json = get_all_api_json([f"./data/standard_process/{lib_name}/API_composite.json", "./data/standard_process/base/API_composite.json"], mode='single')
+            else:
+                self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{lib_name}/API_composite.json", mode='single')
+            print('upload base to all_apis_json successfully!')
             with open(f'./data/standard_process/{lib_name}/centroids.pkl', 'rb') as f:
                 self.centroids = pickle.load(f)
             self.executor.execute_api_call(f"import {lib_name}", "import"),
@@ -449,7 +500,7 @@ class Model:
             self.callback_func('log', f"Something wrong with loading data and model! \n{e}", "Setting error")
         return reset_result
     def load_retriever(self, lib_name, retrieval_model_path):
-        self.retriever = ToolRetriever(LIB=lib_name,corpus_tsv_path=f"./data/standard_process/{lib_name}/retriever_train_data/corpus.tsv", model_path=retrieval_model_path, add_base=False)
+        self.retriever = ToolRetriever(LIB=lib_name,corpus_tsv_path=f"./data/standard_process/{lib_name}/retriever_train_data/corpus.tsv", model_path=retrieval_model_path, add_base=self.add_base)
 
     def install_lib(self,lib_name, lib_alias, api_html=None, github_url=None, doc_url=None):
         self.install_lib_simple(lib_name, lib_alias, github_url, doc_url, api_html)
@@ -645,10 +696,16 @@ class Model:
             self.save_state_enviro()
             # user_states didn't change
             return
-    def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True,session_id=""):
+    def run_pipeline(self, user_input, lib, top_k=3, files=[],conversation_started=True,session_id="",dialog_mode="T"):
         self.initialize_tool()
         self.indexxxx = 2
         self.session_id = session_id
+        if dialog_mode=='T': # task planning mode
+            self.enable_multi_task = True
+        elif dialog_mode=='S': # single query
+            self.enable_multi_task = False
+        elif dialog_mode=='A': # automatically choose
+            self.enable_multi_task = False # TODO: use gaussian classification to distinguish it
         try:
             self.load_state(session_id)
             a = str(self.session_id)
@@ -767,6 +824,8 @@ class Model:
             # we correct the task description before retrieving API
             if len([i['code'] for i in self.executor.execute_code if i['success']=='True'])>0: # for non-first tasks
                 retrieved_apis = self.retriever.retrieving(sub_task, top_k=30+3)
+                print('sub_task:', sub_task)
+                print('total retrieved_names:', retrieved_apis)
                 retrieved_apis = remove_deprecated_apis(retrieved_apis, self.LIB)
                 #retrieved_apis = [i for i in retrieved_apis if not self.validate_class_attr_api(i)]
                 retrieved_apis = retrieved_apis[:3]
@@ -787,7 +846,11 @@ class Model:
             self.user_query = sub_task
             self.logger.info('we filter those API with IO parameters!')
             #self.logger.info('self.user_query: {}', self.user_query)
+            retrieved_names = self.retriever.retrieving(self.user_query, top_k=self.args_top_k+65)
+            print('total retrieved_names:', retrieved_names)
             retrieved_names = self.retriever.retrieving(self.user_query, top_k=self.args_top_k+30)
+            print('user_query:', self.user_query)
+            print('total retrieved_names:', retrieved_names)
             retrieved_names = remove_deprecated_apis(retrieved_names, self.LIB)
             # get scores dictionary
             query_embedding = self.retriever.embedder.encode(self.user_query, convert_to_tensor=True)
@@ -804,6 +867,7 @@ class Model:
             #self.logger.info('retrieved_names: {}', retrieved_names)
             # filter out APIs
             #self.logger.info('first_task_start: {}, self.loaded_files: {}', self.first_task_start, self.loaded_files)
+            self.first_task_start = False
             if self.first_task_start and (not self.loaded_files): # need to consider only the builtin dataset
                 retrieved_names = [
                     api_name for api_name in retrieved_names
@@ -823,6 +887,7 @@ class Model:
                 self.logger.info('there exist files or we have already load some dataset, retrieved_names are: {}', retrieved_names)
             retrieved_names = retrieved_names[:self.args_top_k]
             # send information card to frontend
+            #print('all api json keys:', self.all_apis_json.keys())
             api_descriptions = [self.all_apis_json[api].replace('.', '. ') for api in retrieved_names]
             highlighted_descriptions = highlight_keywords(self.user_query, api_descriptions)
             highlighted_descriptions = [api+' : '+desc + ' Similarity score: ' + str(api_score_mapping[api]) for api,desc in zip(retrieved_names, highlighted_descriptions)]
@@ -861,13 +926,13 @@ class Model:
             #self.logger.info('start predicting API!')
             api_predict_init_prompt = get_retrieved_prompt()
             #self.logger.info('api_predict_init_prompt: {}', api_predict_init_prompt)
-            #print(self.all_apis_json.keys())
             retrieved_apis_prepare = ""
             retrieved_apis_prepare += str(retrieved_names) + "\n"
             for idx, api in enumerate(retrieved_names):
                 retrieved_apis_prepare+=api+": "+self.all_apis_json[api].replace('\n',' ')+"\n"
             self.logger.info('retrieved_apis_prepare: {}', retrieved_apis_prepare)
             api_predict_prompt = api_predict_init_prompt.format(query=self.user_query, retrieved_apis=retrieved_apis_prepare, similar_queries=instruction_shot_example)
+            api_predict_prompt+= f"\nWe might provide APIs candidate from other library cellrank, in this case we relax the condition that the chosen API must from {self.LIB}."
             self.logger.info('api_predict_prompt: {}', api_predict_prompt)
             #self.logger.info('==>start predicting API! Ask LLM: {}', api_predict_prompt)
             success = False
@@ -886,7 +951,9 @@ class Model:
                     #self.logger.info('self.all_apis_json keys: {}', self.all_apis_json.keys())
                     if len(response.split(','))>1:
                         response = response.split(',')[0].strip()
-                    self.logger.info('==>start predicting API! api_predict_prompt, {}, correct response: {}, respose: {}', api_predict_prompt, ori_response, response)
+                    if 'Function: [' in response:
+                        response = response.split('Function: [')[1].split(']')[0].strip()
+                    self.logger.info('==>start predicting API! api_predict_prompt, {}, correct response: {}, response: {}', api_predict_prompt, ori_response, response)
                     if response in self.all_apis_json:
                         self.logger.info('response in self.all_apis_json')
                         self.predicted_api_name = response
@@ -1245,7 +1312,7 @@ class Model:
         api_name_tmp = list(api_name_tmp_list.keys())[0]
         apis_name = api_name_tmp
         # 240531 added, predict parameters in chunked setting
-        param_tmp = {i:self.API_composite[apis_name]['Parameters'][i] for i in self.API_composite[apis_name]['Parameters'] if (self.API_composite[apis_name]['Parameters'][i]['description'] is not None) and (not any(special_type in str(self.API_composite[apis_name]['Parameters'][i]['type']) for special_type in special_types)) and (str(self.API_composite[apis_name]['Parameters'][i]['type']) not in io_types) and (i not in io_param_names)}
+        param_tmp = {i:self.API_composite[apis_name]['Parameters'][i] for i in self.API_composite[apis_name]['Parameters'] if ((self.API_composite[apis_name]['Parameters'][i]['description'] is not None) and (not any(special_type in str(self.API_composite[apis_name]['Parameters'][i]['type']) for special_type in special_types)) and (str(self.API_composite[apis_name]['Parameters'][i]['type']) not in io_types) and (i not in io_param_names)) or (i in ['color'])} # in snap, it set colors as special type ndarray, so we add a patch here 240917
         boolean_params = {k: v for k, v in param_tmp.items() if 'boolean' in str(v['type']) or 'bool' in str(v['type'])}
         literal_params = {k: v for k, v in param_tmp.items() if 'literal' in str(v['type']) or 'Literal' in str(v['type'])}
         int_params = {k: v for k, v in param_tmp.items() if k not in boolean_params and k not in literal_params}
@@ -1477,7 +1544,7 @@ class Model:
         for api_name in api_name_json:
             details = api_info[api_name]
             parameters = details["Parameters"]
-            api_params = {param_name: {"type": param_details["type"]} for param_name, param_details in parameters.items() if (param_name in selected_params) or (not param_details['optional']) or (param_name=="color" and (("scanpy.pl" in api_name) or ("squidpy.pl" in api_name))) or (param_name=='encodings' and (api_name.startswith('ehrapy.pp') or api_name.startswith('ehrapy.preprocessing'))) or (param_name=='encoded' and (api_name.startswith('ehrapy.')))} # TODO: currently not use optional parameters!!!
+            api_params = {param_name: {"type": param_details["type"]} for param_name, param_details in parameters.items() if (param_name in selected_params) or (not param_details['optional']) or (param_name=="color" and (("scanpy.pl" in api_name) or ("squidpy.pl" in api_name))) or (param_name=='encodings' and (api_name.startswith('ehrapy.pp') or api_name.startswith('ehrapy.preprocessing'))) or (param_name=='encoded' and (api_name.startswith('ehrapy.'))) or (param_name=='backed' and (api_name.startswith('snapatac2.'))) or (param_name=='type' and api_name.startswith('snapatac2.') and 'dataset' in api_name) or (param_name=='interactive' and api_name.startswith('snapatac2.')) or (param_name=='color' and api_name.startswith('snapatac2.')) or (param_name=='out_file' and api_name.startswith('snapatac2.')) or (param_name=='height' and api_name.startswith('snapatac2.pl.motif_enrichment'))} # TODO: currently not use optional parameters!!!
             # TODO: add which have been predicted in selected_params
             api_params.update({})
             combined_params = {}
@@ -1540,6 +1607,41 @@ class Model:
                 extracted_params[idx]['copy'] = {
                     "type": api_data_single['Parameters']['copy']['type'],
                     "value": True, # we change the default value to False
+                    "valuefrom": 'value',
+                    "optional": True,
+                }
+            if ('backed' in api_data_single['Parameters']) and (api_name.startswith('snapatac2')):
+                extracted_params[idx]['backed'] = {
+                    "type": 'boolean',
+                    "value": 'None', # we change the default value to False
+                    "valuefrom": 'value',
+                    "optional": True,
+                }
+            if (api_name.startswith('snapatac2.pl.motif_enrichment')):
+                extracted_params[idx]['height'] = {
+                    "type": 'int',
+                    "value": 1800, # we change the default value to False
+                    "valuefrom": 'value',
+                    "optional": True,
+                }
+            if (api_name.startswith('snapatac2.pl.')): # this is because some API store interactive in their **kwargs, however, this is very important
+                extracted_params[idx]['interactive'] = {
+                    "type": 'boolean',
+                    "value": False, # we change the default value to False
+                    "valuefrom": 'value',
+                    "optional": True,
+                }
+            """if (api_name.startswith('snapatac2.pl.')):
+                extracted_params[idx]['show'] = {
+                    "type": 'boolean',
+                    "value": True, # we change the default value to False
+                    "valuefrom": 'value',
+                    "optional": True,
+                }"""
+            if ('type' in api_data_single['Parameters']) and (api_name.startswith('snapatac2')) and ('datasets.pbmc5k' in api_name):
+                extracted_params[idx]['type'] = {
+                    "type": 'Literal',
+                    "value": 'annotated_h5ad', # because default value will download a file which can not be opened.
                     "valuefrom": 'value',
                     "optional": True,
                 }
@@ -1745,14 +1847,14 @@ class Model:
                             if print_value is not None:
                                 self.callback_func('log', f"We obtain a new variable {print_val}: " + str(print_value), "Executed results [Success]")
                             else:
-                                self.callback_func('log', "Executed successsfully! No new variable obtained", "Executed results [Success]")
+                                self.callback_func('log', "Executed successfully! No new variable obtained", "Executed results [Success]")
                             self.callback_func('log', "We visualize the first 5 rows of the table data", "Executed results [Success]", tableData=output_table)
                         else:
                             if print_value is not None:
                                 self.callback_func('log', f"We obtain a new variable {print_val}: " + str(print_value), "Executed results [Success]")
                             else:
-                                self.callback_func('log', "Executed successsfully! No new variable obtained", "Executed results [Success]")
-                    elif print_type=='DataFrame':
+                                self.callback_func('log', "Executed successfully! No new variable obtained", "Executed results [Success]")
+                        """elif print_type=='DataFrame':
                         self.logger.info('visualize DataFrame')
                         output_table = self.executor.variables[print_val]['value'].head(5).to_csv(index=True, header=True, sep=',', lineterminator='\n')
                         # if exist \n in the last index, remove it
@@ -1764,8 +1866,8 @@ class Model:
                         if print_value is not None:
                             self.callback_func('log', f"We obtain a new variable {print_val}: " + str(print_value), "Executed results [Success]")
                         else:
-                            self.callback_func('log', "Executed successsfully! No new variable obtained", "Executed results [Success]")
-                        self.callback_func('log', "We visualize the first 5 rows of the table data", "Executed results [Success]", tableData=output_table)
+                            self.callback_func('log', "Executed successfully! No new variable obtained", "Executed results [Success]")
+                        self.callback_func('log', "We visualize the first 5 rows of the table data", "Executed results [Success]", tableData=output_table)"""
                     #elif print_type: # write tuple(AnnData, DataFrame) visualization
                     # TODO
                     else:
@@ -1782,13 +1884,13 @@ class Model:
                             if print_value is not None:
                                 self.callback_func('log', f"We obtain a new variable {print_val}: " + str(print_value), "Executed results [Success]")
                             else:
-                                self.callback_func('log', "Executed successsfully! No new variable obtained", "Executed results [Success]")
+                                self.callback_func('log', "Executed successfully! No new variable obtained", "Executed results [Success]")
                 else:
-                    self.callback_func('log', "Executed successsfully! No new variable obtained", "Executed results [Success]")
+                    self.callback_func('log', "Executed successfully! No new variable obtained", "Executed results [Success]")
                     self.logger.info('Something wrong with variables! success executed variables didnt contain targeted variable')
                 tips_for_execution_success = False
             else:
-                self.callback_func('log', "Executed successsfully! No new variable obtained", "Executed results [Success]")
+                self.callback_func('log', "Executed successfully! No new variable obtained", "Executed results [Success]")
             #self.logger.info('if generate image, visualize it')
             new_img_list = self.update_image_file_list()
             new_file_list = set(new_img_list)-set(self.image_file_list)
@@ -1798,15 +1900,20 @@ class Model:
                     if base64_image:
                         self.callback_func('log', "We visualize the obtained figure. Try to zoom in or out the figure.", "Executed results [Success]", imageData=base64_image)
                         tips_for_execution_success = False
+                        # 240918: add image interpretation
+                        prompt_image_interpretation = f"Can you interpret the chart based on the query `{self.user_query}`? Here are the executed code from where we obtain this chart `{code}`. Give meaningful conclusion in one sentence instead of general answer. Now only return the answer without other information:"
+                        response = query_image_gpt(base64_image, prompt_image_interpretation)
+                        self.callback_func('log', "We interpret the obtained figure: " + str(response),"Executed results [Success]")
             self.image_file_list = new_img_list
             if tips_for_execution_success: # if no output, no new variable, present the log
                 self.callback_func('log', str(content), "Executed results [Success]")
             self.retry_execution_count = 0
         else:
             try:
-                tmp_output = extract_last_error_sentence_from_list("\n".join(list(set(output_list))))
+                tmp_output = "\n".join(output_list)
             except:
-                tmp_output = extract_last_error_sentence_from_list(content)
+                tmp_output = content
+            tmp_output = extract_last_error_sentence_from_list(tmp_output)
             self.logger.info('Execution Error: {}', tmp_output)
             if self.execution_visualize:
                 self.callback_func('log', tmp_output, "Executed results [Fail]")
@@ -1903,6 +2010,7 @@ class Model:
                     self.execution_code = newer_code
                     if self.execution_visualize or self.retry_execution_count==self.retry_execution_limit:
                         self.debugging_mode=True
+                        self.logger.info('gpt debugging code:', newer_code)
                         self.callback_func('code', self.execution_code, "Executed code")
                 else:
                     # TODO: should return to another round
@@ -2002,6 +2110,7 @@ class Model:
             test_file.write("\n")
         #sys.stdout = open(output_file, 'a')
         output_list = []
+        total_code = []
         for code in execution_code_list:
             ori_code = code
             if 'import' in code:
@@ -2019,17 +2128,23 @@ class Model:
                     }
                     code, _ = self.modify_code_add_tmp(ori_code, 'result_'+str(self.executor.counter+1)) # add `tmp =`
                     ans = self.executor.execute_api_call(code, "code", output_file=output_file)
-            self.logger.info('{}, {}', str(code), str(ans))
+            self.logger.info('executed results here {}, {}', str(code), str(ans))
             if ans:
                 output_list.append(ans)
             if plt.get_fignums()!=self.plt_status:
-                output_list.append(self.executor.execute_api_call("from src.inference.utils import save_plot_with_timestamp", "import"))
-                output_list.append(self.executor.execute_api_call("save_plot_with_timestamp(save_pdf=True)", "code"))
+                new_fig_nums = set(plt.get_fignums()) - set(self.plt_status)
+                self.logger.info('get new figs: {}', new_fig_nums)
+                for fig_num in new_fig_nums:
+                    plt.figure(fig_num)
+                    output_list.append(self.executor.execute_api_call("from src.inference.utils import save_plot_with_timestamp", "import"))
+                    output_list.append(self.executor.execute_api_call(f"save_plot_with_timestamp(save_pdf=True, fig_num={fig_num})", "code"))
                 self.plt_status = plt.get_fignums()
             else:
                 pass
+            total_code.append(code)
+        total_code = '\n'.join(total_code)
         #sys.stdout.close()
-        result = json.dumps({'code': code, 'output_list': output_list})
+        result = json.dumps({'code': total_code, 'output_list': output_list})
         self.executor.save_environment("./tmp/tmp_output_run_pipeline_execution_code_variables.pkl")
         with open("./tmp/tmp_output_run_pipeline_execution_code_list.txt", 'w') as file:
             file.write(result)
@@ -2038,6 +2153,8 @@ class Model:
         while not self.queue.empty():
             yield self.queue.get()
     def get_last_execute_code(self, code):
+        if '\n' in code:
+            code = code.split('\n')[-1]
         for i in range(1, len(self.executor.execute_code)+1):
             if self.executor.execute_code[-i]['code']==code:
                 return self.executor.execute_code[-i]

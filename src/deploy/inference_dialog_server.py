@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains functions to run the BioMANIA model using Flask.
+"""
 # Flask
 from flask import Flask, Response, stream_with_context, request
 from flask_socketio import SocketIO
@@ -121,7 +126,8 @@ def stream():
             model.install_lib(data["Lib"], lib_alias, api_html, new_lib_github_url, new_lib_doc_url)"""
         with concurrent.futures.ThreadPoolExecutor() as executor:
             logger.info('start running pipeline!')
-            future = executor.submit(model.run_pipeline, data["text"], data["Lib"], data["top_k"], files, data["conversation_started"], data['session_id'])
+            print('data:', data)
+            future = executor.submit(model.run_pipeline, data["text"], data["Lib"], data["top_k"], files, data["conversation_started"], data['session_id'], data["mode"])
             # keep waiting for the queue to be empty
             while True:
                 if should_stop.is_set():

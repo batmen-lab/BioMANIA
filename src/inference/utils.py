@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: The script contains utility functions for the project.
+"""
 import json, os, datetime
 import matplotlib.pyplot as plt
 from collections import defaultdict
@@ -77,7 +82,9 @@ def compress_and_save_image(image_path, output_path=None):
     writer = png.Writer(w, h, greyscale=metadata['greyscale'], alpha=metadata['alpha'], bitdepth=8)
     writer.write_array(output, pixels)
     output.close()
-def save_plot_with_timestamp(folder="./tmp/images", prefix="img", format="webp", save_pdf=False):
+def save_plot_with_timestamp(folder="./tmp/images", prefix="img", format="webp", save_pdf=False, fig_num=None):
+    if fig_num:
+        plt.figure(fig_num)
     # from src.inference.utils import save_plot_with_timestamp
     current_time = datetime.datetime.now()
     timestamp = current_time.strftime("%Y%m%d%H%M%S")

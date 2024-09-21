@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: Generate instructions for API usage based on the provided API descriptions.
+"""
 # instruction_generation
 # prepare for retriever data
 import json, os, re, copy, ast, random, time, asyncio
@@ -157,7 +162,11 @@ async def async_LLM_response(prompt: str, GPT_model: str, history: list = [], kw
     """
     model_version = "gpt-4-0125-preview" if GPT_model == 'gpt4' else "gpt-3.5-turbo-0125"
     loop = asyncio.get_event_loop()
+    print('-----------------'*10)
+    print(prompt)
     response, history = await loop.run_in_executor(None, LLM_response, prompt, model_version, history, kwargs)
+    print('-----------------'*10)
+    #print(response)
     return response, history
 
 async def process_prompt_async(desc_retriever: Any, API_init: dict, api_name: str, api: dict, tmp_docstring: str, progress: tqdm_normal, similar_api_same_desc: dict, similar_api_same_funcname: dict, GPT_model: str, prompt_factory) -> list:

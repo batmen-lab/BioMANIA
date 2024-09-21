@@ -1,10 +1,11 @@
 """
 First created: 2024/09/12
 Last modified: 2024/09/12
-Main target:
+Description:
     - Classify the API query based on the retrieved API ranks, using Gaussian distribution
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
 """
-
 import numpy as np
 from scipy.stats import multivariate_normal
 from sklearn.metrics import accuracy_score

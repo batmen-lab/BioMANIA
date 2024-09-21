@@ -1,3 +1,7 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+"""
 from flask import Flask, request, jsonify
 from ..models.lit_llama.lora import mark_only_lora_as_trainable, lora, lora_state_dict
 

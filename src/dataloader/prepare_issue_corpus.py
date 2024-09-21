@@ -5,6 +5,7 @@ Last Modified: May 29, 2024
 Description: Prepare the issue corpus for the specified library
 Usage: 
 python -m src.dataloader.prepare_issue_corpus --LIB scanpy
+Email: zydong122@gmail.com
 """
 
 import os, re, json, argparse

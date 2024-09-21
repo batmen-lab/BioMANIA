@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains querying OpenAI models and ollama models.
+"""
 from ..configs.model_config import *
 from ..gpt import gpt_interface
 import requests, json

@@ -64,6 +64,7 @@ export interface Message {
   files: FileObject[] | null;
   conversation_started?: boolean;
   session_id:string;
+  mode:string;
 }
 export type Role = 'assistant' | 'user';
 export interface ChatBody {
@@ -79,6 +80,7 @@ export interface ChatBody {
   conversation_started: boolean;
   session_id:string;
   optionalParams:string;
+  mode:string;
 }
 export interface Conversation {
   id: string;
@@ -95,4 +97,5 @@ export interface Conversation {
   lib_alias: string;
   conversation_started: boolean;
   session_id:string;
+  mode:string;
 }

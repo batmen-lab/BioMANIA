@@ -5,6 +5,7 @@ Created Date: 2024-02-01
 Last Edited Date: 2024-08-27
 Description: 
     Plot the comparison of the retriever accuracy results for different libraries and models.
+Email: zydong122@gmail.com
 """
 
 import pandas as pd

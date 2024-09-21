@@ -1,4 +1,8 @@
-
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains functions to preprocess data for classification using LLaMA.
+"""
 import sys, os, random, torch, json
 from pathlib import Path
 import lightning as L

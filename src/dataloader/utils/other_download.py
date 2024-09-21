@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains functions to download ReadTheDocs HTML pages for API documentation and tutorials, and clone a GitHub repository to a local directory.
+"""
 import os, subprocess
 from urllib.parse import urlparse
 from typing import Union, List, Optional

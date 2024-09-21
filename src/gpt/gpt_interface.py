@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: The script contains functions to interact with the OpenAI model.
+"""
 import openai
 import logging
 import tenacity as T

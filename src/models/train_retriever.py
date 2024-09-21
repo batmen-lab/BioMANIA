@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains functions to train a sentence transformer model for information retrieval.
+"""
 import pandas as pd
 import torch
 import argparse, os

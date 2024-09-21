@@ -6,6 +6,7 @@ Last Edited Date: 2024-04-08
 Description: 
     Plot the comparison of the retriever accuracy results for different libraries and models.
     Automatically adjust the number of subplots based on the number of libraries.
+Email: zydong122@gmail.com
 """
 
 import pandas as pd

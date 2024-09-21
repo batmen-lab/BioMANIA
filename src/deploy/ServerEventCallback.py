@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains the base class for the server event callback handler.
+"""
 from typing import Any
 import queue
 class ServerEventCallback():

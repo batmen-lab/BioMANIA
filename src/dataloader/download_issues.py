@@ -6,6 +6,7 @@ Description: Download the closed issues and comments from the scanpy repository
 Requirement: pip install PyGithub
 Usage: 
 python -m src.dataloader.download_issues --LIB scanpy --token {GITHUB_TOKEN}
+Email: zydong122@gmail.com
 """
 
 from github import Github

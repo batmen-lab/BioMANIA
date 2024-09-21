@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains functions to interact with the BioMANIA CLI.
+"""
 from ..deploy.model import Model
 
 import os, torch

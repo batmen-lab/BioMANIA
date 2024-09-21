@@ -49,6 +49,7 @@ interface Props {
   textareaRef: MutableRefObject<HTMLTextAreaElement | null>;
   showScrollDownButton: boolean;
   onUpload: (file: File) => void;
+  onModeChange: (mode: 'T' | 'S' | 'A') => void;
 }
 export const ChatInput = ({
   onSend,
@@ -58,6 +59,7 @@ export const ChatInput = ({
   textareaRef,
   showScrollDownButton,
   onUpload,
+  onModeChange
 }: Props) => {
   const { t } = useTranslation('chat');
   const {
@@ -77,6 +79,7 @@ export const ChatInput = ({
   const [plugin, setPlugin] = useState<Plugin | null>(null);
   const [attachedFiles, setAttachedFiles] = useState<FileObject[]>([]);
   const [fileInputRef, setFileInputRef] = useState(() => createRef<HTMLInputElement>());
+  const [mode, setMode] = useState<'T' | 'S' | 'A'>('T');
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files).map(file => ({ id: uuidv4(), data: file, type: 'file' as const, filename: file.name }));
@@ -121,7 +124,7 @@ export const ChatInput = ({
       return;
     }
     const isFirstMessage = selectedConversation?.messages.length === 0;
-    onSend({ role: 'user', content, tools: [], recommendations: [], files: attachedFiles, conversation_started: isFirstMessage, session_id: selectedConversation?.id|| ""}, plugin);
+    onSend({ role: 'user', content, tools: [], recommendations: [], files: attachedFiles, conversation_started: isFirstMessage, session_id: selectedConversation?.id|| "", mode: mode ||"T"}, plugin);
     setContent('');
     setAttachedFiles([]);
     setPlugin(null);
@@ -224,6 +227,21 @@ export const ChatInput = ({
       setPromptInputValue('');
     }
   }, []);
+  const [isOpen, setIsOpen] = useState(false);
+  const handleModeChange = (newMode: 'T' | 'S' | 'A') => {
+    setMode(newMode);
+    onModeChange(newMode);
+    setIsOpen(false); // Close dropdown after selection
+
+    // Prepare session data
+    const sessionData = {
+      mode: newMode,
+      sessionId: selectedConversation?.id || "",
+      files: attachedFiles,
+    };
+    // Log or record session data as needed
+    console.log("Session Data:", sessionData);
+  };
   const handlePromptSelect = (prompt: Prompt) => {
     const parsedVariables = parseVariables(prompt.content);
     setVariables(parsedVariables);
@@ -353,6 +371,40 @@ export const ChatInput = ({
           >
             URL
           </button>
+          {/* Task planning Mode select */}
+          <button
+            className="absolute left-16 bottom-2.5 rounded-sm p-1 text-neutral-800 opacity-60 hover:bg-neutral-200 hover:text-neutral-900 dark:bg-opacity-50 dark:text-neutral-100 dark:hover:text-neutral-200"
+            onClick={() => setIsOpen((prev) => !prev)}
+          >
+            {isOpen
+              ? (mode === 'T' ? 'Task Planning' : mode === 'S' ? 'Single Query' : 'Automatically Chosen')
+              : mode}
+          </button>
+
+          {isOpen && (
+            <div className="absolute left-16 mt-1 bg-white dark:bg-gray-800 shadow-lg rounded-md z-10">
+              <ul className="py-1">
+                <li
+                  className="px-4 py-2 text-neutral-800 hover:bg-neutral-200 dark:text-neutral-100 dark:hover:bg-gray-700"
+                  onClick={() => handleModeChange('T')}
+                >
+                  Task Planning (T)
+                </li>
+                <li
+                  className="px-4 py-2 text-neutral-800 hover:bg-neutral-200 dark:text-neutral-100 dark:hover:bg-gray-700"
+                  onClick={() => handleModeChange('S')}
+                >
+                  Single Query (S)
+                </li>
+                <li
+                  className="px-4 py-2 text-neutral-800 hover:bg-neutral-200 dark:text-neutral-100 dark:hover:bg-gray-700"
+                  onClick={() => handleModeChange('A')}
+                >
+                  Automatically Chosen (A)
+                </li>
+              </ul>
+            </div>
+          )}
           {/* File upload input message */}
           <input 
             type="file" 

@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains functions to download libraries from PyPI, Conda, or GitHub.
+"""
 import os, subprocess, importlib
 from ...configs.model_config import LIB, LIB_ALIAS, GITHUB_LINK, GITHUB_PATH
 

@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: The code contains functions to process chitchat classification model with multiple libraries.
+"""
 # 240421 TODO: need to be updated according to new pipeline in models/chitchat_classification.py, also split for train and test data
 
 import os

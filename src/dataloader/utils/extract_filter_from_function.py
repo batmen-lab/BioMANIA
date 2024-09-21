@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: The code contains functions to filter keys from a JSON file based on different strategies.
+"""
 import os, re
 from base_graph_ast import *
 from ...configs.model_config import *

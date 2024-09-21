@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains functions to prepare data, create a retriever, and evaluate its performance.
+"""
 import ast, os
 from rank_bm25 import BM25Okapi
 from ..retrievers import *

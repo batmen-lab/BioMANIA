@@ -3,7 +3,7 @@ Author: Zhengyuan Dong
 Date Created: May 10, 2024
 Last Modified: Sep 12, 2024
 Description: parameters correction prediction.
-Conclusion: 
+Email: zydong122@gmail.com
 """
 import json, ast, re, pickle
 

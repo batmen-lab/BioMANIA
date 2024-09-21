@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains the python executor class to execute code snippets.
+"""
 import pickle, importlib, json, inspect, os, io, sys, re
 from anndata import AnnData
 from ..gpt.utils import save_json, load_json
@@ -23,7 +28,7 @@ def find_matching_instance(api_string, executor_variables):
                 return instance_name, True
         return None, False
     except (ImportError, AttributeError) as e:
-        self.logger.info(f"Error: {e}")
+        #logger.info(f"Error: {e}")
         return None, False
 
 class FakeLogger:
@@ -91,7 +96,21 @@ class CodeExecutor:
         print('return_var save :', list(return_var.keys()))
         return return_var, special_objects'''
     def get_newest_counter_from_namespace(self,):
-        return max([int(k.split('_')[1]) for k in self.variables if k.startswith('result_')], default=0)
+        # Initialize a list to store parsed integers
+        parsed_numbers = []
+        # Iterate through each variable in self.variables
+        for k in self.variables:
+            if k.startswith('result_'):
+                try:
+                    # Try to parse the integer part of the variable name
+                    number = int(k.split('_')[1])
+                    parsed_numbers.append(number)
+                except ValueError:
+                    # Skip values that cannot be parsed as integers
+                    continue
+        # Return the maximum value from the parsed numbers, defaulting to 0 if no valid numbers
+        return max(parsed_numbers, default=0)
+        #return max([int(k.split('_')[1]) for k in self.variables if k.startswith('result_')], default=0)
     def save_environment(self, file_name):
         """Save environment, with special handling for AnnData objects."""
         self.logger.info('current variables are: {}', self.variables.keys())
@@ -395,11 +414,14 @@ class CodeExecutor:
                         api_call = f"{maybe_instance_name} = {maybe_class_name}"
                     else:
                         api_call = f"{maybe_instance_name} = {maybe_class_name}({class_params_formatted})"
+                    api_call+="\n"
+                else:
+                    api_call = ""
                 self.logger.info(f'maybe_instance_name api_call: {api_call}')
                 if api_type in ['property', 'constant']:
-                    api_call +="\n"+ f"{maybe_instance_name}.{final_api_name}"
+                    api_call +=f"{maybe_instance_name}.{final_api_name}"
                 else:
-                    api_call +="\n"+ f"{maybe_instance_name}.{final_api_name}({params_formatted})"
+                    api_call +=f"{maybe_instance_name}.{final_api_name}({params_formatted})"
                 self.logger.info(f'api_call: {api_call}')
             class_API = maybe_instance_name
         else:

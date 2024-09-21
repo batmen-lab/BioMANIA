@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains functions to extract tasks from JSON chat files and generate Python code.
+"""
 from ..gpt.utils import load_json
 
 def extract_tasks(file_path):

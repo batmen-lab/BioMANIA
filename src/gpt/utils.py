@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains utility functions for various tasks.
+"""
 import random, re, hashlib, json
 from sklearn.feature_extraction.text import TfidfVectorizer
 from string import punctuation
@@ -69,8 +74,18 @@ def get_first_sentence(text):
     sentences = sentence_end_pattern.split(text, 1)
     return sentences[0] if sentences else ''
 
-def get_all_api_json(API_init_path, mode='full'):
-    API_init = load_json(API_init_path)
+from typing import Union, List, Dict, Tuple
+def get_all_api_json(API_init_path: Union[str, List[str]], mode='full'):
+    API_init = {}
+    if isinstance(API_init_path, str):
+        # Single file path, load JSON
+        API_init = load_json(API_init_path)
+    elif isinstance(API_init_path, list):
+        # List of file paths, load and merge JSON
+        for path in API_init_path:
+            API_init.update(load_json(path))
+    else:
+        raise TypeError("API_init_path should be either a string or a list of strings.")
     end_of_docstring_summary = re.compile(r'[{}\n]+'.format(re.escape(punctuation)))
     all_apis = {}
     for api_name in API_init:

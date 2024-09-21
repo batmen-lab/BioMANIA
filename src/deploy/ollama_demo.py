@@ -1,4 +1,9 @@
- -rf from ..deploy.model import Model
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script is to use the wrapped BioMANIA model as the ollama supported demo.
+"""
+from ..deploy.model import Model
 import os, torch
 from datetime import datetime
 from colorama import Fore, Style

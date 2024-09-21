@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This script contains functions to evaluate the retriever's performance.
+"""
 import argparse, os, random
 from tqdm import tqdm
 import pandas as pd
@@ -12,7 +17,7 @@ import seaborn as sns
 from typing import List, Dict, Any, Tuple
 
 class ToolRetriever:
-    def __init__(self, LIB, corpus_tsv_path = "", model_path="", base_corpus_tsv_path="./data/standard_process/base/retriever_train_data/corpus.tsv",add_base=False, shuffle_data=True, process_func=process_retrieval_document_query_version,max_seq_length=256):
+    def __init__(self, LIB, corpus_tsv_path = "", model_path="", base_corpus_tsv_path="./data/standard_process/base/retriever_train_data/corpus.tsv", add_base=False, shuffle_data=True, process_func=process_retrieval_document_query_version,max_seq_length=256):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.process_func=process_func
         self.max_seq_length = max_seq_length
@@ -29,7 +34,7 @@ class ToolRetriever:
             self.shuffled_queries = [item['query'] for item in self.shuffled_data]
             self.shuffled_query_embeddings = self.embedder.encode(self.shuffled_queries, convert_to_tensor=True)
     
-    def build_shuffle_data(self,LIB, add_base=True):
+    def build_shuffle_data(self, LIB, add_base=True):
         print('set add_base as :', add_base)
         # add API_base, fix 231227
         def process_data(path, files_ids):
@@ -55,7 +60,9 @@ class ToolRetriever:
         else:
             print('--------> not add base!')
             combined_corpus_df = original_corpus_df
+        print('combined_corpus_df: ', len(combined_corpus_df), 'original_corpus_df: ', len(original_corpus_df))
         corpus, self.corpus2tool = self.process_func(combined_corpus_df)
+        print('the length of corpus is: ', len(corpus))
         corpus_ids = list(corpus.keys())
         corpus = [corpus[cid] for cid in corpus_ids]
         self.corpus = corpus
@@ -291,8 +298,11 @@ if __name__ == "__main__":
 
     # Step 2: Create a ToolRetriever instance
     retriever = ToolRetriever(LIB = args.LIB, corpus_tsv_path=args.corpus_tsv_path, model_path=args.retrieval_model_path, add_base=False,max_seq_length=args.max_seq_length)
+    
+    names = retriever.retrieving("Plot UMAP embedding figure.", top_k=80)
+    print(names)
 
-    total_queries = 0
+    """total_queries = 0
     correct_predictions = 0
     # Step 3: Process each query and retrieve relevant APIs
     train_data = [data for data in api_data if data['query_id'] not in test_ids and data['query_id'] not in val_ids]
@@ -305,4 +315,4 @@ if __name__ == "__main__":
     compute_func = compute_accuracy_filter_compositeAPI if args.filter_composite else compute_accuracy
 
     for set_name, data_set in zip(['train', 'val', 'test'], [train_data, val_data, test_data]):
-        compute_and_plot(data_set, set_name, retriever, args, compute_func, LIB_ALIAS, LIB_DATA_PATH)
+        compute_and_plot(data_set, set_name, retriever, args, compute_func, LIB_ALIAS, LIB_DATA_PATH)"""

@@ -63,6 +63,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [mode, setMode] = useState<'T' | 'S' | 'A'>('T');
 
   const toolStart: ToolUsage = {
     type: "tool",
@@ -122,7 +123,8 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
     tools: [toolStart, toolEnd, agentAction],
     recommendations: [],
     files: [],
-    session_id: selectedConversation?.id || 'default-session-id'
+    session_id: selectedConversation?.id || 'default-session-id',
+    mode: mode || 'T',
   });
   const handleSend = useCallback(
     async (message: Message, deleteCount = 0, plugin: Plugin | null = null) => {
@@ -159,7 +161,8 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
                     tools: [toolStart, toolEnd, agentAction],
                     recommendations: [],
                     files: [],
-                    session_id: selectedConversation.id 
+                    session_id: selectedConversation.id,
+                    mode: 'T',
                   },
                   message
                 ]
@@ -186,6 +189,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           conversation_started: isFirstMessageInConversation,
           session_id: updatedConversation.id,
           optionalParams: optionalParams,
+          mode: mode,
         };
         console.log("updatedConversation", updatedConversation)
         const endpoint = "api/chat";
@@ -288,7 +292,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
               isFirst = false;
               const updatedMessages: Message[] = [
                 ...updatedConversation.messages,
-                { role: 'assistant', content: text, tools: resultObjs, recommendations: [], files:[],session_id: selectedConversation.id },
+                { role: 'assistant', content: text, tools: resultObjs, recommendations: [], files:[],session_id: selectedConversation.id, mode: "T" },
               ];
               updatedConversation = {...updatedConversation, messages: updatedMessages};
               homeDispatch({field: 'selectedConversation', value: updatedConversation});
@@ -312,6 +316,10 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
               return conversation;
             },
           );
+          const updatedMessage = {
+            ...message,
+            mode: mode,
+          };
           if (updatedConversations.length === 0) {
             updatedConversations.push(updatedConversation);
           }
@@ -322,7 +330,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           const { answer } = await response.json();
           const updatedMessages: Message[] = [
             ...updatedConversation.messages,
-            { role: 'assistant', content: answer, tools: [], recommendations: [], files:[],session_id: selectedConversation.id },
+            { role: 'assistant', content: answer, tools: [], recommendations: [], files:[],session_id: selectedConversation.id, mode: "T" },
           ];
           updatedConversation = {...updatedConversation, messages: updatedMessages};
           homeDispatch({ field: 'selectedConversation', value: updateConversation});
@@ -354,6 +362,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
       attachedFiles,
       selectedConversation, 
       optionalParams,
+      mode,
     ],
   );
   const handleFileUpload = useCallback(
@@ -583,6 +592,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
             }}
             showScrollDownButton={showScrollDownButton}
             onUpload={handleFileUpload}
+            onModeChange={setMode}
           />
         </>
       )}

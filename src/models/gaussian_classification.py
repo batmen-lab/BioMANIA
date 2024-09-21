@@ -3,6 +3,7 @@ Author: Zhengyuan Dong
 Date Created: May 06, 2024
 Last Modified: May 21, 2024
 Description: compare the tutorial summary query and single query retrieval results
+Email: zydong122@gmail.com
 """
 
 import argparse

@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: The code contains functions to wrap the BioMANIA model interaction into the ollama supported format.
+"""
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from ..deploy.ollama_demo import initialize_model, process_input 

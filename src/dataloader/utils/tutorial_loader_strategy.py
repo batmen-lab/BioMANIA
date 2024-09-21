@@ -1,3 +1,8 @@
+"""
+Author: Zhengyuan Dong
+Email: zydong122@gmail.com
+Description: This module contains classes and functions for loading code from different sources.
+"""
 from abc import ABC, abstractmethod
 import os, re, ast, requests, nbformat, subprocess
 from bs4 import BeautifulSoup
