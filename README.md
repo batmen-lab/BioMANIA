@@ -46,7 +46,7 @@ We also offer a command-line interface (CLI) demo through the terminal.
 
 # Web access online demo
 
-We provide a colab demo [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14K4562oeesEz5qMoXmjv9gW_4VeLh6_U?usp=sharing) and an [online demo](https://biomania.ngrok.io/en) hosted on our server! 
+We provide a colab demo [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14K4562oeesEz5qMoXmjv9gW_4VeLh6_U?usp=sharing) and an [online demo](https://biomania.ngrok.io/en) hosted on our server! (240925-Notice the connection to server demo might be unstable according to the server network condition, we will update the deployment way later)
 
 # Quick start
 
