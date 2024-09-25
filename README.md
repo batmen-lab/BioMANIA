@@ -5,13 +5,13 @@
   <h1 style="margin: 0; white-space: nowrap;">BioMANIA</h1>
 </div>
 
-[![Paper](https://img.shields.io/badge/Paper-burgundy?style=flat&logo=arxiv)](https://www.biorxiv.org/content/10.1101/2023.10.29.564479v1)
+[![Paper](https://img.shields.io/badge/Paper-burgundy?style=flat&logo=arxiv)](https://www.biorxiv.org/content/10.1101/2023.10.29.564479)
 [![GitHub stars](https://img.shields.io/github/stars/batmen-lab/BioMANIA?style=social)](https://github.com/batmen-lab/BioMANIA)
 [![Documentation Status](https://img.shields.io/readthedocs/biomania/latest?style=flat&logo=readthedocs&label=Doc)](https://biomania.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/badge/license-Apache%203.0-blue?style=flat&logo=open-source-initiative)](https://github.com/batmen-lab/BioMANIA/blob/main/LICENSE)
 [![Docker Version](https://img.shields.io/badge/Docker-v1.1.9-blue?style=flat&logo=docker)](https://hub.docker.com/repositories/chatbotuibiomania)
-[![Railway](https://img.shields.io/badge/Railway-purple?style=flat&logo=railway)](https://railway.app/template/qaQEvv)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14K4562oeesEz5qMoXmjv9gW_4VeLh6_U?usp=sharing)
+<!--[![Railway](https://img.shields.io/badge/Railway-purple?style=flat&logo=railway)](https://railway.app/template/qaQEvv)-->
 <!--[![Python unit tests](https://github.com/batmen-lab/BioMANIA/actions/workflows/python-test-unit.yml/badge.svg)](https://github.com/batmen-lab/BioMANIA/actions/workflows/python-test-unit.yml)-->
 
 
@@ -21,8 +21,9 @@ Welcome to the BioMANIA! This guide provides detailed instructions on how to set
 Project Overview:
 
 <!--![](./images/overview_v2.jpg)-->
-![](./images/Motivation.jpg)
-![](./images/Methods.jpg)
+<!--![](./images/Motivation.jpg)-->
+<!--![](./images/Methods.jpg)-->
+![](./images/overview.jpg)
 
 
 🌟 We warmly invite you to share your trained models and datasets in our [issues section](https://github.com/batmen-lab/BioMANIA/issues/2), making it easier for others to utilize and extend your work, thus amplifying its impact. Feel free to explore and provide feedback on tools shared by other contributors as well! 🚀🔍
@@ -39,9 +40,9 @@ We also offer a command-line interface (CLI) demo through the terminal.
 
 <img src="examples/cli.gif" style="width:800px;height:500px;animation: play 0.05s steps(100) infinite;">
 
-We also offer a GPTs demo (under developing).
+<!--We also offer a GPTs demo (under developing).
 
-<img src="examples/GPTs.gif" style="width:800px;height:450px;animation: play 1s steps(10) infinite;">
+<img src="examples/GPTs.gif" style="width:800px;height:450px;animation: play 1s steps(10) infinite;">-->
 
 # Web access online demo
 
@@ -109,11 +110,11 @@ ngrok http 3000
 
 then get the url like `https://[ngrok_id].ngrok-free.app` and copy it to chrome to start!
 
-## Run with Railway
+<!--## Run with Railway
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/qaQEvv)
 
-To use railway, you'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable `Public Domain` in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.
+To use railway, you'll need to fill in the `OpenAI_API_KEY` in the Variables page of the biomania-backend service. Then, manually enable `Public Domain` in the Settings/Networking session for both front-end and back-end service. Copy the url from back-end as `https://[copied url]` and paste it in `BACKEND_URL` in front-end Variables page. For front-end url, paste it to the browser to access the frontend.-->
 
 ## Run with script
 
@@ -231,8 +232,8 @@ model.run_pipeline(user_input, library, top_k=1, files=[], conversation_started=
 
 Please refer to the separate README for tutorials that supporting converting different coding tools to our APP.
 - [For PyPI Tools](./docs/PyPI2APP.md)
-- [For Python Source Code from Git Repo](./docs/Git2APP.md)
-- [For R Package](./docs/R2APP.md) (231123-Still under developing)
+- [For Python Source Code from Git Repo](./docs/Git2APP.md) (240925-Under developing)
+- [For R Package](./docs/R2APP.md) (231123-Under developing)
 
 ## Share your APP!
 
@@ -269,10 +270,9 @@ Thank you for choosing BioMANIA. We hope this guide assists you in navigating th
 
 
 ## **Version History**
-- v1.1.11 (2024-06)
- - Include task planning, execution correction into the logic.
- - Polish prompt.
- - Wrap backend service to be compatible for newer UI
+- v1.1.12 (2024-09-25)
+ - Update code scripts which are aligned with paper.
+ - Will renew the data, docker, scripts for generating report, documents for Git2APP, R2APP soon.
 
 view [version_history](./docs/version_history.md) for more details!
 

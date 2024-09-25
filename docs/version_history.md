@@ -1,5 +1,10 @@
 
 ## Version History
+
+- v1.1.11 (2024-06)
+ - Include task planning, execution correction into the logic.
+ - Polish prompt.
+ - Wrap backend service to be compatible for newer UI
 - v1.1.9 (2023-12-24)
   - Add Drive URL installation feature for convenient uploading of large files by users.
   - Real-time informative displays for API execution, and enable image zoom and download features.

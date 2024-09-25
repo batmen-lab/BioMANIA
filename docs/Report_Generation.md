@@ -11,7 +11,7 @@ Firstly, press `export chat` button on UI to get the chat json data. Convert the
 # cd src
 python report/Chat2Py.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 ```
-![](./images/pyfile.jpg)
+![](https://github.com/batmen-lab/BioMANIA/tree/main/images/pyfile.jpg)
 
 
 ### For chat report
@@ -22,7 +22,7 @@ Convert the chat JSON into an [ipynb report](https://github.com/batmen-lab/BioMA
 # cd src
 python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
 ```
-![](./images/jupyter.jpg)
+![](https://github.com/batmen-lab/BioMANIA/tree/main/images/jupyter.jpg)
 
 
 ### For performance report
@@ -36,7 +36,7 @@ python report/PNG2report.py scanpy
 
 Please note that the generation of this report must be based on the premise that the retriever models have already been trained, and the gpt baseline has already been tested. You need to first obtain the results of each model before running this script. Here is a reference for a [demo report](https://github.com/batmen-lab/BioMANIA/tree/main/src/report/performance_report.pdf).
 
-![](./images/performance_report.jpg)
+![](https://github.com/batmen-lab/BioMANIA/tree/main/images/performance_report.jpg)
 
 
 ### For common issue report
@@ -49,6 +49,9 @@ python report/Py2report.py scanpy
 ```
 
 The output files are located in the ./report folder.
+
+
+![](https://github.com/batmen-lab/BioMANIA/tree/main/images/error_category.jpg)
 
 
 TODO:

@@ -1,4 +1,13 @@
 CHEATSHEET = {
+    "scanpy":{
+        "LIB":"scanpy",
+        "LIB_ALIAS":"scanpy",
+        "API_HTML_PATH": "scanpy.readthedocs.io/en/latest/api/index.html",
+        "GITHUB_LINK": "https://github.com/scverse/scanpy",
+        "READTHEDOC_LINK": "https://scanpy.readthedocs.io/",
+        "TUTORIAL_HTML_PATH":"scanpy.readthedocs.io/en/latest/tutorials",
+        "TUTORIAL_GITHUB":["https://github.com/scverse/scanpy_usage", "https://github.com/scverse/scanpy-tutorials"]
+    },
     "squidpy":{
         "LIB":"squidpy",
         "LIB_ALIAS":"squidpy",
@@ -8,14 +17,23 @@ CHEATSHEET = {
         "TUTORIAL_HTML_PATH":"squidpy.readthedocs.io/en/latest/notebooks/tutorials",
         "TUTORIAL_GITHUB":"https://github.com/scverse/squidpy_notebooks"
     },
-    "scanpy":{
-        "LIB":"scanpy",
-        "LIB_ALIAS":"scanpy",
-        "API_HTML_PATH": "scanpy.readthedocs.io/en/latest/api/index.html",
-        "GITHUB_LINK": "https://github.com/scverse/scanpy",
-        "READTHEDOC_LINK": "https://scanpy.readthedocs.io/",
-        "TUTORIAL_HTML_PATH":"scanpy.readthedocs.io/en/latest/tutorials",
-        "TUTORIAL_GITHUB":["https://github.com/scverse/scanpy_usage", "https://github.com/scverse/scanpy-tutorials"]
+    "ehrapy": {
+        "LIB": "ehrapy",
+        "LIB_ALIAS": "ehrapy",
+        "API_HTML_PATH": "ehrapy.readthedocs.io/en/latest/usage/usage.html",
+        "GITHUB_LINK": "https://github.com/theislab/ehrapy",
+        "READTHEDOC_LINK": "https://ehrapy.readthedocs.io/",
+        "TUTORIAL_HTML_PATH": "https://ehrapy.readthedocs.io/en/latest/tutorials/index.html",
+        "TUTORIAL_GITHUB": "https://github.com/theislab/ehrapy-tutorials"
+    },
+    "snapatac2": {
+        "LIB": "snapatac2",
+        "LIB_ALIAS": "snapatac2",
+        "API_HTML_PATH": "kzhang.org/SnapATAC2/api/index.html", #kzhang.org/SnapATAC2/version/2.6/api/index.html
+        "GITHUB_LINK": "https://github.com/kaizhang/SnapATAC2",
+        "READTHEDOC_LINK": "https://kzhang.org/SnapATAC2",
+        "TUTORIAL_HTML_PATH": "https://kzhang.org/SnapATAC2/tutorials/index.html",
+        "TUTORIAL_GITHUB": "https://github.com/kaizhang/SnapATAC2"
     },
     "scanpy_subset":{
         "LIB":"scanpy_subset",
@@ -188,24 +206,6 @@ CHEATSHEET = {
         "TUTORIAL_HTML_PATH": None,
         "TUTORIAL_GITHUB": None
     },
-    "ehrapy": {
-        "LIB": "ehrapy",
-        "LIB_ALIAS": "ehrapy",
-        "API_HTML_PATH": "ehrapy.readthedocs.io/en/latest/usage/usage.html",
-        "GITHUB_LINK": "https://github.com/theislab/ehrapy",
-        "READTHEDOC_LINK": "https://ehrapy.readthedocs.io/",
-        "TUTORIAL_HTML_PATH": "https://ehrapy.readthedocs.io/en/latest/tutorials/index.html",
-        "TUTORIAL_GITHUB": "https://github.com/theislab/ehrapy-tutorials"
-    },
-    "snapatac2": {
-        "LIB": "snapatac2",
-        "LIB_ALIAS": "snapatac2",
-        "API_HTML_PATH": "kzhang.org/SnapATAC2/api/index.html",
-        "GITHUB_LINK": "https://github.com/kaizhang/SnapATAC2",
-        "READTHEDOC_LINK": "https://kzhang.org/SnapATAC2",
-        "TUTORIAL_HTML_PATH": "https://kzhang.org/SnapATAC2/tutorials/index.html",
-        "TUTORIAL_GITHUB": "https://github.com/kaizhang/SnapATAC2"
-    },
     "cellrank": {
         "LIB": "cellrank",
         "LIB_ALIAS": "cellrank",
@@ -358,5 +358,14 @@ CHEATSHEET = {
         "READTHEDOC_LINK": "https://scanpy-tutorials.readthedocs.io/en/latest/spatial/integration-scanorama.html",
         "TUTORIAL_HTML_PATH": "https://scanpy-tutorials.readthedocs.io/en/latest/spatial/integration-scanorama.html",
         "TUTORIAL_GITHUB": "https://github.com/brianhie/scanorama"
+    },
+    "base":{
+        "LIB": "base",
+        "LIB_ALIAS": "base",
+        "API_HTML_PATH": None,
+        "GITHUB_LINK": None,
+        "READTHEDOC_LINK": None,
+        "TUTORIAL_HTML_PATH": None,
+        "TUTORIAL_GITHUB": None
     }
 }
