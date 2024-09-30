@@ -101,7 +101,7 @@ def compare_anndata_objects(a, b):
                 keys_b = set(attr_b.keys())
             except:
                 keys_b = []
-            print(attr, keys_a, keys_b)
+            #self.logger.info('attr: {}, keys_a: {}, keys_b: {}', attr, keys_a, keys_b)
             if keys_a != keys_b:
                 differences[attr] = f"Keys differ: {keys_a.symmetric_difference(keys_b)}"
                 return "no", differences
@@ -110,7 +110,7 @@ def compare_anndata_objects(a, b):
                     differences[attr] = f"Values differ in key '{key}'"
                     return "no", differences
         elif attr_a is not None or attr_b is not None:
-            print('new attribute!')
+            self.logger.info('new attribute!')
             differences[attr] = "Attribute present in one object but not in the other"
             return "no", differences
     return "yes", "No differences found"
@@ -383,7 +383,7 @@ class Model:
         #self.get_all_api_json_cache(f"./data/standard_process/{self.LIB}/API_composite.json", mode='single')
         if self.add_base:
             self.all_apis, self.all_apis_json = get_all_api_json([f"./data/standard_process/{self.LIB}/API_composite.json", "./data/standard_process/base/API_composite.json"], mode='single')
-            print('upload base to all_apis_json successfully!')
+            #self.logger.info('upload base to all_apis_json successfully!')
         else:
             self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{self.LIB}/API_composite.json", mode='single')
         self.enable_ambi_mode = False # whether let user choose ambiguous API
@@ -482,7 +482,7 @@ class Model:
                 self.all_apis, self.all_apis_json = get_all_api_json([f"./data/standard_process/{lib_name}/API_composite.json", "./data/standard_process/base/API_composite.json"], mode='single')
             else:
                 self.all_apis, self.all_apis_json = get_all_api_json(f"./data/standard_process/{lib_name}/API_composite.json", mode='single')
-            print('upload base to all_apis_json successfully!')
+            self.logger.info('upload base to all_apis_json successfully!')
             with open(f'./data/standard_process/{lib_name}/centroids.pkl', 'rb') as f:
                 self.centroids = pickle.load(f)
             self.executor.execute_api_call(f"import {lib_name}", "import"),
@@ -824,8 +824,8 @@ class Model:
             # we correct the task description before retrieving API
             if len([i['code'] for i in self.executor.execute_code if i['success']=='True'])>0: # for non-first tasks
                 retrieved_apis = self.retriever.retrieving(sub_task, top_k=30+3)
-                print('sub_task:', sub_task)
-                print('total retrieved_names:', retrieved_apis)
+                self.logger.info('sub_task:', sub_task)
+                self.logger.info('total retrieved_names:', retrieved_apis)
                 retrieved_apis = remove_deprecated_apis(retrieved_apis, self.LIB)
                 #retrieved_apis = [i for i in retrieved_apis if not self.validate_class_attr_api(i)]
                 retrieved_apis = retrieved_apis[:3]
@@ -847,10 +847,10 @@ class Model:
             self.logger.info('we filter those API with IO parameters!')
             #self.logger.info('self.user_query: {}', self.user_query)
             retrieved_names = self.retriever.retrieving(self.user_query, top_k=self.args_top_k+65)
-            print('total retrieved_names:', retrieved_names)
+            self.logger.info('total retrieved_names:', retrieved_names)
             retrieved_names = self.retriever.retrieving(self.user_query, top_k=self.args_top_k+30)
-            print('user_query:', self.user_query)
-            print('total retrieved_names:', retrieved_names)
+            self.logger.info('user_query:', self.user_query)
+            self.logger.info('total retrieved_names:', retrieved_names)
             retrieved_names = remove_deprecated_apis(retrieved_names, self.LIB)
             # get scores dictionary
             query_embedding = self.retriever.embedder.encode(self.user_query, convert_to_tensor=True)
@@ -978,7 +978,7 @@ class Model:
                                 success = True
                                 break
                 except Exception as e:
-                    print('error during api prediction:', e)
+                    self.logger.info('error during api prediction:', e)
                     e = traceback.format_exc()
                     self.logger.error('error during api prediction: {}', e)
             if not success:
@@ -1742,7 +1742,7 @@ class Model:
         # else, continue
         # get the variables startswith result_ and its value
         self.tmp_variables = {key: value for key, value in self.executor.variables.items() if key.startswith('result_')}
-        print('tmp_variables updated!!!!')
+        self.logger.info('tmp_variables updated!!!!')
         execution_code_list = self.execution_code.split('\n')
         self.plt_status = plt.get_fignums()
         temp_output_file = f"./tmp/sessions/sub_process_execution_{self.session_id}.txt"
@@ -1804,15 +1804,15 @@ class Model:
                     if print_value is not None:
                         pass
                     else: # if none, print the changed values, need to compare
-                        print('tmp_variables_new updated!!!!')
+                        self.logger.info('tmp_variables_new updated!!!!')
                         self.tmp_variables_new = {key: value for key, value in self.executor.variables.items() if key.startswith('result_')}
                         for key in self.tmp_variables_new.keys() & self.tmp_variables.keys():
                             if compare_anndata_objects(self.tmp_variables[key]['value'], self.tmp_variables_new[key]['value'])[0]=='no': # if any variable changes
                                 print_val = key
                                 print_value = self.tmp_variables_new[key]['value']
                                 print_type = self.executor.variables[key]['type']
-                                print('find difference!!!')
-                                print(compare_anndata_objects(self.tmp_variables[key]['value'], self.tmp_variables_new[key]['value'])[1])
+                                self.logger.info('find difference!!!')
+                                self.logger.info(str(compare_anndata_objects(self.tmp_variables[key]['value'], self.tmp_variables_new[key]['value'])[1]))
                                 attr = list(compare_anndata_objects(self.tmp_variables[key]['value'], self.tmp_variables_new[key]['value'])[1].keys())[0]
                                 break
                         if not print_value:
@@ -1939,8 +1939,8 @@ class Model:
                 #possible_solution = retrieved_issue_solution(self.LIB, 3, executor_info, "sentencebert", "issue_title") # issue_description
                 possible_solution = search_github_issues(self.LIB, 2, tmp_output) # 240903: check whether using whole information or partial information will help
                 self.logger.info('executor_info: {}, possible_solution: {}', executor_info, possible_solution)
-                print('=======================')
-                print(f'get solutions from github: {possible_solution}')
+                self.logger.info('=======================')
+                self.logger.info('get solutions from github:', possible_solution)
                 try:
                     if isinstance(possible_solution, list):
                         possible_solution = '\n'.join(possible_solution)

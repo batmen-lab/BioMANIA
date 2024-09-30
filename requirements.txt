@@ -34,7 +34,7 @@ openai==1.10.0
 pandas
 #peft==0.6.0
 protobuf==3.20.0
-pydantic==1.10.7
+pydantic==1.10.11
 pydot==1.4.2
 PyGithub==2.3.0
 #pyopenms==3.1.0
@@ -44,7 +44,7 @@ python_dotenv
 rank_bm25==0.2.2
 rdflib==7.0.0
 ReportLab
-Requests==2.31.0
+Requests
 #scikit_bio==0.5.9
 #scikit_learn
 scipy==1.9.2
@@ -63,8 +63,8 @@ timm==0.9.12
 torch==2.1.0
 torchsummary==1.5.1
 trimap==1.1.4
-tqdm==4.66.1
-transformers==4.35.0
+tqdm
+transformers
 typing_extensions==4.8.0
 # triton
 # scenicplus @ git+https://github.com/aertslab/scenicplus.git

@@ -119,7 +119,7 @@ def search_github_issues(lib, topk, question):
         'order': 'desc',
         'per_page': topk
     }
-    print('params', params)
+    #print('params', params)
     headers = {
         'Authorization': f'token {github_token}'
     }
@@ -174,7 +174,7 @@ def retrieved_issue_solution(LIB: str, top_k: int, example_query: str, method: s
     results = load_json(os.path.join(lib_data_path, "API_inquiry_annotate.json"))
     corpus_dict = prepare_corpus(results, field)
     error_types = get_error_type(example_query)
-    print('error_types:', error_types)
+    #print('error_types:', error_types)
     combined_corpus = []
     combined_texts = []
     for error_type in error_types:

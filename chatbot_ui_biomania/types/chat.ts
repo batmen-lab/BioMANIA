@@ -81,6 +81,7 @@ export interface ChatBody {
   session_id:string;
   optionalParams:string;
   mode:string;
+  user_ip:string | null;
 }
 export interface Conversation {
   id: string;

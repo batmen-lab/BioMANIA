@@ -32,6 +32,21 @@ interface Props {
   stopConversationRef: MutableRefObject<boolean>;
 }
 export const Chat = memo(({ stopConversationRef }: Props) => {
+  const [userIp, setUserIp] = useState<string | null>(null);
+  // Fetch the user's IP address on the frontend
+  useEffect(() => {
+    const fetchUserIp = async () => {
+      try {
+        const response = await fetch('https://api.ipify.org?format=json'); // Using ipify API
+        const data = await response.json();
+        setUserIp(data.ip);
+      } catch (error) {
+        console.error('Failed to fetch IP address', error);
+      }
+    };
+    fetchUserIp();
+  }, []);
+
   const { t } = useTranslation('chat');
   const [optionalParams, setOptionalParams] = useState<string>('');
   // From OptionalCard 
@@ -190,6 +205,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
           session_id: updatedConversation.id,
           optionalParams: optionalParams,
           mode: mode,
+          user_ip: userIp,
         };
         console.log("updatedConversation", updatedConversation)
         const endpoint = "api/chat";
@@ -363,6 +379,7 @@ export const Chat = memo(({ stopConversationRef }: Props) => {
       selectedConversation, 
       optionalParams,
       mode,
+      userIp,
     ],
   );
   const handleFileUpload = useCallback(

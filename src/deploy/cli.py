@@ -66,16 +66,18 @@ def parse_backend_response(response, yield_load=True, add_color=True):
                 tableData = event.get('tableData', '')  ##### Check and include tableData
                 if 'log-' in block_id:
                     message = f"**{task_title}**:\n {task}\n"
-                    if '[Fail]' in task_title or 'GPT predict Error' in task_title:
+                    if '[Fail]' in task_title or 'GPT predict Error' in task_title or 'Index Error' in task_title:
                         messages.append(colorize(message, Fore.RED))
                     elif '[Success]' in task_title:
                         messages.append(colorize(message, Fore.GREEN))
-                    elif 'Double Check' in task_title or 'Enter Parameters' in task_title:
+                    elif 'Double Check' in task_title or 'Enter Parameters' in task_title or 'User Confirmation' in task_title:
                         messages.append(colorize(message, Fore.MAGENTA))
-                    elif 'Predicted API' in task_title:
+                    elif 'Predicted API' in task_title or 'Task Planning' in task_title or 'API information retrieval' in task_title or 'Task summary' in task_title or 'Polished task description' in task_title or 'Code explanation' in task_title:
                         messages.append(colorize(message, Fore.YELLOW))
+                    elif 'Error Analysis' in task_title:
+                        messages.append(colorize(message, Fore.BLUE))
                     else:
-                        messages.append(message)
+                        messages.append(colorize(message, Fore.YELLOW))
                     if imageData:
                         from datetime import datetime
                         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -84,11 +86,19 @@ def parse_backend_response(response, yield_load=True, add_color=True):
                             img_file.write(base64.b64decode(imageData))
                         messages.append(colorize(f"Image saved to {image_path}", Fore.GREEN))
                     if tableData:
+                        #print('tableData: ', tableData)
                         messages.append(colorize(f"Data: {tableData}", Fore.GREEN))
-                if 'code-' in block_id:
+                elif 'code-' in block_id:
                     messages.append(colorize(f"**{task_title}**:\n {task}\n", Fore.YELLOW))
+                elif 'installation-' in block_id:
+                    messages.append("Installing library")
+                else:
+                    raise ValueError(f"Unknown block_id: {method_name}")
             else:
                 raise ValueError(f"Unknown method name: {method_name}")
+        else:
+            pass
+            #print('why there are no line?', line)
     return messages
 
 def generate_biomania_pattern():
@@ -131,6 +141,7 @@ def main():
         else:
             request_data = create_request(user_input, library, session_id)
         response = send_request_to_backend(request_data)
+        #print('response:', response)
         output = parse_backend_response(response)
         print(Fore.GREEN + "BioMANIA: 🤔" + Style.RESET_ALL)
         for msg in output:

@@ -35,7 +35,7 @@ class ToolRetriever:
             self.shuffled_query_embeddings = self.embedder.encode(self.shuffled_queries, convert_to_tensor=True)
     
     def build_shuffle_data(self, LIB, add_base=True):
-        print('set add_base as :', add_base)
+        #print('set add_base as :', add_base)
         # add API_base, fix 231227
         def process_data(path, files_ids):
             data = load_json(f'{path}/API_inquiry_annotate.json')
@@ -49,20 +49,20 @@ class ToolRetriever:
         random.Random(0).shuffle(lib_data)
         return lib_data
     def build_and_merge_corpus(self, add_base=True):
-        print('set add_base as :', add_base)
+        #print('set add_base as :', add_base)
         # based on build_retrieval_corpus, add API_base.json, fix 231227
         original_corpus_df = pd.read_csv(self.corpus_tsv_path, sep='\t')
         if add_base:
-            print('--------> add base!')
+            #print('--------> add base!')
             additional_corpus_df = pd.read_csv(self.base_corpus_tsv_path, sep='\t')
             combined_corpus_df = pd.concat([original_corpus_df, additional_corpus_df], ignore_index=True)
             combined_corpus_df.reset_index(drop=True, inplace=True)
         else:
-            print('--------> not add base!')
+            #print('--------> not add base!')
             combined_corpus_df = original_corpus_df
-        print('combined_corpus_df: ', len(combined_corpus_df), 'original_corpus_df: ', len(original_corpus_df))
+        #print('combined_corpus_df: ', len(combined_corpus_df), 'original_corpus_df: ', len(original_corpus_df))
         corpus, self.corpus2tool = self.process_func(combined_corpus_df)
-        print('the length of corpus is: ', len(corpus))
+        #print('the length of corpus is: ', len(corpus))
         corpus_ids = list(corpus.keys())
         corpus = [corpus[cid] for cid in corpus_ids]
         self.corpus = corpus
@@ -75,7 +75,7 @@ class ToolRetriever:
         else:
             raise ValueError
         self.corpus_embeddings = self.embedder.encode(self.corpus, convert_to_tensor=True)
-        print('the length of corpus is: ', len(self.corpus_embeddings))
+        #print('the length of corpus is: ', len(self.corpus_embeddings))
     def retrieving(self, query, top_k):
         query_embedding = self.embedder.encode(query, convert_to_tensor=True)
         hits = util.semantic_search(query_embedding, self.corpus_embeddings, top_k=top_k, score_function=util.cos_sim)
