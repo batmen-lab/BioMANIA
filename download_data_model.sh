@@ -21,7 +21,7 @@ rm -rf your_lib
 # data/others-data
 # data/conversations
 gdown https://drive.google.com/uc?id=1MSGBq-xg1gV3Tb9D5S9Mm3qLXY_qh0uM -O data_in_one_file
-tar -xzvf data_in_one_file
+unzip data_in_one_file
 rm -rf data_in_one_file
 # ../../resources
 gdown https://drive.google.com/uc?id=18ZMorTuFF-Q8_w-V9yTlLsCkw6ONyuss -O your_third_file

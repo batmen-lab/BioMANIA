@@ -85,7 +85,10 @@ const LoggingCard = ({ title, logString, tableData, logColor = 'black', imageDat
               margin: 0,
             },
           }}>
-            <ReactMarkdown components={{ p: 'span' }} rehypePlugins={[rehypeRaw]}>
+            <ReactMarkdown components={{
+                p: ({ node, ...props }) => <span {...props} />
+              }}
+              rehypePlugins={[rehypeRaw as unknown as any]}>
               {formattedLogString}
             </ReactMarkdown>
           </Typography>

@@ -103,12 +103,12 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit}) =>
     }
   }, [isEditing]);
   // const libIconSrc = selectedConversation && selectedConversation.Lib && libImages[selectedConversation.Lib] ? libImages[selectedConversation.Lib] : IconRobot;
-  const [libIconSrc, setLibIconSrc] = useState(IconRobot);
-  useEffect(() => {
-    if (selectedConversation && selectedConversation.Lib && libImages[selectedConversation.Lib]) {
-      setLibIconSrc(libImages[selectedConversation.Lib]);
-    }
-  }, []);
+  // const [libIconSrc, setLibIconSrc] = useState<JSX.Element>(useState(IconRobot)); //;
+  // useEffect(() => {
+  //  if (selectedConversation && selectedConversation.Lib && libImages[selectedConversation.Lib]) {
+  //    setLibIconSrc(libImages[selectedConversation.Lib]);
+  //  }
+  //}, []);
   return (
     <>
       <div
@@ -122,7 +122,8 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit}) =>
       <div className="relative m-auto flex px-4 text-xs md:max-w-2xl md:gap-6 md:py-2 lg:max-w-2xl lg:px-0 xl:max-w-3xl">
         <div className="min-w-[40px] text-right">
           {message.role === 'assistant' ? (
-          <img src={libIconSrc} alt={selectedConversation?.Lib || 'GPT'} style={{ width: 22, height: 22 }} />
+          //<img src={libIconSrc} alt={selectedConversation?.Lib || 'GPT'} style={{ width: 22, height: 22 }} />
+            <IconRobot size={22} />
           ) : (
             <IconUser size={22} />
           )}
@@ -219,13 +220,14 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit}) =>
                       const match = /language-(\w+)/.exec(className || '');
                       return !inline ? (
                         <CodeBlock
-                          key={Math.random()}
+                          //key={Math.random()}
+                          key={messageIndex}
                           language={(match && match[1]) || ''}
                           value={String(children).replace(/\n$/, '')}
                           {...props}
                         />
                       ) : (
-                        <code className={className} {...props}>
+                        <code key={messageIndex} className={className} {...props}>
                           {children}
                         </code>
                       );

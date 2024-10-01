@@ -5,6 +5,7 @@
   <h1 style="margin: 0; white-space: nowrap;">BioMANIA</h1>
 </div>
 
+[![Demo](https://img.shields.io/badge/Demo-BioMANIA-blue?style=flat&logo=appveyor)](https://biomania.ngrok.io/en)
 [![Paper](https://img.shields.io/badge/Paper-burgundy?style=flat&logo=arxiv)](https://www.biorxiv.org/content/10.1101/2023.10.29.564479)
 [![GitHub stars](https://img.shields.io/github/stars/batmen-lab/BioMANIA?style=social)](https://github.com/batmen-lab/BioMANIA)
 [![Documentation Status](https://img.shields.io/readthedocs/biomania/latest?style=flat&logo=readthedocs&label=Doc)](https://biomania.readthedocs.io/en/latest/?badge=latest)
@@ -46,11 +47,14 @@ We also offer a command-line interface (CLI) demo through the terminal.
 
 # Web access online demo
 
-We provide a colab demo [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14K4562oeesEz5qMoXmjv9gW_4VeLh6_U?usp=sharing) and an [online demo](https://biomania.ngrok.io/en) hosted on our server! (240925-Notice the connection to server demo might be unstable according to the server network condition, we will update the deployment way later)
+We provide [![Online Demo](https://img.shields.io/badge/Demo-BioMANIA-blue?style=flat&logo=appveyor)](https://biomania.ngrok.io/en)
+ hosted on our server! 
+
+(240929-For Online Demo, note that when multiple user are using, there might be delay in connection. We will check the demo running everyday, issue (if any) will be fixed in the next day. It is recommended to ask question in English in this time, as the corpus is designed for English and thus results will be more accurate.)
 
 # Quick start
 
-We provide several ways to run the service: terminal CLI, Docker, railway, python script, colab demo. Among those, terminal CLI is the easiest way to start. \
+We provide several ways to run the service: python script, terminal CLI, Docker, colab demo. Among those, terminal CLI is the easiest way to start. \
 
 ## Setup dataset and models
 ```bash
@@ -64,20 +68,20 @@ echo "GITHUB_TOKEN=your_github_token" >> .env
 # - data/standard_process/{LIB} and 
 # - hugging_models/retriever_model_finetuned/{LIB} and 
 # - ../../resources/
-pip install gdown==5.1.0
+pip install gdown
 gdown https://drive.google.com/uc?id=1nT28pIJ_dsdvi2yD8ffWt_aePXsSWdqI
 sh download_data_model.sh
 # setup the PYTHONPATH
 export PYTHONPATH=$PYTHONPATH:$(pwd)
 ```
 
-## Run with terminal CLI or gradio app
+## Run with terminal CLI or gradio app (stable on Linux)
 
 ```bash
 # CLI service quick start!
 python -m BioMANIA.deploy.cli_demo
 # or gradio app. (TODO 240509: Images showing are under developing!)
-python -m BioMANIA.deploy.cli_gradio
+#python -m BioMANIA.deploy.cli_gradio
 ```
 
 ## Run with Docker
@@ -86,15 +90,16 @@ For ease of use, we provide Docker images for several tools. You can refer the d
 
 ```bash
 # Pull back-end service and front-end UI service with:
-docker pull chatbotuibiomania/biomania-together:v1.1.9-${LIB}-cuda12.1-ubuntu22.04
+# 241001 updated
+sudo docker pull chatbotuibiomania/biomania-together:v1.1.12-${LIB}-cuda12.6-ubuntu22.04
 ```
 
 Start service with
 ```bash
 # run on gpu
-docker run -e LIB=${LIB} -e OPENAI_API_KEY=[your_openai_api_key] --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.9-${LIB}-cuda12.1-ubuntu22.04
+sudo docker run -e LIB=${LIB} -e OPENAI_API_KEY=[your_openai_api_key] -e GITHUB_TOKEN=[github_pat_xxx] --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.12-${LIB}-cuda12.6-ubuntu22.04
 # or on cpu
-docker run -e LIB=${LIB} -e OPENAI_API_KEY=[your_openai_api_key] -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.9-${LIB}-cuda12.1-ubuntu22.04
+sudo docker run -e LIB=${LIB} -e OPENAI_API_KEY=[your_openai_api_key] -e GITHUB_TOKEN=[github_pat_xxx] -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.12-${LIB}-cuda12.6-ubuntu22.04
 ```
 
 Then check UI service with `http://localhost:3000/en`.
@@ -129,7 +134,7 @@ To prepare your environment for the BioMANIA project, follow these steps:
 ```bash
 git clone https://github.com/batmen-lab/BioMANIA.git
 cd BioMANIA
-conda create -n biomania python=3.10
+conda create -n biomania python=3.9
 conda activate biomania
 pip install -r requirements.txt --index-url https://pypi.org/simple
 export PYTHONPATH=$PYTHONPATH:$(pwd)
@@ -244,9 +249,9 @@ If you want to share your pretrained APP to others, there are two ways.
 You can build docker and push to dockerhub, and share your docker image url in [our issue](https://github.com/batmen-lab/BioMANIA/issues/2). For environment setting of your tool, please refer to `BioMANIA/docker_utils/{LIB}/` to add the env files, or modify the Dockerfile to build your environment.
 ```bash
 # cd BioMANIA
-docker build --build-arg LIB=[your_tool_name] -t [docker_image_name] -f Dockerfile ./
+sudo docker build --build-arg LIB=[your_tool_name] -t [docker_image_name] -f Dockerfile ./
 # (optional)push to docker
-docker push [your_docker_repo]/[docker_image_name]:[tag]
+sudo docker push [your_docker_repo]/[docker_image_name]:[tag]
 ```
 
 Notice if you want to include some data inside the docker, please modify the `Dockerfile` carefully to copy the folders to `/app`. Also add your PyPI or Git pip install url to the `requirements.txt` before your packaging for docker.
@@ -270,9 +275,9 @@ Thank you for choosing BioMANIA. We hope this guide assists you in navigating th
 
 
 ## **Version History**
-- v1.1.12 (2024-09-25)
- - Update code scripts which are aligned with paper.
- - Will renew the data, docker, scripts for generating report, documents for Git2APP, R2APP soon.
+- v1.1.12 (2024-10-01)
+  - Update code scripts & upload data and models & update docker which are aligned with paper.
+  - Will renew the scripts for generating report, documents for Git2APP, R2APP soon.
 
 view [version_history](./docs/version_history.md) for more details!
 

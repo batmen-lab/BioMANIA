@@ -31,7 +31,7 @@ print("Logging setup complete.")
 # device
 import torch
 if torch.cuda.is_available():
-    gpu_index = 2
+    gpu_index = 0
     torch.cuda.set_device(gpu_index)
     device = torch.device('cuda')
     print("Current GPU Index: {}", torch.cuda.current_device())

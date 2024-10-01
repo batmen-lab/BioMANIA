@@ -1,5 +1,5 @@
 cd /app/
-python3 -m src.deploy.inference_dialog_server &
+python3.10 -m src.deploy.inference_dialog_server &
 backend_pid=$!
 
 cd /app/chatbot_ui_biomania/
