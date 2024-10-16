@@ -6,8 +6,8 @@ Description: The script contains functions to extract API information from R sou
 import pydoc, argparse, json, re, os, collections, inspect, importlib, typing, functools
 from docstring_parser import parse
 from langchain.document_loaders import BSHTMLLoader
-from configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet, get_all_basic_func_from_cheatsheet
-from dataloader.extract_function_from_sourcecode import get_returnparam_docstring
+from ..configs.model_config import ANALYSIS_PATH, get_all_variable_from_cheatsheet, get_all_basic_func_from_cheatsheet
+from ..dataloader.extract_function_from_sourcecode import get_returnparam_docstring
 
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
@@ -196,20 +196,19 @@ def get_r_function_doc_rd2txt(package_name, function_name):
 
 def main_get_API_init():
     # import R
-    ggplot2 = importr('ggplot2')
+    library = importr(args.LIB)
     # get functions name
-    package_functions = [func for func in dir(ggplot2) if not func.startswith("_")]
+    package_functions = [func for func in dir(library) if not func.startswith("_")]
     api_info = {}
     for func in package_functions:
         try:
-            r_func = getattr(ggplot2, func, None)
+            r_func = getattr(library, func, None)
             if r_func:
                 doc_string = r_func.__doc__
                 # doc_string = robjects.r('capture.output(??("{function_name}", package="{package_name}"))'.format(function_name=func, package_name=args.LIB))
                 if doc_string:
                     # Parsing the provided docstring with the new function
                     parsed_json_structure = parse_r_docstring_to_json_structure(doc_string, func)
-                    print(parsed_json_structure)
                     api_info[func] = parsed_json_structure
         except:
             pass

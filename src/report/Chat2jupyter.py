@@ -1,11 +1,29 @@
 import nbformat
 from nbformat.v4 import new_notebook, new_markdown_cell, new_code_cell
-from ..gpt.utils import load_json
+import json
+
+def load_json(filename: str) -> dict:
+    """
+    Load JSON data from a specified file.
+
+    Parameters
+    ----------
+    filename : str
+        The path to the JSON file to be loaded.
+
+    Returns
+    -------
+    dict
+        The data loaded from the JSON file.
+    """
+    with open(filename, 'r') as file:
+        data = json.load(file)
+    return data
+
 
 # Define a function to extract the relevant elements from the JSON content
 def extract_elements(json_content):
     extracted_elements = []
-
     for chat in json_content['history']:
         for message in chat['messages']:
             if message['role'] == 'assistant':
@@ -21,13 +39,13 @@ def extract_elements(json_content):
                                 'type': 'markdown',
                                 'content': f"**{tool['task_title']}**\n\n{tool['task']}"
                             })
-                        if tool['imageData'].strip():
+                        if 'imageData' in tool and tool['imageData'].strip():
                             # Adding image data
                             extracted_elements.append({
                                 'type': 'image',
                                 'content': f"![Image](data:image/png;base64,{tool['imageData']})"
                             })
-                        if tool['tableData'].strip('\"'):
+                        if 'tableData' in tool and tool['tableData'].strip('\"'):
                             # Convert table data to markdown table format
                             table_md = string_to_markdown_table(tool['tableData'].strip('\"'))
                             extracted_elements.append({
@@ -37,15 +55,15 @@ def extract_elements(json_content):
     return extracted_elements
 
 def string_to_markdown_table(table_string):
-    # Split the string into rows
+    # Split the string into rows by newline
     rows = table_string.strip().split("\n")
-    # Determine the number of columns by the first row
-    num_columns = len(rows[0].split())
-    # Create the header row and the separator row for markdown
-    header_row = "| " + " | ".join(["Column " + str(i) for i in range(1, num_columns + 1)]) + " |"
+    # Convert each row into columns by splitting on commas
+    markdown_rows = ["| " + " | ".join(row.split(",")) + " |" for row in rows]
+    # Generate a separator row for markdown (assuming all rows have the same number of columns)
+    num_columns = len(markdown_rows[0].split("|")) - 2  # Because of leading/trailing "|"
     separator_row = "|-" + "-|-".join(["" for _ in range(num_columns)]) + "-|"
-    # Convert each row to markdown format
-    markdown_rows = [header_row, separator_row] + ["| " + " | ".join(row.split()) + " |" for row in rows]
+    # Insert the separator after the first row (which is assumed to be the header)
+    markdown_rows.insert(1, separator_row)
     return "\n".join(markdown_rows)
 
 # Helper function to generate a Markdown table from data

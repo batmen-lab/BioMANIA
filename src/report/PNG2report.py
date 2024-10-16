@@ -9,7 +9,26 @@ import subprocess
 import argparse
 import matplotlib.pyplot as plt
 import pandas as pd
-from ..gpt.utils import load_json
+import json
+
+def load_json(filename: str) -> dict:
+    """
+    Load JSON data from a specified file.
+
+    Parameters
+    ----------
+    filename : str
+        The path to the JSON file to be loaded.
+
+    Returns
+    -------
+    dict
+        The data loaded from the JSON file.
+    """
+    with open(filename, 'r') as file:
+        data = json.load(file)
+    return data
+
 
 # Parsing arguments for the JSON file path
 parser = argparse.ArgumentParser(description="")

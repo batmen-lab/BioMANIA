@@ -54,6 +54,7 @@ COPY src/retrievers    /app/src/retrievers
 COPY images    /app/images
 #COPY src/tmp    /app/src/tmp
 COPY data/standard_process/${LIB}/ /app/data/standard_process/${LIB}/
+COPY data/standard_process/base/ /app/data/standard_process/base/
 COPY data/autocoop/${LIB}/ /app/data/autocoop/${LIB}/
 COPY data/conversations/ /app/data/conversations/
 COPY data/others-data/ /app/data/others-data/

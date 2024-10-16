@@ -10,7 +10,26 @@ from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import simpleSplit
-from ..gpt.utils import load_json
+import json
+
+def load_json(filename: str) -> dict:
+    """
+    Load JSON data from a specified file.
+
+    Parameters
+    ----------
+    filename : str
+        The path to the JSON file to be loaded.
+
+    Returns
+    -------
+    dict
+        The data loaded from the JSON file.
+    """
+    with open(filename, 'r') as file:
+        data = json.load(file)
+    return data
+
 
 # draw text with markdown style
 def draw_markdown_text(c, text, line_num, font_name="Helvetica", font_size=10, leading=15, max_width=440):

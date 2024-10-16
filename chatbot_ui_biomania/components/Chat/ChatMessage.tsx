@@ -221,13 +221,13 @@ export const ChatMessage: FC<Props> = memo(({ message, messageIndex, onEdit}) =>
                       return !inline ? (
                         <CodeBlock
                           //key={Math.random()}
-                          key={messageIndex}
+                          //key={messageIndex}
                           language={(match && match[1]) || ''}
                           value={String(children).replace(/\n$/, '')}
                           {...props}
                         />
                       ) : (
-                        <code key={messageIndex} className={className} {...props}>
+                        <code className={className} {...props}>
                           {children}
                         </code>
                       );

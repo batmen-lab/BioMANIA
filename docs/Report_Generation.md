@@ -9,7 +9,7 @@ Firstly, press `export chat` button on UI to get the chat json data. Convert the
 
 ```bash
 # cd src
-python report/Chat2Py.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
+python -m report.Chat2Py report/chatbot_ui_history_10-16.json
 ```
 ![](https://github.com/batmen-lab/BioMANIA/tree/main/images/pyfile.jpg)
 
@@ -20,18 +20,18 @@ Convert the chat JSON into an [ipynb report](https://github.com/batmen-lab/BioMA
 
 ```bash
 # cd src
-python report/Chat2jupyter.py report/demo_Preprocessing_and_clustering_3k_PBMCs.json
+python -m report.Chat2jupyter report/chatbot_ui_history_10-16.json
 ```
 ![](https://github.com/batmen-lab/BioMANIA/tree/main/images/jupyter.jpg)
 
 
-### For performance report
+### For performance report (under developing)
 
 Combine and sort the performance figures into a short report.
 
 ```bash
 # cd src
-python report/PNG2report.py scanpy
+python -m report.PNG2report scanpy
 ```
 
 Please note that the generation of this report must be based on the premise that the retriever models have already been trained, and the gpt baseline has already been tested. You need to first obtain the results of each model before running this script. Here is a reference for a [demo report](https://github.com/batmen-lab/BioMANIA/tree/main/src/report/performance_report.pdf).
@@ -39,13 +39,13 @@ Please note that the generation of this report must be based on the premise that
 ![](https://github.com/batmen-lab/BioMANIA/tree/main/images/performance_report.jpg)
 
 
-### For common issue report
+### For common issue report (under developing)
 
 Displaying common issues in the process of converting Python tools into libraries
 
 ```bash
 # cd src
-python report/Py2report.py scanpy
+python -m report.Py2report scanpy
 ```
 
 The output files are located in the ./report folder.
