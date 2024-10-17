@@ -6,12 +6,12 @@
 </div>
 
 [![Demo](https://img.shields.io/badge/Demo-BioMANIA-blue?style=flat&logo=appveyor)](https://biomania.ngrok.io/en)
+[![Docker Version](https://img.shields.io/badge/Docker-v1.1.12-blue?style=flat&logo=docker)](https://hub.docker.com/repositories/chatbotuibiomania)
 [![Paper](https://img.shields.io/badge/Paper-burgundy?style=flat&logo=arxiv)](https://www.biorxiv.org/content/10.1101/2023.10.29.564479)
 [![GitHub stars](https://img.shields.io/github/stars/batmen-lab/BioMANIA?style=social)](https://github.com/batmen-lab/BioMANIA)
-[![Documentation Status](https://img.shields.io/readthedocs/biomania/latest?style=flat&logo=readthedocs&label=Doc)](https://biomania.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/badge/license-Apache%203.0-blue?style=flat&logo=open-source-initiative)](https://github.com/batmen-lab/BioMANIA/blob/main/LICENSE)
-[![Docker Version](https://img.shields.io/badge/Docker-v1.1.9-blue?style=flat&logo=docker)](https://hub.docker.com/repositories/chatbotuibiomania)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14K4562oeesEz5qMoXmjv9gW_4VeLh6_U?usp=sharing)
+[![Documentation Status](https://img.shields.io/readthedocs/biomania/latest?style=flat&logo=readthedocs&label=Doc)](https://biomania.readthedocs.io/en/latest/?badge=latest)
+<!--[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14K4562oeesEz5qMoXmjv9gW_4VeLh6_U?usp=sharing)-->
 <!--[![Railway](https://img.shields.io/badge/Railway-purple?style=flat&logo=railway)](https://railway.app/template/qaQEvv)-->
 <!--[![Python unit tests](https://github.com/batmen-lab/BioMANIA/actions/workflows/python-test-unit.yml/badge.svg)](https://github.com/batmen-lab/BioMANIA/actions/workflows/python-test-unit.yml)-->
 
@@ -79,6 +79,7 @@ export PYTHONPATH=$PYTHONPATH:$(pwd)
 
 ```bash
 # CLI service quick start!
+pip install gradio
 python -m BioMANIA.deploy.cli_demo
 # or gradio app. (TODO 240509: Images showing are under developing!)
 #python -m BioMANIA.deploy.cli_gradio
@@ -86,20 +87,20 @@ python -m BioMANIA.deploy.cli_demo
 
 ## Run with Docker
 
-For ease of use, we provide Docker images for several tools. You can refer the detailed tools list from [dockerhub](https://hub.docker.com/repositories/chatbotuibiomania).
+For ease of use, we provide Docker image containing scanpy, squidpy, ehrapy, snapatac2. You can refer the detailed tools list from [dockerhub](https://hub.docker.com/repositories/chatbotuibiomania).
 
 ```bash
 # Pull back-end service and front-end UI service with:
-# 241001 updated
-sudo docker pull chatbotuibiomania/biomania-together:v1.1.12-${LIB}-cuda12.6-ubuntu22.04
+# 241016 updated
+sudo docker pull chatbotuibiomania/biomania-together:v1.1.12-cuda12.6-ubuntu22.04
 ```
 
 Start service with
 ```bash
 # run on gpu
-sudo docker run -e LIB=${LIB} -e OPENAI_API_KEY=[your_openai_api_key] -e GITHUB_TOKEN=[github_pat_xxx] --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.12-${LIB}-cuda12.6-ubuntu22.04
+sudo docker run -e LIB=scanpy -e OPENAI_API_KEY=[your_openai_api_key] -e GITHUB_TOKEN=[github_pat_xxx] --gpus all -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.12-cuda12.6-ubuntu22.04
 # or on cpu
-sudo docker run -e LIB=${LIB} -e OPENAI_API_KEY=[your_openai_api_key] -e GITHUB_TOKEN=[github_pat_xxx] -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.12-${LIB}-cuda12.6-ubuntu22.04
+sudo docker run -e LIB=scanpy -e OPENAI_API_KEY=[your_openai_api_key] -e GITHUB_TOKEN=[github_pat_xxx] -d -p 3000:3000 chatbotuibiomania/biomania-together:v1.1.12-cuda12.6-ubuntu22.04
 ```
 
 Then check UI service with `http://localhost:3000/en`.
@@ -237,8 +238,8 @@ model.run_pipeline(user_input, library, top_k=1, files=[], conversation_started=
 
 Please refer to the separate README for tutorials that supporting converting different coding tools to our APP.
 - [For PyPI Tools](./docs/PyPI2APP.md)
-- [For Python Source Code from Git Repo](./docs/Git2APP.md) (240925-Under developing)
-- [For R Package](./docs/R2APP.md) (231123-Under developing)
+- [For Python Source Code from Git Repo](./docs/Git2APP.md)
+- [For R Package](./docs/R2APP.md)
 
 ## Share your APP!
 
@@ -275,9 +276,11 @@ Thank you for choosing BioMANIA. We hope this guide assists you in navigating th
 
 
 ## **Version History**
-- v1.1.12 (2024-10-01)
+- v1.1.12 (2024-10-16)
   - Update code scripts & upload data and models & update docker which are aligned with paper.
   - Will renew the scripts for generating report, documents for Git2APP, R2APP soon.
+  - Update report generation.
+  - Update R2APP and Git2APP document.
 
 view [version_history](./docs/version_history.md) for more details!
 

@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     git \
     wget \
+    nano \
     gfortran \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -53,19 +54,28 @@ COPY src/scripts    /app/src/scripts
 COPY src/retrievers    /app/src/retrievers
 COPY images    /app/images
 #COPY src/tmp    /app/src/tmp
-COPY data/standard_process/${LIB}/ /app/data/standard_process/${LIB}/
+COPY data/standard_process/scanpy/ /app/data/standard_process/scanpy/
+COPY data/standard_process/squidpy/ /app/data/standard_process/squidpy/
+COPY data/standard_process/ehrapy/ /app/data/standard_process/ehrapy/
+COPY data/standard_process/snapatac2/ /app/data/standard_process/snapatac2/
 COPY data/standard_process/base/ /app/data/standard_process/base/
-COPY data/autocoop/${LIB}/ /app/data/autocoop/${LIB}/
+COPY data/autocoop/scanpy/ /app/data/autocoop/scanpy/
+COPY data/autocoop/squidpy/ /app/data/autocoop/squidpy/
+COPY data/autocoop/ehrapy/ /app/data/autocoop/ehrapy/
+COPY data/autocoop/snapatac2/ /app/data/autocoop/snapatac2/
 COPY data/conversations/ /app/data/conversations/
 COPY data/others-data/ /app/data/others-data/
-COPY hugging_models/retriever_model_finetuned/${LIB}/ /app/hugging_models/retriever_model_finetuned/${LIB}/
+COPY hugging_models/retriever_model_finetuned/scanpy/ /app/hugging_models/retriever_model_finetuned/scanpy/
+COPY hugging_models/retriever_model_finetuned/squidpy/ /app/hugging_models/retriever_model_finetuned/squidpy/
+COPY hugging_models/retriever_model_finetuned/ehrapy/ /app/hugging_models/retriever_model_finetuned/ehrapy/
+COPY hugging_models/retriever_model_finetuned/snapatac2/ /app/hugging_models/retriever_model_finetuned/snapatac2/
 COPY docker_utils/ /app/docker_utils/
 
 # mkdir tmp
 RUN mkdir -p /app/src/tmp
 
 # Install Python dependencies
-RUN python3.10 -m pip install --no-cache-dir -r /app/docker_utils/${LIB}/requirements.txt
+RUN python3.10 -m pip install --no-cache-dir -r /app/requirements.txt --verbose
 
 # Install dependencies from environment.yml if it exists
 RUN if [ -f /app/docker_utils/${LIB}/environment.yml ]; then \

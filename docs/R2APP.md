@@ -14,7 +14,7 @@ pip install rpy2
 ```shell
 R
 > install.packages('Your Package Name')
-> exit
+> q()
 ```
 
 #### Step 2: Generating API Initialization File
