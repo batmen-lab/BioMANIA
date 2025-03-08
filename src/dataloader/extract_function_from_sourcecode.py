@@ -16,18 +16,43 @@ import astunparse
 from ..configs.model_config import *
 from ..gpt.utils import save_json
 
+# [BIOAGENT]
+def get_description(params, arg):
+    if arg in params:
+        return params[arg]['description']
+    else:
+        return ""
+
 def process_function(node,tree,filename,pair_decorator={}):
     """
     Extract information of node
     """
+    # [BIOAGENT]
+    # Retrieve the original source code for the node
+    with open(filename, 'r') as file:
+        source_text = file.read()
+        original_source = ast.get_source_segment(source_text, node)
+        print(original_source)
+
     docstring = ast.get_docstring(node)
     doc = parse(docstring)
-    if docstring:
-        if ('{' in docstring) and ('}' in docstring):
-            docstring = replace_docstring_placeholder(docstring, node, tree, filename, pair_decorator)
-        params, returns, examples = get_returnparam_docstring(docstring)
-    else:
-        returns = {}
+
+    # [BIOAGENT]
+    # docstring = generate_docstring(original_source)
+    # `param/type`
+    # `param/description`
+    # `returns/returnObj`
+    # `returns/returnParam`
+    params = {}
+    returns = ''
+    examples = ''
+    
+    # if docstring:
+    #     if ('{' in docstring) and ('}' in docstring):
+    #         docstring = replace_docstring_placeholder(docstring, node, tree, filename, pair_decorator)
+    #     params, returns, examples = get_returnparam_docstring(docstring)
+    # else:
+    #     returns = {}
     func_info = {
         'func_name': node.name,
         'docstring': docstring,
@@ -498,9 +523,26 @@ def main():
     #tree_functions = to_tree_json(all_functions)
     save_json(output_path, all_functions)
 
+# [BIOAGENT]
+def extract_bioservices():
+    BIOSERVICES_LIB = 'bioservices'
+    BIOSERVICES_LIB_ALIAS = 'bioservices'
+    BIOSERVICES_LIB_ANALYSIS_PATH = os.path.join(ANALYSIS_PATH,BIOSERVICES_LIB)
+    command = 'import '+BIOSERVICES_LIB_ALIAS
+    exec(command)
+    dir_path = eval(f'os.path.dirname({BIOSERVICES_LIB_ALIAS}.__file__)')
+    if not os.path.exists(BIOSERVICES_LIB_ANALYSIS_PATH):
+        os.makedirs(BIOSERVICES_LIB_ANALYSIS_PATH)
+    output_path = os.path.join(BIOSERVICES_LIB_ANALYSIS_PATH,'API_func.json')
+    #tree_output_path = os.path.join(resource_dir,'demo_analysis',LIB,'tree_API.json')
+    all_functions = processdir_to_function(dir_path)
+    #tree_functions = to_tree_json(all_functions)
+    save_json(output_path, all_functions)
+
 
 import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
 if __name__=='__main__':
-    main()
+    # main()
+    extract_bioservices() # [BIOAGENT]
