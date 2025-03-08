@@ -15,13 +15,105 @@ import inspect
 import astunparse
 from ..configs.model_config import *
 from ..gpt.utils import save_json
+from ..gpt.gpt_updated_interface import query_structured_output_openai # [BIOAGENT]
+from textwrap import dedent # [BIOAGENT]
+from typing import List, Optional # [BIOAGENT]
+from pydantic import BaseModel # [BIOAGENT]
 
 # [BIOAGENT]
-def get_description(params, arg):
+def get_description(params: dict, arg: str):
     if arg in params:
         return params[arg]['description']
     else:
         return ""
+    
+# [BIOAGENT]
+def convert_str_null_to_null(value: str):
+    if value == 'null':
+        return None
+    return value
+
+# [BIOAGENT]
+def get_type(params: dict, arg: str):
+    if arg in params:
+        return convert_str_null_to_null(params[arg]['type'])
+    else:
+        return
+
+# [BIOAGENT]
+class Param(BaseModel):
+    param_name: str
+    type: str
+    description: str
+
+# [BIOAGENT]
+class DocstringOutput(BaseModel):
+    docstring: str
+    param: List[Param]
+    returnObj: str
+    returnParam: str
+
+# [BIOAGENT]
+def get_docstring_prompt(func_code: str):
+    return dedent(f"""
+    Instructions:
+    \"\"\"
+    - Output the following fields based on the provided Function Code.
+    - "docstring": The docstring for the function, following the format provided in the Example Docstring. If the function already includes a docstring, refine it to match the format provided in the Example Docstring.
+    - "param": A list of dictionaries, each containing the following fields:
+        - "param_name": The name of the parameter.
+        - "type": The type of the parameter expressed in string format. If the type can be inferred from the code, it should be included. If the type cannot be inferred, this field should be null.
+        - "description": A brief description of the parameter.
+        Make sure to include every parameter in the function, including self.
+    - "returnObj": The type of the returned object expressed in string format. If the type can be inferred from the code, it should be included. If the type cannot be inferred, this field should be null.
+    - "returnParam": A brief description of the returned object.
+    \"\"\"
+    
+    Example Function Code:
+    \"\"\"
+    def add(a:int, b:int) -> int:
+        return a + b
+    \"\"\"
+
+    Example Docstring:
+    \"\"\"
+    Compute the sum of two integers.
+
+    Parameters:
+    -----------
+    a : int
+        The first integer.
+    b : int
+        The second integer.
+
+    Returns:
+    --------
+    int
+        The sum of `a` and `b`.
+    \"\"\"
+                  
+    Function Code:
+    \"\"\"
+    {func_code}
+    \"\"\"
+
+    Output JSON Format:
+    \"\"\"
+    {{
+        "docstring": str,
+        "param": [
+            {{
+                "param_name": str,
+                "type": str or null,
+                "description": str
+            }},
+            ...
+        ],
+        "returnObj": str or null,
+        "returnParam": str
+    }}
+    \"\"\"
+    """).strip('\n')
 
 def process_function(node,tree,filename,pair_decorator={}):
     """
@@ -32,20 +124,33 @@ def process_function(node,tree,filename,pair_decorator={}):
     with open(filename, 'r') as file:
         source_text = file.read()
         original_source = ast.get_source_segment(source_text, node)
-        print(original_source)
 
     docstring = ast.get_docstring(node)
     doc = parse(docstring)
 
     # [BIOAGENT]
-    # docstring = generate_docstring(original_source)
-    # `param/type`
-    # `param/description`
-    # `returns/returnObj`
-    # `returns/returnParam`
+    # [QUESTION] Need to handle class names for methods?
+    # Generate docstring and following fields base on the provided function code
+    # `param/type` (str or None) (type of the parameter)
+    # `param/description` (str or "") (description of the parameter)
+    # `returns/returnObj` (str or None) (type of the returned value)
+    # `returns/returnParam` (str or "") (description of the returned value)
+
+    print(original_source)
+    docstring_prompt = get_docstring_prompt(original_source)
+    output = query_structured_output_openai(prompt=docstring_prompt, data_model=DocstringOutput, model='gpt-4o-mini-2024-07-18')
+    print(output)
+    docstring = output['docstring']
+    param = output['param']
     params = {}
-    returns = ''
-    examples = ''
+    for p in param:
+        params[p['param_name']] = {
+            'type': p['type'],
+            'description': p['description']
+        }
+    returns = output['returnParam']
+    examples = '' # Not used anywhere
+    returnObj = convert_str_null_to_null(output['returnObj'])
     
     # if docstring:
     #     if ('{' in docstring) and ('}' in docstring):
@@ -68,7 +173,7 @@ def process_function(node,tree,filename,pair_decorator={}):
     for arg,default in zip(node.args.args,defaults):
         arg_info = {
             'param_name': arg.arg,
-            'type': get_type_astObject(arg.annotation),
+            'type': get_type_astObject(arg.annotation) or get_type(params, arg.arg), # [BIOAGENT]
             'default': get_type_astObject(default), # ast.literal_eval(default) if default else 
             'description':get_description(params, arg.arg)
         }
@@ -76,7 +181,7 @@ def process_function(node,tree,filename,pair_decorator={}):
     for arg,default_node in zip(node.args.kwonlyargs, node.args.kw_defaults):
         arg_info = {
             'param_name': arg.arg,
-            'type': get_type_astObject(arg.annotation),
+            'type': get_type_astObject(arg.annotation) or get_type(params, arg.arg), # [BIOAGENT]
             'default': ast.unparse(default_node).strip() if default_node else 'None',
             'description': get_description(params, arg.arg)
         }
@@ -84,12 +189,12 @@ def process_function(node,tree,filename,pair_decorator={}):
     if node.args.vararg is not None:
         arg_info = {
             'param_name': '*' + node.args.vararg.arg,
-            'type': get_type_astObject(node.args.vararg.annotation),
+            'type': get_type_astObject(node.args.vararg.annotation) or get_type(params, node.args.vararg.arg), # [BIOAGENT]
             'default': None,
             'description': get_description(params, node.args.vararg.arg)}
         func_info['param'].append(arg_info)
     func_info['dples'] = examples
-    func_info['returns']['returnObj']=get_type_astObject(node.returns)
+    func_info['returns']['returnObj']=get_type_astObject(node.returns) or returnObj # [BIOAGENT]
     func_info['returns']['returnParam'] = returns
     func_info['relativeimport'] = LIB_ALIAS+filename.split(LIB_ALIAS)[-1].replace(".py", "").replace("/", ".")
     return func_info
@@ -477,6 +582,7 @@ def process_file(filename):
             except:
                 pair_decorator = {}
             functions.append(process_function(node,tree,filename,pair_decorator))
+            break # [BIOAGENT] [TEST]
     return functions
 
 def to_tree_json(data):
@@ -509,6 +615,7 @@ def processdir_to_function(dir_path):
     for filepath in py_files:
         functions = process_file(filepath)
         all_functions.extend(functions)
+        break # [BIOAGENT] [TEST]
     return all_functions
 
 def main():
