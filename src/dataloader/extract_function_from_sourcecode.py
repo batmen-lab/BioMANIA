@@ -38,7 +38,43 @@ def get_type(params: dict, arg: str):
     if arg in params:
         return convert_str_null_to_null(params[arg]['type'])
     else:
-        return
+        return None
+
+# [BIOAGENT]
+def get_original_source(node: ast.FunctionDef, filename: str):
+    with open(filename, 'r') as file:
+        source_text = file.read()
+        original_source = ast.get_source_segment(source_text, node)
+    return original_source
+
+# [BIOAGENT]
+def get_class_name(node, tree):
+    def add_parent_info(root):
+        for parent in ast.walk(root):
+            for child in ast.iter_child_nodes(parent):
+                child.parent = parent
+
+    if hasattr(node, 'parent'):
+        current = node
+        while hasattr(current, 'parent'):
+            if isinstance(current.parent, ast.ClassDef):
+                return current.parent.name
+            current = current.parent
+        return None
+
+    add_parent_info(tree)
+    current = node
+    while hasattr(current, 'parent'):
+        if isinstance(current.parent, ast.ClassDef):
+            return current.parent.name
+        current = current.parent
+    return None
+
+# [BIOAGENT]
+def format_method_name(func_name: str, class_name: Optional[str]):
+    if class_name:
+        return f"{class_name}.{func_name}"
+    return func_name
 
 # [BIOAGENT]
 class Param(BaseModel):
@@ -54,15 +90,21 @@ class DocstringOutput(BaseModel):
     returnParam: str
 
 # [BIOAGENT]
-def get_docstring_prompt(func_code: str):
+def get_docstring_prompt(func_code: str, class_name: Optional[str]):
+    def get_method_instruction(class_name: Optional[str]):
+        if class_name:
+            return f"The function is a method within the class {class_name}."
+        return "The function is not part of a class."
+
     return dedent(f"""
     Instructions:
     \"\"\"
     - Output the following fields based on the provided Function Code.
+    - {get_method_instruction(class_name)}
     - "docstring": The docstring for the function, following the format provided in the Example Docstring. If the function already includes a docstring, refine it to match the format provided in the Example Docstring.
     - "param": A list of dictionaries, each containing the following fields:
         - "param_name": The name of the parameter.
-        - "type": The type of the parameter expressed in string format. If the type can be inferred from the code, it should be included. If the type cannot be inferred, this field should be null.
+        - "type": The type of the parameter expressed in string format. If the type can be inferred from the code, it should be included. If the type cannot be inferred, this field should be null. If the param_name is self, the type should be the name of the class.
         - "description": A brief description of the parameter.
         Make sure to include every parameter in the function, including self.
     - "returnObj": The type of the returned object expressed in string format. If the type can be inferred from the code, it should be included. If the type cannot be inferred, this field should be null.
@@ -119,26 +161,16 @@ def process_function(node,tree,filename,pair_decorator={}):
     """
     Extract information of node
     """
-    # [BIOAGENT]
-    # Retrieve the original source code for the node
-    with open(filename, 'r') as file:
-        source_text = file.read()
-        original_source = ast.get_source_segment(source_text, node)
 
     docstring = ast.get_docstring(node)
     doc = parse(docstring)
 
     # [BIOAGENT]
-    # [QUESTION] Need to handle class names for methods?
-    # Generate docstring and following fields base on the provided function code
-    # `param/type` (str or None) (type of the parameter)
-    # `param/description` (str or "") (description of the parameter)
-    # `returns/returnObj` (str or None) (type of the returned value)
-    # `returns/returnParam` (str or "") (description of the returned value)
-
-    print(original_source)
-    docstring_prompt = get_docstring_prompt(original_source)
+    original_source = get_original_source(node, filename)
+    class_name = get_class_name(node, tree)
+    docstring_prompt = get_docstring_prompt(original_source, class_name)
     output = query_structured_output_openai(prompt=docstring_prompt, data_model=DocstringOutput, model='gpt-4o-mini-2024-07-18')
+    print(docstring_prompt)
     print(output)
     docstring = output['docstring']
     param = output['param']
@@ -158,8 +190,9 @@ def process_function(node,tree,filename,pair_decorator={}):
     #     params, returns, examples = get_returnparam_docstring(docstring)
     # else:
     #     returns = {}
+
     func_info = {
-        'func_name': node.name,
+        'func_name': format_method_name(node.name, class_name), # [BIOAGENT]
         'docstring': docstring,
         'param': [],
         'filepath':filename,
