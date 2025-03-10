@@ -766,12 +766,52 @@ async def preprocess_instruction_d(lib_data_path, desc_retriever: Any, API_init:
 import inspect
 __all__ = list(set([name for name, obj in locals().items() if not name.startswith('_') and (inspect.isfunction(obj) or (inspect.isclass(obj) and name != '__init__') or (inspect.ismethod(obj) and not name.startswith('_')))]))
 
+# if __name__=='__main__':
+#     import argparse
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('--LIB', type=str, help='PyPI tool')
+#     parser.add_argument('--concurrency', type=int, default=80, help='adjust the maximum concurrency according to the rate limit of OpenAI API account')
+#     parser.add_argument('--GPT_model', type=str, default='gpt3.5', choices=['gpt4', 'gpt3.5'], help='GPT model version')
+#     parser.add_argument('--api_txt_path', type=str, default=None, help='Your self-defined api txt path')
+#     args = parser.parse_args()
+#     semaphore = asyncio.Semaphore(args.concurrency)
+#     from dotenv import load_dotenv
+#     load_dotenv()
+#     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-test')
+    
+#     prompt_factory = PromptFactory()
+    
+#     from ..configs.model_config import get_all_variable_from_cheatsheet
+#     info_json = get_all_variable_from_cheatsheet(args.LIB)
+#     LIB_DATA_PATH = info_json['LIB_DATA_PATH']
+#     API_init, API_composite, OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE = get_all_path(LIB_DATA_PATH)
+#     API_init_json = load_json(API_init)
+#     # prepare desc_prompt corpus
+#     print('preparing desc_prompt corpus')
+#     os.makedirs(os.path.join(LIB_DATA_PATH, 'prompt_desc'), exist_ok=True)
+#     print('preparing API corpus')
+#     create_corpus_from_json(API_init_json,os.path.join(LIB_DATA_PATH, 'prompt_desc',"corpus.tsv"))
+#     # load pretrained bert model, prepare corpus
+#     desc_retriever = ToolRetriever(LIB = args.LIB, corpus_tsv_path=os.path.join(LIB_DATA_PATH, 'prompt_desc',"corpus.tsv"), model_path="all-MiniLM-L6-v2", add_base=False,shuffle_data=False, process_func=process_retrieval_desc)
+#     t1 = time.time()
+#     asyncio.run(preprocess_instruction_d(LIB_DATA_PATH, desc_retriever, API_init_json, QUERY_FILE, args.LIB, args.GPT_model, prompt_factory))
+#     print('step1 cost:', time.time()-t1)
+#     t1 = time.time()
+#     preprocess_fake_test_data(QUERY_FILE, QUERY_ANNOTATE_FILE)
+#     print('step2 cost:', time.time()-t1)
+#     t1 = time.time()
+#     #preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE)
+#     preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE, api_txt_path=args.api_txt_path)
+#     print('step3 cost:', time.time()-t1)
+#     # usage: python dataloader/preprocess_retriever_data.py --LIB scanpy_subset --api_txt_path ./data/standard_process/scanpy_subset/api_txt_path.txt
+
+# [BIOAGENT]
 if __name__=='__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--LIB', type=str, help='PyPI tool')
     parser.add_argument('--concurrency', type=int, default=80, help='adjust the maximum concurrency according to the rate limit of OpenAI API account')
-    parser.add_argument('--GPT_model', type=str, default='gpt3.5', choices=['gpt4', 'gpt3.5'], help='GPT model version')
+    parser.add_argument('--GPT_model', type=str, default='gpt-4o-2024-11-20', help='GPT model version') # Removed choices and changed default model
     parser.add_argument('--api_txt_path', type=str, default=None, help='Your self-defined api txt path')
     args = parser.parse_args()
     semaphore = asyncio.Semaphore(args.concurrency)

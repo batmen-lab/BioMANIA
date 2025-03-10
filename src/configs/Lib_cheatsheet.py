@@ -1,4 +1,14 @@
 CHEATSHEET = {
+    # [BIOAGENT]
+    "bioservices": {
+        "LIB":"bioservices",
+        "LIB_ALIAS":"bioservices",
+        "API_HTML_PATH": "bioservices.readthedocs.io/en/main/references.html",
+        "GITHUB_LINK": "https://github.com/cokelaer/bioservices",
+        "READTHEDOC_LINK": "https://bioservices.readthedocs.io/",
+        "TUTORIAL_HTML_PATH":"bioservices.readthedocs.io/en/main/tutorials.html",
+        "TUTORIAL_GITHUB":"https://github.com/cokelaer/bioservices"
+    },
     "scanpy":{
         "LIB":"scanpy",
         "LIB_ALIAS":"scanpy",

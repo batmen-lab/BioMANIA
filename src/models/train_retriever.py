@@ -107,9 +107,11 @@ def main() -> None:
     parser.add_argument("--optimize_top_k", default=3, type=int, required=True,help="The metric which to save best model")
     parser.add_argument("--plot_dir", default="./plot/retriever/", type=str, required=True,help="plot dir for saving")
     parser.add_argument("--gpu", type=str, default="0", help="GPU to use")
+    parser.add_argument("--device", type=str, default="gpu", choices=["cpu", "gpu"], help="cpu or gpu") # [BIOAGENT]
     args = parser.parse_args()
 
-    torch.cuda.set_device(int(args.gpu))
+    if args.device == "gpu": # [BIOAGENT] Fix issue when running on CPU device
+        torch.cuda.set_device(int(args.gpu)) 
     torch.manual_seed(42)
     torch.cuda.manual_seed(42)
 

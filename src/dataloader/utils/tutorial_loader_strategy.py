@@ -377,6 +377,7 @@ class CodeLoaderContext:
                                 else:
                                     item['code'] = item['code'].split('\n')
                         self.code_json.update(updated_code)
+        print(self.input_folder) # [BIOAGENT]
         if count==0:
             print(f'Empty input folder, no files found in type {self.file_types}')
         else:
