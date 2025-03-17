@@ -586,6 +586,173 @@ def preprocess_retriever_data_shuffle(OUTPUT_DIR: str, QUERY_FILE: str, QUERY_AN
     val_labels_df.to_csv(OUTPUT_DIR + '/qrels.val.tsv', sep='\t', index=False, header=False)
     documents_df.to_csv(OUTPUT_DIR + '/corpus.tsv', sep='\t', index=False)
 
+def preprocess_retriever_data_shuffle_bioagent(OUTPUT_DIR: str, QUERY_FILE: str, QUERY_ANNOTATE_FILE: str, INDEX_FILE: str, api_txt_path: Optional[str] = None) -> None:
+    """
+    Preprocesses retriever data with shuffling to ensure diverse training and testing sets,
+    splitting based on unique 'api_name' groups so that all items sharing the same 'api_name'
+    are in the same dataset.
+    
+    Parameters
+    ----------
+    OUTPUT_DIR : str
+        The directory where processed files will be saved.
+    QUERY_FILE : str
+        The file path to the original query data.
+    QUERY_ANNOTATE_FILE : str
+        The file path to the annotated query data.
+    INDEX_FILE : str
+        The file path to save indices of test and validation sets.
+    api_txt_path : Optional[str]
+        The path to a text file containing API names, optional.
+    """
+    query_data_ori = load_json(QUERY_FILE)
+    if api_txt_path:
+        content_list = []
+        try:
+            with open(api_txt_path, 'r', encoding='latin') as file:
+                content_list = file.readlines()
+            api_list = parse_content_list(content_list)
+        except FileNotFoundError:
+            print(f"Error: File '{api_txt_path}' not found.")
+        except Exception as e:
+            print(f"Error: {e}")
+    else:
+        api_list = []
+    print('previous query length:', len(query_data_ori))
+    query_data_ori = filter_and_update_query_id(query_data_ori, api_list)
+    print('filtered query length:', len(query_data_ori))
+    start_idx_for_test = max([i['query_id'] for i in query_data_ori])
+    assert start_idx_for_test == len(query_data_ori)-1, 'start_idx_for_test is not the last index of query_data_ori'
+    query_data = load_json(QUERY_ANNOTATE_FILE)
+    print('previous query length:', len(query_data))
+    query_data = filter_and_update_query_id(query_data, api_list)
+    print('filtered query length:', len(query_data))
+    idx = len(query_data)
+    ############# fixed split for ratio computation (old method)
+    test_indices = [i['query_id'] for i in query_data if i['query_id'] > start_idx_for_test]
+    test_index_set = list(set(test_indices))
+    val_index_set = []
+    current_duration = 1
+    current_api_calling = query_data[0]['api_calling']
+    for i in range(1, len(query_data_ori)):
+        api_calling = query_data[i]['api_calling']
+        if api_calling == current_api_calling:
+            current_duration += 1
+        else:
+            if current_duration < 10:
+                print(api_calling, current_duration)
+            if current_duration >= 3:
+                val_indices = random.sample(list(range(i - current_duration, i)), 2)
+                val_index_set.append(val_indices[0])
+                val_index_set.append(val_indices[1])
+            else:
+                val_index_set.append(i-1)
+            current_api_calling = api_calling
+            current_duration = 1
+    if current_duration < 10:
+        print(api_calling, current_duration)
+    if current_duration >= 3:
+        print(len(query_data_ori) - current_duration, len(query_data_ori)-1)
+        val_indices = random.sample(list(range(len(query_data_ori) - current_duration, len(query_data_ori))), 2)
+        val_index_set.append(val_indices[0])
+        val_index_set.append(val_indices[1])
+    else:
+        val_index_set.append(len(query_data_ori)-1)
+    final_index_data = {'test': test_index_set, 'val': val_index_set}
+    assert len(set(test_index_set).intersection(set(val_index_set))) == 0, f"Test and Val sets overlap.{set(test_index_set).intersection(set(val_index_set))}"
+    save_json(INDEX_FILE, final_index_data)
+    
+    # Compute original split ratios based on the old index-based split (for reference)  
+    original_test = [i for i in query_data if i['query_id'] in test_index_set]  # Get items originally marked for testing  
+    original_val = [i for i in query_data if i['query_id'] in val_index_set]    # Get items originally marked for validation  
+    original_train = [i for i in query_data if i['query_id'] not in test_index_set and i['query_id'] not in val_index_set]  # Get remaining items as training  
+    total_queries = len(query_data)  # Total number of items  
+    ratio_test = len(original_test) / total_queries  # Ratio of test items  
+    ratio_val = len(original_val) / total_queries    # Ratio of validation items  
+    ratio_train = len(original_train) / total_queries  # Ratio of training items
+    
+    # Group the query data by unique 'api_name' so that items with the same api_name stay together  
+    groups = {}  
+    for item in query_data:
+        groups.setdefault(item["api_name"], []).append(item)
+    unique_api_names = list(groups.keys())
+    
+    # Shuffle the unique api_names to randomize the grouping distribution  
+    random.seed(42)
+    random.shuffle(unique_api_names)
+    total_groups = len(unique_api_names)  # Total number of unique api_name groups
+    
+    # Determine the number of groups for test, validation, and training based on original ratios  
+    n_test_groups = round(ratio_test * total_groups)
+    n_val_groups = round(ratio_val * total_groups)
+    n_train_groups = total_groups - n_test_groups - n_val_groups
+    
+    # Assign groups to test, validation, and training datasets  
+    test_api_names = unique_api_names[:n_test_groups]  
+    val_api_names = unique_api_names[n_test_groups:n_test_groups+n_val_groups]
+    train_api_names = unique_api_names[n_test_groups+n_val_groups:]
+    
+    # Build the final train/test/val datasets ensuring groups are not split between datasets  
+    query_test = [item for item in query_data if item["api_name"] in test_api_names]
+    query_val = [item for item in query_data if item["api_name"] in val_api_names]
+    query_train = [item for item in query_data if item["api_name"] in train_api_names]
+    
+    print('length of query: ', len(query_train), len(query_val), len(query_test))
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    save_json(f"{OUTPUT_DIR}/train.json", query_train)
+    save_json(f"{OUTPUT_DIR}/val.json", query_val)
+    save_json(f"{OUTPUT_DIR}/test.json", query_test)
+    
+    ### For dataset preprocess ###
+    documents = []
+    doc_id_map = {}  # Create a mapping from document content to a unique doc_id
+    train_pairs = []
+    test_pairs = []
+    val_pairs = []
+    def process_data(data, pairs):
+        for doc in tqdm_normal(data):
+            doc_content = {
+                "api_calling": doc['api_calling'],
+                "api_name": doc['api_calling'][0].split('(')[0],
+                "api_description": doc["description"],
+                "required_parameters": [{"name": param, "info": param_info} for param, param_info in doc["Parameters"].items() if not param_info["optional"]],
+                "optional_parameters": [{"name": param, "info": param_info} for param, param_info in doc["Parameters"].items() if param_info["optional"]],
+                "Returns": doc["Returns"],
+            }
+            doc_id = doc_id_map.setdefault(json.dumps(doc_content), len(doc_id_map))
+            pairs.append(([doc['query_id'], doc['query']], [doc['query_id'], 0, doc_id, 1]))
+            documents.append((doc_id, json.dumps(doc_content)))
+    process_data(query_train, train_pairs)
+    process_data(query_test, test_pairs)
+    process_data(query_val, val_pairs)
+    
+    # Shuffle the pairs to randomize their order  
+    train_pairs = shuffle(train_pairs, random_state=42)
+    test_pairs = shuffle(test_pairs, random_state=42)
+    val_pairs = shuffle(val_pairs, random_state=42)
+    print('length of train_pairs: ', len(train_pairs), len(val_pairs), len(test_pairs))
+    train_queries, train_labels = zip(*train_pairs)
+    test_queries, test_labels = zip(*test_pairs)
+    val_queries, val_labels = zip(*val_pairs)
+    
+    # Create DataFrames for queries and labels  
+    train_queries_df = pd.DataFrame(train_queries, columns=['qid', 'query_text'])
+    train_labels_df = pd.DataFrame(train_labels, columns=['qid', 'useless', 'docid', 'label'])
+    test_queries_df = pd.DataFrame(test_queries, columns=['qid', 'query_text'])
+    test_labels_df = pd.DataFrame(test_labels, columns=['qid', 'useless', 'docid', 'label'])
+    val_queries_df = pd.DataFrame(val_queries, columns=['qid', 'query_text'])
+    val_labels_df = pd.DataFrame(val_labels, columns=['qid', 'useless', 'docid', 'label'])
+    documents_df = pd.DataFrame(documents, columns=['docid', 'document_content'])
+    
+    # Save the final query and label files for train, test, and validation datasets  
+    train_queries_df.to_csv(OUTPUT_DIR + '/train.query.txt', sep='\t', index=False, header=False)
+    test_queries_df.to_csv(OUTPUT_DIR + '/test.query.txt', sep='\t', index=False, header=False)
+    val_queries_df.to_csv(OUTPUT_DIR + '/val.query.txt', sep='\t', index=False, header=False)
+    train_labels_df.to_csv(OUTPUT_DIR + '/qrels.train.tsv', sep='\t', index=False, header=False)
+    test_labels_df.to_csv(OUTPUT_DIR + '/qrels.test.tsv', sep='\t', index=False, header=False)
+    val_labels_df.to_csv(OUTPUT_DIR + '/qrels.val.tsv', sep='\t', index=False, header=False)
+    documents_df.to_csv(OUTPUT_DIR + '/corpus.tsv', sep='\t', index=False)
+
 def get_all_path(lib_data_path: str) -> Tuple[str, str, str, str, str, str]:
     """
     Retrieves all necessary file paths based on the library name.
@@ -841,7 +1008,7 @@ if __name__=='__main__':
     print('step2 cost:', time.time()-t1)
     t1 = time.time()
     #preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE)
-    preprocess_retriever_data_shuffle(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE, api_txt_path=args.api_txt_path)
+    preprocess_retriever_data_shuffle_bioagent(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE, api_txt_path=args.api_txt_path) # [BIOAGENT]
     print('step3 cost:', time.time()-t1)
     # usage: python dataloader/preprocess_retriever_data.py --LIB scanpy_subset --api_txt_path ./data/standard_process/scanpy_subset/api_txt_path.txt
 
