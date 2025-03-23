@@ -6,7 +6,6 @@ import inspect
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
-from ..gpt.gpt_updated_interface import query_structured_output_openai
 
 class Parameter(BaseModel):
     name: str
@@ -28,6 +27,9 @@ class APIDefinition(BaseModel):
     api_calling: str
     api_name: str
 
+class APIDefinitions(BaseModel):
+    api_definitions: List[APIDefinition]
+
 MODULE_DATA = {
     "bigg": [
         "download",
@@ -42,27 +44,30 @@ MODULE_DATA = {
     # ...   
 }
 
-def get_API_data_extraction_prompt(api_name: str, module_name: str, module_documentation: str, module_code: str) -> str:
+def get_API_data_extraction_prompt(api_list: list[str], module_documentation: str, module_code: str) -> str:
+    api_list_bullets = "\n".join([f"- {api}" for api in api_list])
+
     return f"""
 Instructions:
 \"\"\"
-- Given following Module Documentation and Module Code, extract the API definition for "{api_name}" API from module "{module_name}".
-- Parameters: List of dictionaries containing the following keys:
-    - name: Name of the parameter
-    - type: Python type of the parameter in string format if available or inferable from the document and the code, otherwise null. If the type is a custom class, use the class name in string format.
-    - default: Default value of the parameter in string format if available, otherwise null
-    - optional: true if the parameter is optional, otherwise false
-    - description: Short description of the parameter
-Do not include self or cls in the parameters.
-- Returns: Dictionary containing the following keys:
-    - type: Python type of the return value in string format if available or inferable from the document and the code, otherwise null. If the type is a custom class, use the class name in string format.
-    - description: Short description of the return value
-- Docstring: Docstring of the function/method/class, reference the original docstring from the code if available, as well as descriptions from the documentation. Write it according to the Docstring Format provided below.
-- example: "<api_name>(<parameter1>=$, <parameter2>=$, ...)" (use "api_name" from below and "Parameters" from above, replace $ with actual values) if an example of how to call the API is provided in the documentation or the code, otherwise empty string.
-- api_type: "function" or "method" or "class",
-- api_calling: "<api_name>(<parameter1>=$, <parameter2>=$, ...)" (use "api_name" from below and "Parameters" from above, do not replace $ with actual values)
-- api_name: "bioservices.<module_name>.<function_name>" (function) or "bioservices.<class_name>.<method_name>" (method) or "bioservices.<class_name>" (class)
-- Return the extracted API definition in the following JSON format.
+- Given following Module Documentation and Module Code, extract the API definitions for the following functions/methods/classes in the API List.
+- For each API, extract the following definition:
+    - Parameters: List of dictionaries containing the following keys:
+        - name: Name of the parameter
+        - type: Python type of the parameter in string format if available or inferable from the document and the code, otherwise null. If the type is a custom class, use the class name in string format.
+        - default: Default value of the parameter in string format if available, otherwise null
+        - optional: true if the parameter is optional, otherwise false
+        - description: Short description of the parameter
+    Do not include self or cls in the parameters.
+    - Returns: Dictionary containing the following keys:
+        - type: Python type of the return value in string format if available or inferable from the document and the code, otherwise null. If the type is a custom class, use the class name in string format.
+        - description: Short description of the return value
+    - Docstring: Docstring of the function/method/class, reference the original docstring from the code if available, as well as descriptions from the documentation. Write it according to the Docstring Format provided below.
+    - example: An example of how to call the API (same format as "api_calling" but replace $ with actual values) if provided in the documentation or the code, otherwise empty string.
+    - api_type: "function" or "method" or "class",
+    - api_calling: "<api_name>(<parameter1>=$, <parameter2>=$, ...)" (use "api_name" from below and "Parameters" from above, do not replace $ with actual values)
+    - api_name: "bioservices.<module_name>.<function_name>" (function) or "bioservices.<class_name>.<method_name>" (method) or "bioservices.<class_name>" (class)
+- Return the extracted API definitions in the following JSON format.
 \"\"\"
 ---
 
@@ -89,6 +94,12 @@ Examples:
 \"\"\"
 ---
 
+API List:
+\"\"\"
+{api_list_bullets}
+\"\"\"
+---
+
 Module Documentation:
 \"\"\"
 {module_documentation}
@@ -104,25 +115,30 @@ Module Code:
 Output JSON Format:
 \"\"\"
 {{
-    "Parameters": [
+    "api_definitions": [
         {{
-            "name": str,
-            "type": str or null,
-            "default": str or null,
-            "optional": bool,
-            "description": str
+            "Parameters": [
+                {{
+                    "name": str,
+                    "type": str or null,
+                    "default": str or null,
+                    "optional": bool,
+                    "description": str
+                }},
+                ...
+            ],
+            "Returns": {{
+                "type": str or null,
+                "description": str
+            }},
+            "Docstring": str,
+            "example": str,
+            "api_type": "function" or "method" or "class",
+            "api_calling": str,
+            "api_name": str
         }},
         ...
-    ],
-    "Returns": {{
-        "type": str or null,
-        "description": str
-    }},
-    "Docstring": str,
-    "example": str,
-    "api_type": "function" or "method" or "class",
-    "api_calling": str,
-    "api_name": str
+    ]
 }}
 \"\"\"
 """.strip("\n")
@@ -200,21 +216,13 @@ def fetch_section_content(url: str) -> str:
         # Otherwise, just return the text of the found element.
         return section.get_text(separator=" ", strip=True)
 
-def extract_API_data_using_gpt(module_name: str) -> APIDefinition:
+def extract_API_data_using_gpt(module_name: str) -> APIDefinitions:
     api_list = MODULE_DATA[module_name]
     module_documentation = fetch_section_content(f"https://bioservices.readthedocs.io/en/main/references.html#module-bioservices.{module_name}")
     module_code = get_module_source(f"bioservices.{module_name}")
-    api_definitions = {}
-    for api_name in api_list:
-        prompt = get_API_data_extraction_prompt(api_name, module_name, module_documentation, module_code)
-        api_definition = query_structured_output_openai(prompt, data_model=APIDefinition, model='gpt-4o-2024-11-20')
-        api_definitions[api_name] = api_definition
-    return api_definitions
+    prompt = get_API_data_extraction_prompt(api_list, module_documentation, module_code)
+    print(prompt)
 
 if __name__ == "__main__":
     module_name = "bigg"
-    api_definitions = extract_API_data_using_gpt(module_name)
-    api_data = {
-        module_name: api_definitions
-    }
-    pass
+    extract_API_data_using_gpt(module_name)
