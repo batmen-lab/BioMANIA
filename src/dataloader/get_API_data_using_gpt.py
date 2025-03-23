@@ -22,6 +22,9 @@ class APIDefinition(BaseModel):
     api_calling: str
     api_name: str
 
+class APIDefinitions(BaseModel):
+    api_definitions: List[APIDefinition]
+
 MODULE_DATA = {
     "bigg": [
         "download",
@@ -33,7 +36,7 @@ MODULE_DATA = {
         "services",
         "version",
     ],
-    # ...
+    # ...   
 }
 
 def get_API_data_extraction_prompt(api_list: list[str], module_documentation: str, module_code: str) -> str:
@@ -42,8 +45,8 @@ def get_API_data_extraction_prompt(api_list: list[str], module_documentation: st
     return f"""
 Instructions:
 \"\"\"
-- Given following Module Documentation and Module Code, extract the API data for the following functions/methods/classes in the API List.
-- For each API, extract the following information:
+- Given following Module Documentation and Module Code, extract the API definitions for the following functions/methods/classes in the API List.
+- For each API, extract the following definition:
     - Parameters: List of dictionaries containing the following keys:
         - name: Name of the parameter
         - type: Python type of the parameter in string format if available or inferable from the document and the code, otherwise null. If the type is a custom class, use the class name in string format.
@@ -106,29 +109,35 @@ Module Code:
 
 Output JSON Format:
 \"\"\"
-[
-    {{
-        "Parameters": [
-            {{
-                "name": str,
+{{
+    "api_definitions": [
+        {{
+            "Parameters": [
+                {{
+                    "name": str,
+                    "type": str or null,
+                    "default": str or null,
+                    "optional": bool,
+                    "description": str
+                }},
+                ...
+            ],
+            "Returns": {{
                 "type": str or null,
-                "default": str or null,
-                "optional": bool,
-                "description": str,
+                "description": str
             }},
-            ...
-        ],
-        "Returns": {{
-            "type": str or null,
-            "description": str
+            "Docstring": str,
+            "example": str,
+            "api_type": "function" or "method" or "class",
+            "api_calling": str,
+            "api_name": str
         }},
-        "Docstring": str,
-        "example": str,
-        "api_type": "function" or "method" or "class",
-        "api_calling": str,
-        "api_name": str
-    }},
-    ...
-]
+        ...
+    ]
+}}
 \"\"\"
 """.strip("\n")
+
+def extract_API_data_using_gpt(module_name: str) -> APIDefinitions:
+    api_list = MODULE_DATA[module_name]
+    pass
