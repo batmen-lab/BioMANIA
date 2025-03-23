@@ -1,6 +1,8 @@
 # [BIOAGENT]
 from typing import List, Optional, Literal
 from pydantic import BaseModel
+import importlib
+import inspect
 
 class Parameter(BaseModel):
     name: str
@@ -138,6 +140,33 @@ Output JSON Format:
 \"\"\"
 """.strip("\n")
 
+def get_module_source(full_module_name: str) -> str:
+    """
+    Returns the source code of the specified module.
+
+    Parameters:
+        module_name (str): The fully-qualified name of the module 
+                           (e.g., 'bioservices.uniprot').
+
+    Returns:
+        str: The source code of the module, or an error message if it cannot be retrieved.
+    """
+    try:
+        # Dynamically import the module using its name.
+        module = importlib.import_module(full_module_name)
+    except ImportError as ie:
+        return f"Error importing module: {ie}"
+
+    try:
+        # Retrieve and return the source code of the module.
+        source_code = inspect.getsource(module)
+        return source_code
+    except OSError as ose:
+        return f"Error retrieving source code: {ose}"
+
 def extract_API_data_using_gpt(module_name: str) -> APIDefinitions:
-    api_list = MODULE_DATA[module_name]
+    module_code = get_module_source(f"bioservices.{module_name}")
+    pass
+
+if __name__ == "__main__":
     pass
