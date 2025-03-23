@@ -39,7 +39,7 @@ MODULE_DATA = {
         "models",
         "reactions",
         "search",
-        "services",
+        # "services", # Internal object, not an API
         "version",
     ],
     # ...   
