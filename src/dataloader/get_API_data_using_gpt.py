@@ -1,12 +1,15 @@
 # [BIOAGENT]
-from typing import List, Optional, Literal
-from pydantic import BaseModel
+import os
 import importlib
 import inspect
 import requests
 from bs4 import BeautifulSoup
+from typing import List, Optional, Literal
+from pydantic import BaseModel
 from urllib.parse import urlparse
+from tqdm import tqdm
 from ..gpt.gpt_updated_interface import query_structured_output_openai
+from ..gpt.utils import save_json
 
 class Parameter(BaseModel):
     name: str
@@ -23,10 +26,10 @@ class APIDefinition(BaseModel):
     Parameters: List[Parameter]
     Returns: Returns
     Docstring: str
-    example: str
     api_type: Literal["function", "method", "class"]
-    api_calling: str
     api_name: str
+    api_calling: str
+    example: str
 
 MODULE_DATA = {
     "bigg": [
@@ -58,10 +61,10 @@ Do not include self or cls in the parameters.
     - type: Python type of the return value in string format if available or inferable from the document and the code, otherwise null. If the type is a custom class, use the class name in string format.
     - description: Short description of the return value
 - Docstring: Docstring of the function/method/class, reference the original docstring from the code if available, as well as descriptions from the documentation. Write it according to the Docstring Format provided below.
-- example: "<api_name>(<parameter1>=$, <parameter2>=$, ...)" (use "api_name" from below and "Parameters" from above, replace $ with actual values) if an example of how to call the API is provided in the documentation or the code, otherwise empty string.
 - api_type: "function" or "method" or "class",
-- api_calling: "<api_name>(<parameter1>=$, <parameter2>=$, ...)" (use "api_name" from below and "Parameters" from above, do not replace $ with actual values)
 - api_name: "bioservices.<module_name>.<function_name>" (function) or "bioservices.<class_name>.<method_name>" (method) or "bioservices.<class_name>" (class)
+- api_calling: "<api_name>(<parameter1>=$, <parameter2>=$, ...)" (use "api_name" from below and "Parameters" from above, do not replace $ with actual values)
+- example: "<api_name>(<parameter1>=$, <parameter2>=$, ...)" (use "api_name" from below and "Parameters" from above, replace $ with actual values) if an example of how to call the API is provided in the documentation or the code, otherwise empty string.
 - Return the extracted API definition in the following JSON format.
 \"\"\"
 ---
@@ -119,10 +122,10 @@ Output JSON Format:
         "description": str
     }},
     "Docstring": str,
-    "example": str,
     "api_type": "function" or "method" or "class",
-    "api_calling": str,
     "api_name": str
+    "api_calling": str,
+    "example": str,
 }}
 \"\"\"
 """.strip("\n")
@@ -205,7 +208,7 @@ def extract_API_data_using_gpt(module_name: str) -> APIDefinition:
     module_documentation = fetch_section_content(f"https://bioservices.readthedocs.io/en/main/references.html#module-bioservices.{module_name}")
     module_code = get_module_source(f"bioservices.{module_name}")
     api_definitions = {}
-    for api_name in api_list:
+    for api_name in tqdm(api_list):
         prompt = get_API_data_extraction_prompt(api_name, module_name, module_documentation, module_code)
         api_definition = query_structured_output_openai(prompt, data_model=APIDefinition, model='gpt-4o-2024-11-20')
         api_definitions[api_name] = api_definition
@@ -214,7 +217,7 @@ def extract_API_data_using_gpt(module_name: str) -> APIDefinition:
 if __name__ == "__main__":
     module_name = "bigg"
     api_definitions = extract_API_data_using_gpt(module_name)
-    api_data = {
-        module_name: api_definitions
-    }
-    pass
+    api_data = {module_name: api_definitions}
+    OUTPUT_DIR = os.path.join('data','standard_process','bioservices')
+    OUTPUT_FILE = os.path.join(OUTPUT_DIR, f"API_data_{module_name}.json")
+    save_json(OUTPUT_FILE, api_data)
