@@ -8,6 +8,7 @@ from typing import List, Optional, Literal
 from pydantic import BaseModel
 from urllib.parse import urlparse
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from ..gpt.gpt_updated_interface import query_structured_output_openai
 from ..gpt.utils import save_json
 
@@ -678,22 +679,68 @@ def fetch_section_content(url: str) -> str:
         # Otherwise, just return the text of the found element.
         return section.get_text(separator=" ", strip=True)
 
-def extract_API_data_using_gpt(module_name: str) -> APIDefinition:
-    api_list = MODULE_DATA[module_name]
-    module_documentation = fetch_section_content(f"https://bioservices.readthedocs.io/en/main/references.html#module-bioservices.{module_name}")
-    module_code = get_module_source(f"bioservices.{module_name}")
-    api_definitions = {}
-    for api_name in tqdm(api_list):
-        if api_name != "services": # Skip "services" API, since it's an internal API
+def extract_and_save_API_data(module_names: list[str]):
+    # Dictionary to store API results grouped by module.
+    results = {}
+
+    # List to hold all tasks: each task is a tuple (module_name, api_name, prompt).
+    tasks = []
+    for module_name in module_names:
+        # Pre-fetch module documentation and code once per module.
+        try:
+            module_documentation = fetch_section_content(
+                f"https://bioservices.readthedocs.io/en/main/references.html#module-bioservices.{module_name}"
+            )
+        except:
+            print(f"Error fetching documentation for module: {module_name}")
+            module_documentation = ""
+        module_code = get_module_source(f"bioservices.{module_name}")
+        # Prepare a sub-dictionary for this module.
+        results[module_name] = {}
+        # Loop over API names as defined in MODULE_DATA, skipping "services".
+        for api_name in MODULE_DATA[module_name]:
+            if api_name == "services":
+                continue
             prompt = get_API_data_extraction_prompt(api_name, module_name, module_documentation, module_code)
-            api_definition = query_structured_output_openai(prompt, data_model=APIDefinition, model='gpt-4o-2024-11-20')
-            api_definitions[api_name] = api_definition
-    return api_definitions
+            tasks.append((module_name, api_name, prompt))
+
+    # Execute all API extraction tasks concurrently.
+    with ThreadPoolExecutor(max_workers=4) as executor: # Adjust max_workers as needed.
+        future_to_task = {
+            executor.submit(
+                query_structured_output_openai,
+                prompt,
+                data_model=APIDefinition,
+                model='gpt-4o-2024-11-20'
+                # model='gpt-4o-mini-2024-07-18'
+            ): (module_name, api_name)
+            for module_name, api_name, prompt in tasks
+        }
+        # As tasks complete, store their results.
+        for future in tqdm(as_completed(future_to_task), total=len(future_to_task)):
+            module_name, api_name = future_to_task[future]
+            try:
+                results[module_name][api_name] = future.result()
+            except Exception as e:
+                results[module_name][api_name] = None  # Or handle the exception as needed.
+
+    # Re-order API definitions per module to match the original order.
+    ordered_results = {}
+    for module_name in module_names:
+        ordered_api_definitions = {}
+        for api_name in MODULE_DATA[module_name]:
+            if api_name == "services":
+                continue
+            ordered_api_definitions[api_name] = results[module_name].get(api_name)
+        ordered_results[module_name] = ordered_api_definitions
+
+    OUTPUT_DIR = os.path.join('data', 'standard_process', 'bioservices')
+    OUTPUT_FILE = os.path.join(OUTPUT_DIR, "API_data.json")
+    save_json(OUTPUT_FILE, ordered_results)
 
 if __name__ == "__main__":
-    module_name = "bigg"
-    api_definitions = extract_API_data_using_gpt(module_name)
-    api_data = {module_name: api_definitions}
-    OUTPUT_DIR = os.path.join('data','standard_process','bioservices')
-    OUTPUT_FILE = os.path.join(OUTPUT_DIR, f"API_data_{module_name}.json")
-    save_json(OUTPUT_FILE, api_data)
+    num_apis = sum([len(MODULE_DATA[module_name]) for module_name in MODULE_DATA])
+    print(f"Total number of APIs: {num_apis}")
+    module_names = list(MODULE_DATA.keys())
+    extract_and_save_API_data(module_names)
+
