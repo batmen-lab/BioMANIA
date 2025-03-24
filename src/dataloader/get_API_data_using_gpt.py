@@ -490,6 +490,36 @@ MODULE_DATA = {
     ],
 }
 
+MODULE_NAME_TO_CLASS_NAME = {
+    "bigg": "BiGG",
+    "biocontainers": "BioContainers",
+    "biodbnet": "BioDBNet",
+    "biogrid": "BioGRID",
+    "biomodels": "BioModels",
+    "chebi": "ChEBI",
+    "chembl": "ChEMBL",
+    "cog": "COG",
+    "dbfetch": "DbFetch",
+    "ena": "ENA",
+    "ensembl": "Ensembl",
+    "eutils": "EUtils",
+    "hgnc": "HGNC",
+    "intact_complex": "IntActComplex",
+    "kegg": "KEGG",
+    "ncbiblast": "NCBIBlast",
+    "omnipath": "OmniPath",
+    "pathwaycommons": "PathwayCommons",
+    "pdbe": "PDBe",
+    "pride": "PRIDE",
+    "psicquic": "PSICQUIC",
+    "quickgo": "QuickGO",
+    "reactome": "Reactome",
+    "rhea": "Rhea",
+    "unichem": "UniChem",
+    "uniprot": "UniProt",
+    "wikipathways": "WikiPathways",
+}
+
 def get_API_data_extraction_prompt(api_name: str, module_name: str, module_documentation: str, module_code: str) -> str:
     return f"""
 Instructions:
