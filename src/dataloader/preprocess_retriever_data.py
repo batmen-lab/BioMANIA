@@ -586,7 +586,7 @@ def preprocess_retriever_data_shuffle(OUTPUT_DIR: str, QUERY_FILE: str, QUERY_AN
     val_labels_df.to_csv(OUTPUT_DIR + '/qrels.val.tsv', sep='\t', index=False, header=False)
     documents_df.to_csv(OUTPUT_DIR + '/corpus.tsv', sep='\t', index=False)
 
-def preprocess_retriever_data_shuffle_bioagent(OUTPUT_DIR: str, QUERY_FILE: str, QUERY_ANNOTATE_FILE: str, INDEX_FILE: str, api_txt_path: Optional[str] = None) -> None:
+def preprocess_retriever_data_shuffle_by_api_name(OUTPUT_DIR: str, QUERY_FILE: str, QUERY_ANNOTATE_FILE: str, INDEX_FILE: str, api_txt_path: Optional[str] = None) -> None:
     """
     Preprocesses retriever data with shuffling to ensure diverse training and testing sets,
     splitting based on unique 'api_name' groups so that all items sharing the same 'api_name'
@@ -1008,7 +1008,6 @@ if __name__=='__main__':
     print('step2 cost:', time.time()-t1)
     t1 = time.time()
     #preprocess_retriever_data(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE)
-    preprocess_retriever_data_shuffle_bioagent(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE, api_txt_path=args.api_txt_path) # [BIOAGENT]
+    preprocess_retriever_data_shuffle_by_api_name(OUTPUT_DIR, QUERY_FILE, QUERY_ANNOTATE_FILE, INDEX_FILE, api_txt_path=args.api_txt_path) # [BIOAGENT]
     print('step3 cost:', time.time()-t1)
     # usage: python dataloader/preprocess_retriever_data.py --LIB scanpy_subset --api_txt_path ./data/standard_process/scanpy_subset/api_txt_path.txt
-
